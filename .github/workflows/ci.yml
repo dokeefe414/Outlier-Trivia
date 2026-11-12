@@ -1,14 +1,65 @@
-name: Prototype checks
+name: OUTLIER quality checks
 on:
   push:
   pull_request:
 jobs:
-  validate:
+  browser-code:
+    name: Browser logic and question bank
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Syntax and game logic tests
+      - name: JavaScript syntax and unit tests
         run: npm run check
+
+  edge-function:
+    name: Hosted API type checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Deno strict type check
+        run: deno check supabase/functions/outlier/index.ts
+
+  database:
+    name: Postgres security and scoring smoke
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: outlier_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d outlier_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: outlier_test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up PostgreSQL client
+        run: |
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update -qq && sudo apt-get install -y postgresql-client
+          fi
+      - name: Bootstrap disposable Supabase auth test schema
+        run: psql -v ON_ERROR_STOP=1 -f test/database-bootstrap.sql
+      - name: Run hosted schema migration
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261112000100_initial.sql
+      - name: Import server-only question bank
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261112000200_question_bank.sql
+      - name: Verify secure attempts, timers, purchase gating, and ranks
+        run: psql -v ON_ERROR_STOP=1 -f test/database-smoke.sql

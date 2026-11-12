@@ -1,0 +1,6 @@
+project_id = "outlier-trivia"
+
+[functions.outlier]
+# The Stripe webhook has no JWT. The Edge Function explicitly verifies the
+# Supabase user JWT on each private API route and the signed webhook separately.
+verify_jwt = false

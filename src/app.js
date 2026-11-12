@@ -1,6 +1,7 @@
 import { buildRound, buildLegacyRound, utcDay, evaluate, scoreOf, getTier, lifetimeStats, shareText, shuffled, randomFromSeed, seedFromString, QUESTION_SECONDS, MAX_SCORE } from "./game.js";
 import { rareQuestions, fitQuestions } from "./data.js";
 import { activityWeek, currentStreak, longestStreak, earnedBadges } from "./progression.js";
+import { ONLINE_ENABLED } from "./online-config.js";
 
 const STORAGE_KEY = "outlier-prototype-v1";
 const app = document.getElementById("app");
@@ -124,6 +125,19 @@ function renderSound() {
   const label = button.querySelector(".sound-label");
   if (label) label.textContent = storage.sound ? "Sound on" : "Sound off";
 }
+async function showOnline() {
+  screen = "online";
+  clearInterval(intervalId);
+  app.innerHTML = '<div class="loading"><div class="spinner"></div><p>Connecting to online league...</p></div>';
+  try {
+    const {mountOnline} = await import("./online.js");
+    await mountOnline(app,renderHome);
+  } catch (error) {
+    console.error("Could not initialize hosted mode:",error);
+    renderHome();
+    toast("Online league could not open. You can still play the free daily game.");
+  }
+}
 function renderHome() {
   screen = "home";
   clearInterval(intervalId);
@@ -131,15 +145,17 @@ function renderHome() {
   const stats = lifetimeStats(storage.days);
   const played = Boolean(record?.complete);
   const started = Boolean(record?.answers?.length || record?.deadline);
-  const action = played ? "result" : "daily";
-  const actionLabel = played ? "VIEW TODAY'S RESULTS ↗" : started ? "CONTINUE TODAY'S GAME →" : "PLAY TODAY'S GAME →";
+  const action = ONLINE_ENABLED ? "online" : played ? "result" : "daily";
+  const actionLabel = ONLINE_ENABLED ? "COMPETE ONLINE TODAY →" : played ? "VIEW TODAY'S RESULTS ↗" : started ? "CONTINUE TODAY'S GAME →" : "PLAY TODAY'S GAME →";
   app.innerHTML = [
     '<section class="hero"><div class="hero-copy">',
     '<div class="eyebrow">THE DAILY BRAIN BATTLE</div>',
     '<h1>THINK <span class="gradient-text">OUTSIDE</span><br>THE CROWD.</h1>',
     '<p class="hero-description">Seven questions. Two ways to win. Find the rare answers nobody thinks of, or predict what everyone else will say. How different is your brain?</p>',
     '<div class="hero-actions">',
-    homeButton(actionLabel, action), homeButton("TRY PRACTICE MODE", "practice", "btn-ghost"),
+    homeButton(actionLabel, action), ONLINE_ENABLED ?
+      homeButton("PLAY FREE AS GUEST", "daily", "btn-ghost") :
+      homeButton("TRY PRACTICE MODE", "practice", "btn-ghost"),
     '</div><div class="play-info"><span>✦ <b>Free</b> daily game</span><span>◷ About <b>3 minutes</b></span><span>◇ <b>4 rare + 3 crowd</b> picks</span></div>',
     '</div><div class="orbit-scene" aria-hidden="true">',
     '<div class="orbit-ring"></div><div class="orbit-ring two"></div><div class="orbit-ball"></div>',
@@ -159,9 +175,15 @@ function renderHome() {
     stat("LIFETIME POINTS", fmt(stats.total)),
     stat("PERSONAL BEST", fmt(stats.best)),
     '</div>' + progressPanel() + '</section>',
-    '<section class="promo"><div><span class="pill pill-purple" style="margin-bottom:13px">COMING AFTER THE PROTOTYPE</span>',
-    '<h3>More trivia. No more waiting.</h3><p>Unlimited rounds, different categories, and extra game modes — yours for a one-time unlock.</p></div>',
-    '<div class="promo-price">$4.99<small>ONE TIME · NOT ACTIVE YET</small></div></section>'
+    '<section class="promo"><div><span class="pill pill-purple" style="margin-bottom:13px">' +
+      (ONLINE_ENABLED ? 'ONLINE LEAGUE' : 'COMING AFTER THE PROTOTYPE') + '</span>',
+    '<h3>More trivia. No more waiting.</h3><p>' + (ONLINE_ENABLED ?
+      'Compete on global leaderboards. Unlimited ranked-independent practice is a lifetime unlock.' :
+      'Unlimited rounds, categories, and verified global competition are planned. Practice is temporarily free for prototype testing.') +
+      '</p></div>',
+    '<div class="promo-price">$4.99<small>ONE TIME · ' + (ONLINE_ENABLED ? 'ONLINE CHECKOUT' : 'NOT ACTIVE YET') + '</small></div>' +
+      (ONLINE_ENABLED ? '<div>' + homeButton('JOIN THE LEAGUE →','online','btn-teal') + '</div>' : '') +
+      '</section>'
   ].join("");
   window.scrollTo(0,0);
 }
@@ -475,7 +497,8 @@ document.addEventListener("click", event => {
   switch (action) {
     case "home": renderHome(); break;
     case "daily": newSession("daily"); break;
-    case "practice": newSession("practice"); break;
+    case "practice": ONLINE_ENABLED ? showOnline() : newSession("practice"); break;
+    case "online": showOnline(); break;
     case "result": newSession("daily"); break;
     case "fit-answer": submitAnswer(control.dataset.answer); break;
     case "skip": submitAnswer(null); break;
@@ -517,3 +540,6 @@ document.addEventListener("keydown", event => {
 
 renderHome();
 renderSound();
+const onlineNav = document.getElementById("online-nav");
+if (onlineNav && ONLINE_ENABLED) onlineNav.hidden = false;
+if (ONLINE_ENABLED && new URLSearchParams(window.location.search).get("online") === "1") showOnline();

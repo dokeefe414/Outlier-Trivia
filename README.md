@@ -2,7 +2,7 @@
 
 **A playable, mobile-friendly daily general-knowledge game.** Seven questions, two mindsets: find a rare correct answer in **Stand Out**, then predict the most popular answer in **Fit In**.
 
-> **Prototype v0.2.** This is a static front-end prototype, not yet a production competitive service. No payments, accounts, or worldwide leaderboards are active.
+> **Prototype v0.3 (online backend optional).** This is a static front-end prototype, not yet a production competitive service. No payments, accounts, or worldwide leaderboards are active.
 
 ## Play
 
@@ -28,6 +28,28 @@ The browser must load the site over HTTP, not the file protocol, because the gam
 4. Once GitHub finishes deploying, the expected URL is **https://dokeefe414.github.io/Outlier-Trivia/**.
 
 Pages is **not enabled automatically** by these commits, and the expected URL should not be considered live until deployment succeeds.
+
+## Online league upgrade (v0.3)
+
+The existing free local seven-question daily game continues to work with no accounts.
+This update also introduces an **optional, deployable hosted mode** with:
+
+- Email sign-in through Supabase Auth, editable public display names.
+- Daily, lifetime average (minimum 10 completed days), and lifetime total global rankings.
+- Server-authoritative 45-second timers, one official daily attempt per account and answer validation.
+- Separate unranked unlimited practice with a **single $4.99 lifetime purchase** entitlement.
+- Secure Stripe Checkout creation and signed webhook payment verification.
+- Real account stats, a live leaderboard page and a mobile-friendly online game flow.
+- A CI PostgreSQL smoke test, Deno API type checks, and strict server/private question separation.
+
+**Online mode is NOT active by default.** It requires the project owner to connect a
+Supabase project and Stripe merchant account, deploy the server, and add the
+public anon/publishable config. No real payments are collected by the current
+unconfigured GitHub Pages website. See [Online setup](docs/ONLINE_SETUP.md).
+
+**Security boundary:** guest scores stay in the browser and never enter official
+leaderboards; only authenticated server-validated games are ranked. Hosted
+practice requests are checked against verified lifetime entitlements.
 
 ## Gameplay
 
@@ -74,6 +96,11 @@ Daily generation is deterministically seeded by a UTC date, so every visitor wit
     src/data.js               Curated question pools and prototype crowd boards
     src/game.js               Pure deterministic daily/weekly rules, scoring, utilities
     src/progression.js        Activity, streaks and official-day badges
+    src/online-config.js      Public (blank by default) backend configuration
+    src/online.js             Optional account, online gameplay and global board UI
+    supabase/migrations/      Secured Postgres tables, SQL scoring and question seed
+    supabase/functions/       Verified user API, Stripe checkout and webhook
+    docs/ONLINE_SETUP.md      External hosting/payment setup and security notes
     src/app.js                Screens, local storage, timer, interactions, sounds
     test/game.test.js         Pure logic unit tests
     .github/workflows/ci.yml  GitHub Actions syntax and test checks
@@ -90,9 +117,10 @@ The app has no run-time JavaScript dependencies. CI checks syntax and question/s
 1. **Prototype v0.1:** daily 4+3 gameplay, practice, score reveals, locally stored records, share card.
 2. **Prototype v0.2 (current):** 7-day no-repeat question rotation, bigger pools, achievements, streaks, weekly calendar, enhanced timers/results, keyboard controls, daily-slate persistence.
 3. **Closed beta:** real question quality testing, crowd baseline experiments, larger content bank, usability feedback, browser smoke tests.
-4. **Accounts + leaderboard service:** server-enforced attempts, profiles, worldwide Daily / Lifetime Average / Lifetime Total rankings, friend groups.
-5. **One-time premium:** secure $4.99 unlimited unlock, durable entitlements, pricing and operating cost review.
-6. **Public launch:** moderation/reporting, accessibility audit, anti-cheat, privacy policy, operations monitoring, content pipeline.
+4. **Accounts + leaderboard service:** backend code implemented; account provisioning, secret setup, hosted deployment and live verification outstanding. server-enforced attempts, profiles, worldwide Daily / Lifetime Average / Lifetime Total rankings, friend groups.
+5. **One-time premium:** checkout/webhook implementation present; not active until an owner-configured Stripe account is connected. secure $4.99 unlimited unlock, durable entitlements, pricing and operating cost review.
+6. **Hosted v0.3 (source implemented):** verified ranked attempts, Deno Edge API, email login, lifetime payment webhooks; needs third-party deployment and end-to-end validation.
+7. **Public launch:** moderation/reporting, accessibility audit, anti-cheat, privacy policy, operations monitoring, content pipeline.
 
 ## Philosophy
 

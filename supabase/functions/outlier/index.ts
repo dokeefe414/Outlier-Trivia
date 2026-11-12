@@ -1,0 +1,254 @@
+// OUTLIER optional hosted multiplayer API, Supabase Edge Functions (Deno 2).
+// Public function endpoint: /functions/v1/outlier?action=<action>
+// Deploy with --no-verify-jwt so Stripe can call the webhook. Every private
+// route verifies the Supabase Auth access token against /auth/v1/user.
+// Service role and Stripe secrets NEVER leave this Edge Function.
+type Json = Record<string, unknown>;
+type User = { id: string; email?: string };
+
+const projectUrl = Deno.env.get("SUPABASE_URL") ?? "";
+const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const siteUrl = Deno.env.get("SITE_URL") ?? "";
+const stripeKey = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
+const stripeWebhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET") ?? "";
+
+class ApiError extends Error {
+  constructor(public status: number, message: string) { super(message); }
+}
+function safeStr(value: unknown, maxLength = 100): string {
+  return typeof value === "string" ? value.slice(0, maxLength) : "";
+}
+function ensureUuid(value: unknown): string {
+  if (typeof value !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) {
+    throw new ApiError(400, "invalid_game_id");
+  }
+  return value;
+}
+function isAllowedOrigin(origin: string | null): boolean {
+  if (!origin) return true; // curl, Stripe webhooks
+  let siteOrigin = "";
+  try { if (siteUrl) siteOrigin = new URL(siteUrl).origin; } catch {}
+  const allowed = [
+    siteOrigin,
+    ...((Deno.env.get("ALLOWED_ORIGINS") ?? "").split(",").map(x => x.trim())),
+    "http://localhost:8000",
+    "http://127.0.0.1:8000"
+  ].filter(Boolean);
+  return allowed.includes(origin);
+}
+function corsHeaders(origin: string | null): HeadersInit {
+  return {
+    ...(origin && isAllowedOrigin(origin) ? {"Access-Control-Allow-Origin": origin} : {}),
+    "Access-Control-Allow-Headers": "authorization, apikey, content-type",
+    "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
+    "Access-Control-Max-Age": "600",
+    "Vary": "Origin"
+  };
+}
+function json(data: unknown, status = 200, origin: string | null = null) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers:{
+      "Content-Type":"application/json; charset=utf-8",
+      "Cache-Control":"no-store",
+      "X-Content-Type-Options":"nosniff",
+      ...corsHeaders(origin)
+    }
+  });
+}
+function parseError(message: string): ApiError {
+  if (message.includes("payment_required")) return new ApiError(402,"payment_required");
+  if (message.includes("game_already_finished")) return new ApiError(409,"game_already_finished");
+  if (message.includes("incorrect_question_index")) return new ApiError(409,"incorrect_question_index");
+  if (message.includes("game_not_found")) return new ApiError(404,"game_not_found");
+  if (message.includes("invalid_game_mode") || message.includes("invalid_question_index")) return new ApiError(400,"invalid_request");
+  return new ApiError(500,"server_error");
+}
+async function database(path: string, method = "GET", body?: Json | Json[]) {
+  if (!projectUrl || !serviceKey) throw new ApiError(503,"backend_not_configured");
+  const response = await fetch(projectUrl + "/rest/v1" + path, {
+    method,
+    headers:{
+      "Authorization": "Bearer " + serviceKey,
+      "apikey": serviceKey,
+      "Content-Type":"application/json",
+      "Prefer":"return=representation,resolution=merge-duplicates"
+    },
+    ...(body === undefined ? {} : {body:JSON.stringify(body)})
+  });
+  const raw = await response.text();
+  let payload: unknown;
+  try { payload = JSON.parse(raw); } catch { payload = raw; }
+  if (!response.ok) {
+    console.error("OUTLIER database operation failed:",response.status,typeof payload==="object" && payload && "code" in payload ? (payload as {code:string}).code : "unknown");
+    const message = typeof payload === "object" && payload && "message" in payload ? String((payload as {message:string}).message) : "";
+    throw parseError(message);
+  }
+  return payload;
+}
+async function rpc(name: string, args: Json): Promise<unknown> {
+  return database("/rpc/" + name, "POST", args);
+}
+async function currentUser(req: Request): Promise<User> {
+  const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i,"");
+  if (!token || token === serviceKey) throw new ApiError(401,"login_required");
+  if (!projectUrl || !serviceKey) throw new ApiError(503,"backend_not_configured");
+  const response = await fetch(projectUrl + "/auth/v1/user", {
+    headers:{apikey:serviceKey,Authorization:"Bearer " + token}
+  });
+  if (!response.ok) throw new ApiError(401,"invalid_or_expired_session");
+  const user = await response.json();
+  if (!user?.id || typeof user.id !== "string") throw new ApiError(401,"login_required");
+  return {id:user.id,email:user.email};
+}
+async function bodyJson(req: Request): Promise<Json> {
+  const length = Number(req.headers.get("content-length") || 0);
+  if (length > 8000) throw new ApiError(413,"request_too_large");
+  const data = await req.json().catch(()=>null);
+  if (!data || typeof data !== "object" || Array.isArray(data)) throw new ApiError(400,"invalid_json");
+  return data as Json;
+}
+async function entitlement(userId: string): Promise<boolean> {
+  const rows = await database("/entitlements?user_id=eq." + encodeURIComponent(userId) + "&select=unlimited&limit=1");
+  return Array.isArray(rows) && rows[0]?.unlimited === true;
+}
+async function profile(user: User) {
+  const [stats,people,paid] = await Promise.all([
+    rpc("outlier_player_stats",{p_user:user.id}),
+    database("/profiles?user_id=eq." + encodeURIComponent(user.id) + "&select=display_name&limit=1"),
+    entitlement(user.id)
+  ]);
+  return {userId:user.id,email:user.email,name:Array.isArray(people) ? people[0]?.display_name : "",
+    stats,unlimited:paid};
+}
+async function stripeCheckout(user: User): Promise<string> {
+  if (!stripeKey || !siteUrl) throw new ApiError(503,"checkout_not_configured");
+  if (await entitlement(user.id)) throw new ApiError(409,"already_unlocked");
+  const params = new URLSearchParams();
+  params.set("mode","payment");
+  params.set("line_items[0][price_data][currency]","usd");
+  params.set("line_items[0][price_data][unit_amount]","499");
+  params.set("line_items[0][price_data][product_data][name]","OUTLIER Unlimited — Lifetime");
+  params.set("line_items[0][quantity]","1");
+  params.set("success_url",siteUrl + (siteUrl.includes("?")?"&":"?") + "online=1&checkout=success");
+  params.set("cancel_url",siteUrl + (siteUrl.includes("?")?"&":"?") + "online=1&checkout=cancel");
+  params.set("client_reference_id",user.id);
+  params.set("metadata[user_id]",user.id);
+  if (user.email) params.set("customer_email",user.email);
+  const response = await fetch("https://api.stripe.com/v1/checkout/sessions",{
+    method:"POST",
+    headers:{"Authorization":"Bearer " + stripeKey,"Content-Type":"application/x-www-form-urlencoded"},
+    body:params
+  });
+  const result = await response.json();
+  if (!response.ok || typeof result?.url !== "string" || !result.url.startsWith("https://checkout.stripe.com/")) {
+    console.error("Stripe checkout creation error",response.status);
+    throw new ApiError(502,"checkout_unavailable");
+  }
+  return result.url;
+}
+function constantTimeMatch(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let mismatch = 0;
+  for (let i=0;i<a.length;i++) mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return mismatch === 0;
+}
+async function verifyStripeWebhook(raw: string, header: string | null) {
+  if (!stripeWebhookSecret) throw new ApiError(503,"webhook_not_configured");
+  const pieces = (header ?? "").split(",").map(x=>x.trim().split("="));
+  const timestamp = Number(pieces.find(x=>x[0]==="t")?.[1] ?? 0);
+  const signatures = pieces.filter(x=>x[0]==="v1").map(x=>x[1] ?? "");
+  if (!Number.isFinite(timestamp) || Math.abs(Date.now()/1000-timestamp)>300 || !signatures.length) {
+    throw new ApiError(400,"invalid_signature");
+  }
+  const key = await crypto.subtle.importKey("raw",new TextEncoder().encode(stripeWebhookSecret),
+    {name:"HMAC",hash:"SHA-256"},false,["sign"]);
+  const signed = await crypto.subtle.sign("HMAC",key,new TextEncoder().encode(timestamp+"."+raw));
+  const digest = [...new Uint8Array(signed)].map(x=>x.toString(16).padStart(2,"0")).join("");
+  if (!signatures.some(sig => constantTimeMatch(sig,digest))) throw new ApiError(400,"invalid_signature");
+}
+async function processWebhook(req: Request) {
+  const raw = await req.text();
+  await verifyStripeWebhook(raw,req.headers.get("Stripe-Signature"));
+  const event = JSON.parse(raw);
+  if (event?.type === "checkout.session.completed") {
+    const session = event.data?.object;
+    const userId = session?.metadata?.user_id;
+    // Never trust a client-supplied success URL or purchase status.
+    if (typeof userId !== "string" || userId !== session?.client_reference_id ||
+        session?.payment_status !== "paid" || session?.amount_total !== 499 ||
+        session?.currency !== "usd" || typeof session?.id !== "string") {
+      throw new ApiError(400,"invalid_paid_session");
+    }
+    ensureUuid(userId);
+    await database("/entitlements?on_conflict=user_id","POST",[
+      {user_id:userId,unlimited:true,stripe_session_id:session.id,purchased_at:new Date().toISOString()}
+    ]);
+  }
+  return {received:true};
+}
+async function handle(req: Request): Promise<Response> {
+  const origin = req.headers.get("Origin");
+  if (!isAllowedOrigin(origin)) return json({error:"origin_not_allowed"},403,null);
+  if (req.method==="OPTIONS") return new Response(null,{status:204,headers:corsHeaders(origin)});
+  const url = new URL(req.url);
+  const action = url.searchParams.get("action") ?? "";
+  try {
+    if (action === "webhook" && req.method === "POST") return json(await processWebhook(req),200,origin);
+    if (action === "leaderboard" && req.method === "GET") {
+      const board = url.searchParams.get("board") ?? "daily";
+      if (!["daily","average","total"].includes(board)) throw new ApiError(400,"invalid_board");
+      const list = await rpc("outlier_leaderboard",{p_board:board,p_limit:50});
+      return json({board,players:list},200,origin);
+    }
+    const user = await currentUser(req);
+    if (action === "profile" && req.method === "GET") {
+      return json(await profile(user),200,origin);
+    }
+    if (action === "profile" && req.method === "PATCH") {
+      const input = await bodyJson(req);
+      const name = safeStr(input.name,25).trim().replace(/\s+/g," ");
+      if (name.length<2 || name.length>24 || !/^[\p{L}\p{N} ._-]+$/u.test(name)) throw new ApiError(400,"invalid_display_name");
+      await database("/profiles?user_id=eq." + encodeURIComponent(user.id),"PATCH",{display_name:name});
+      return json({name},200,origin);
+    }
+    if (action === "start" && req.method === "POST") {
+      const input = await bodyJson(req);
+      const mode = input.mode === "practice" ? "practice" : "daily";
+      const gameId = await rpc("outlier_start",{p_user:user.id,p_mode:mode});
+      return json({game:await rpc("outlier_state",{p_user:user.id,p_game:gameId})},200,origin);
+    }
+    if (action === "state" && req.method === "GET") {
+      const gameId = ensureUuid(url.searchParams.get("game"));
+      return json({game:await rpc("outlier_state",{p_user:user.id,p_game:gameId})},200,origin);
+    }
+    if (action === "advance" && req.method === "POST") {
+      const input = await bodyJson(req);
+      const gameId = ensureUuid(input.game);
+      const index = Number(input.index);
+      if (!Number.isInteger(index) || index < 1 || index > 6) throw new ApiError(400,"invalid_index");
+      return json({game:await rpc("outlier_advance",{p_user:user.id,p_game:gameId,p_index:index})},200,origin);
+    }
+    if (action === "answer" && req.method === "POST") {
+      const input = await bodyJson(req);
+      const gameId = ensureUuid(input.game);
+      const index = Number(input.index);
+      if (!Number.isInteger(index) || index < 0 || index > 6) throw new ApiError(400,"invalid_index");
+      const response = input.response === null || input.response === undefined ? null : safeStr(input.response);
+      const result = await rpc("outlier_answer",{
+        p_user:user.id,p_game:gameId,p_index:index,p_response:response
+      });
+      return json(result,200,origin);
+    }
+    if (action === "checkout" && req.method === "POST") {
+      return json({url:await stripeCheckout(user)},200,origin);
+    }
+    throw new ApiError(404,"endpoint_not_found");
+  } catch (error) {
+    if (error instanceof ApiError) return json({error:error.message},error.status,origin);
+    console.error("OUTLIER unexpected function failure",error);
+    return json({error:"server_error"},500,origin);
+  }
+}
+
+Deno.serve(handle);

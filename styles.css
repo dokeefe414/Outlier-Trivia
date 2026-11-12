@@ -366,3 +366,70 @@ p{line-height:1.6}
 @media(prefers-reduced-motion:reduce){
   .question-card,.feedback-card,.result-scorecard,.feedback-graphic,.feedback-points{animation:none!important}
 }
+
+
+/* v0.3 hosted league — only displayed after the public backend config is set. */
+.online-wrap{max-width:860px;margin:0 auto;padding:52px 0 100px;min-height:580px}
+.online-heading{text-align:center;max-width:680px;margin:40px auto 35px}
+.online-heading h1{font-size:clamp(38px,6vw,69px);line-height:1.04;margin:17px 0 18px}
+.online-heading p{font-size:15px;max-width:610px;margin:0 auto}
+.online-notice{padding:15px 20px;border-radius:14px;border:1px solid rgba(155,182,243,.22);background:#212945;color:#e8eeff;font-size:13px;line-height:1.5;margin:16px 0}
+.online-notice.ok{background:rgba(53,218,165,.13);border-color:rgba(53,218,165,.28);color:#91ffdf}
+.online-notice.warning{background:rgba(240,151,113,.13);border-color:rgba(240,151,113,.28);color:#ffc5b2}
+.online-signup{max-width:620px;margin:18px auto 24px;padding:29px}
+.online-signup h3{font-size:25px;margin:12px 0}
+.online-signup p{max-width:470px}
+.online-signup .answer-row{align-items:stretch}
+.online-signup .btn{white-space:nowrap}
+.online-menu-actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-bottom:26px}
+.online-menu-actions .btn{padding:14px 19px;font-size:13px}
+.online-board{margin:22px 0 0;padding:29px 30px}
+.online-board .section-heading{align-items:center}
+.online-board .section-heading h3{margin:10px 0 0}
+.online-board .board-tabs{margin:15px 0 18px}
+.online-board .leader-row{display:grid;grid-template-columns:38px minmax(0,1fr) auto;gap:15px;align-items:center;padding:14px 11px;border-bottom:1px solid rgba(255,255,255,.075)}
+.online-board .leader-row:nth-child(even){background:rgba(255,255,255,.022)}
+.online-board .leader-row.is-me{background:rgba(148,109,251,.13);border-color:rgba(172,132,255,.29);border-radius:12px}
+.leader-rank{font-family:'Space Grotesk',sans-serif;color:#baa6f3;font-size:17px;font-weight:800}
+.leader-name{font-size:14px;font-weight:800;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.leader-name small{display:inline-block;vertical-align:middle;font-size:8px;letter-spacing:1px;color:#cbb4ff;background:rgba(165,123,255,.18);border-radius:6px;padding:4px 6px;margin-left:4px}
+.leader-score{text-align:right;font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:800}
+.leader-score small{display:block;color:#9ca8c9;font:700 10px 'DM Sans',sans-serif;margin-top:3px}
+.online-profile{padding:28px 30px;margin:24px 0}
+.online-profile-head{display:flex;justify-content:space-between;align-items:center;gap:18px}
+.online-profile-head h3{font-size:25px;margin:9px 0 0;word-break:break-word}
+.online-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:20px 0 24px}
+.online-stats>div{background:rgba(7,12,29,.38);border:1px solid rgba(188,201,255,.12);padding:15px;border-radius:12px}
+.online-stats strong{font:700 24px 'Space Grotesk',sans-serif;display:block;overflow:hidden;text-overflow:ellipsis}
+.online-stats small{font-size:9px;color:#a7b4d6;letter-spacing:.5px;font-weight:800;display:block;margin-top:6px}
+.online-name-form{border-top:1px solid var(--line);padding-top:20px}
+.online-name-form label{font-size:11px;letter-spacing:1px;font-weight:800;display:block;color:var(--muted);margin-bottom:10px}
+.online-name-form .btn{white-space:nowrap}
+.online-wrap .question-card{margin-top:20px}
+.online-wrap .feedback-card{padding:34px 38px}
+.online-wrap .feedback-card .btn{margin-top:23px}
+.online-wrap .result-scorecard{margin-top:23px}
+.online-wrap .result-modes{margin:20px 0}
+.online-wrap .result-breakdown{margin-top:18px}
+.online-ready{padding:55px 36px;margin:50px auto;text-align:center;max-width:580px}
+.online-ready h2{margin:14px 0}
+.online-ready p{font-size:14px;margin:13px auto 26px;max-width:410px}
+.online-ready .btn{min-width:230px}
+@media(max-width:700px){
+  .online-wrap{padding:27px 0 70px}
+  .online-heading{margin:25px auto}
+  .online-heading p{font-size:13px}
+  .online-board,.online-profile{padding:21px 19px}
+  .online-menu-actions{flex-direction:column}
+  .online-menu-actions .btn{width:100%}
+  .online-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .online-board .leader-row{gap:8px;grid-template-columns:23px minmax(0,1fr) auto}
+  .leader-name{font-size:12px}
+  .leader-score{font-size:13px}
+  .online-profile-head{flex-direction:column;align-items:flex-start}
+  .online-signup{padding:21px}
+  .online-signup .answer-row,.online-name-form .answer-row{flex-direction:column}
+  .online-board .board-tabs{gap:4px}
+  .online-board .board-tab{font-size:10px;padding:10px 10px}
+  .online-wrap .feedback-card{padding:25px 19px}
+}

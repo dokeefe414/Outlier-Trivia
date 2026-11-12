@@ -1,0 +1,10 @@
+node_modules/
+.DS_Store
+.env
+.env.*
+!.env.example
+supabase/.branches/
+supabase/.temp/
+coverage/
+playwright-report/
+test-results/
