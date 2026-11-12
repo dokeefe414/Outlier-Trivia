@@ -40,7 +40,7 @@ begin
     raise exception 'published_question_is_immutable';
   end if;
   return old;
-end $;
+end $$;
 drop trigger if exists ranked_question_immutable on private.ranked_question_bank;
 create trigger ranked_question_immutable before update or delete
 on private.ranked_question_bank for each row
