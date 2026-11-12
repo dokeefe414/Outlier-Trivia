@@ -23,6 +23,19 @@ async function runDaily() {
     assert.equal(await page.locator(".question-card").getAttribute("class"),"card question-card "+(isFit?"fit":"rare"));
     await page.locator('button[data-action="skip"]').click();
     await page.locator(".feedback-card").waitFor();
+    if (round===1) {
+      const explorer = page.locator(".answer-explorer");
+      await explorer.waitFor();
+      await explorer.locator("summary").click();
+      const count = await explorer.locator(".explorer-row").count();
+      assert.ok(count >= 36,"expected a large Stand Out answer pool");
+      const search = explorer.locator("#answer-explorer-filter");
+      await search.fill("zzzz-nonexistent-answer");
+      assert.equal(await explorer.locator(".explorer-row:visible").count(),0);
+      await search.fill("");
+      assert.equal(await explorer.locator(".explorer-row:visible").count(),count);
+      console.log("PASS searchable expanded answer explorer with "+count+" valid responses");
+    }
     await page.locator('button[data-action="next"]').click();
   }
   await page.locator(".result-scorecard").waitFor();

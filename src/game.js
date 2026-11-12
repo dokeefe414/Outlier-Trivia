@@ -59,21 +59,34 @@ export function weekStart(day = utcDay()) {
 }
 
 export function buildRound(day = utcDay(), practice = false) {
-  if (practice) {
-    const rare = shuffled(rareQuestions, Math.random).slice(0, 4);
-    const fit = shuffled(fitQuestions, Math.random).slice(0, 3);
-    return DAILY_PATTERN.map((type, index) => ({
-      ...((type === "rare") ? rare.shift() : fit.shift()), type, index
-    }));
+  const broad = rareQuestions.filter(question => question.bigPool);
+  const geoPool = broad.filter(question => question.poolGroup === "geo");
+  const sciencePool = broad.filter(question => question.poolGroup === "science");
+  const wildPool = broad.filter(question => question.poolGroup === "wild");
+  if (geoPool.length < 14 || sciencePool.length < 7 || wildPool.length < 7 || fitQuestions.length < 21) {
+    throw new Error("Expanded daily bank is too small for a full no-repeat week");
   }
-  // All seven days of a UTC Monday-Sunday week draw from the same decks,
-  // but use distinct slices. No prompt repeats within that week.
-  const monday = weekStart(day);
-  const dateIndex = Math.round((Date.parse(day + "T00:00:00Z") - Date.parse(monday + "T00:00:00Z")) / 86400000);
-  if (rareQuestions.length < 28 || fitQuestions.length < 21) throw new Error("Daily bank too small for weekly rotation");
-  const random = randomFromSeed(seedFromString("outlier-v2-week:" + monday));
-  const rare = shuffled(rareQuestions, random).slice(dateIndex * 4, dateIndex * 4 + 4);
-  const fit = shuffled(fitQuestions, random).slice(dateIndex * 3, dateIndex * 3 + 3);
+  let rare;
+  let fit;
+  if (practice) {
+    rare = [
+      ...shuffled(geoPool, Math.random).slice(0, 2),
+      shuffled(sciencePool, Math.random)[0],
+      shuffled(wildPool, Math.random)[0],
+    ];
+    rare = shuffled(rare, Math.random);
+    fit = shuffled(fitQuestions, Math.random).slice(0, 3);
+  } else {
+    const monday = weekStart(day);
+    const dayIndex = Math.round((Date.parse(day + "T00:00:00Z") - Date.parse(monday + "T00:00:00Z")) / 86400000);
+    if (dayIndex < 0 || dayIndex > 6) throw new Error("Invalid UTC day for weekly schedule");
+    const seed = randomFromSeed(seedFromString("outlier-atlas-v1:" + monday));
+    const geography = shuffled(geoPool, seed).slice(dayIndex * 2, dayIndex * 2 + 2);
+    const science = shuffled(sciencePool, seed)[dayIndex];
+    const wildcard = shuffled(wildPool, seed)[dayIndex];
+    rare = shuffled([...geography, science, wildcard], randomFromSeed(seedFromString("outlier-atlas-day:" + day)));
+    fit = shuffled(fitQuestions, seed).slice(dayIndex * 3, dayIndex * 3 + 3);
+  }
   return DAILY_PATTERN.map((type, index) => ({
     ...((type === "rare") ? rare.shift() : fit.shift()), type, index
   }));

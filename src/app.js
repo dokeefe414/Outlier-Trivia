@@ -328,6 +328,25 @@ function feedbackHeading(result) {
   return { title:"CORRECT, BUT COMMON!", icon:"✓", description:"You got it right. Go for a deeper cut next time." };
 }
 
+
+function answerExplorer(question) {
+  if (!question.bigPool) return "";
+  const ranked = [...question.answers].sort((a,b)=>b[1]-a[1] || a[0].localeCompare(b[0]));
+  const rows = ranked.map(([name,points,aliases=[]])=> {
+    const haystack=normalizeAnswer([name,...aliases].join(" "));
+    return '<div class="explorer-row" data-search="'+esc(haystack)+'">'+
+      '<strong>'+esc(name)+'</strong><span>'+fmt(points)+' pts</span></div>';
+  }).join("");
+  return '<details class="answer-explorer"><summary>EXPLORE ALL '+question.answers.length+
+    ' VALID ANSWERS <span class="explorer-plus">+</span></summary>'+
+    '<div class="answer-explorer-body"><p class="small muted">These are the accepted answers for this category, sorted from highest to lowest prototype rarity points. '+
+    'Rarity tiers are estimates, not live crowd percentages.</p>'+
+    '<label class="answer-label" for="answer-explorer-filter">FIND AN ANSWER</label>'+
+    '<input id="answer-explorer-filter" type="search" class="answer-input" placeholder="Search names or accepted aliases..." autocomplete="off">'+
+    '<div class="answer-explorer-results">'+rows+'</div>'+
+    '<p id="answer-explorer-empty" class="small muted" hidden>No approved answers match that search.</p></div></details>';
+}
+
 function renderFeedback() {
   if (!feedback || !session) return;
   screen = "feedback";
@@ -358,6 +377,10 @@ function renderFeedback() {
     '<div class="feedback-divider"></div>',
     '<div class="feedback-subhead">' + (fit ? 'THE PROTOTYPE CROWD BOARD' : 'SOME OF THE RAREST ACCEPTED ANSWERS') + '</div>',
     fit ? topScore : '<div class="answer-chips">' + topScore + '</div>',
+    answerExplorer(q),
+    (!result.valid && !fit && result.response) ?
+      '<div class="answer-report"><span>Think your answer should count?</span>'+
+      homeButton('REQUEST AN ANSWER REVIEW ↗','report-answer','btn-outline')+'</div>' : '',
     '<p class="insight">' + (fit ?
       'These percentages are fixed example values for the prototype, NOT survey data or live player votes. Everyone gets the same score for the same pick.' :
       'Stand Out scores are curated prototype rarity tiers, NOT actual frequencies from other players. Answers are checked against a finite validated list.') + '</p>',
@@ -527,6 +550,17 @@ document.addEventListener("click", event => {
     case "fit-answer": submitAnswer(control.dataset.answer); break;
     case "skip": submitAnswer(null); break;
     case "next": nextRound(); break;
+    case "report-answer": {
+      if(screen==="feedback" && feedback?.question && feedback?.result?.response) {
+        const params = new URLSearchParams({
+          title:"Answer review: "+feedback.question.id,
+          body:"Question: "+feedback.question.prompt+"\nSuggested answer: "+feedback.result.response+
+            "\n\nWhy it should count (please include a reliable source):\n\n"
+        });
+        window.open("https://github.com/dokeefe414/Outlier-Trivia/issues/new?"+params.toString(),"_blank","noopener,noreferrer");
+      }
+      break;
+    }
     case "leaderboard": renderLeaderboard(); break;
     case "board": boardTab = control.dataset.board; renderLeaderboard(); break;
     case "share": shareResult(); break;
@@ -537,6 +571,19 @@ document.addEventListener("click", event => {
       toast(storage.sound ? "Sound on" : "Sound off");
       break;
   }
+});
+
+document.addEventListener("input", event => {
+  if(event.target?.id !== "answer-explorer-filter") return;
+  const needle=normalizeAnswer(event.target.value);
+  let shown=0;
+  document.querySelectorAll(".explorer-row").forEach(row => {
+    const visible=row.dataset.search.includes(needle);
+    row.hidden=!visible;
+    if(visible)shown++;
+  });
+  const empty=document.getElementById("answer-explorer-empty");
+  if(empty)empty.hidden=shown>0;
 });
 
 document.addEventListener("submit", event => {

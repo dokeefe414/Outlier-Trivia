@@ -18,6 +18,16 @@ begin
   if g is null then raise exception 'daily start did not return an id'; end if;
   if public.outlier_start(u,'daily') <> g then raise exception 'daily attempt was duplicated'; end if;
   s := public.outlier_state(u,g);
+  if (select count(*) from private.question_bank where id like 'atlas-%') <> 39 then
+    raise exception 'broad atlas seed must contain exactly 39 prompts';
+  end if;
+  if (select min(jsonb_array_length(answers)) from private.question_bank where id like 'atlas-%') < 36 then
+    raise exception 'broad atlas contains an undersized answer pool';
+  end if;
+  if (select count(*) from unnest((select question_ids from public.game_attempts where id=g)) q(id)
+      where q.id like 'atlas-%') <> 4 then
+    raise exception 'official daily did not use four broad Stand Out questions';
+  end if;
   if s->>'index'<>'0' then raise exception 'unexpected starting index'; end if;
   if s->'question'->>'deadline' is null then raise exception 'first timer not started'; end if;
   if jsonb_typeof(s->'question'->'choices') <> 'null' then

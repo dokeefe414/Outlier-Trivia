@@ -61,6 +61,8 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261112000100_initial.sql
       - name: Import server-only question bank
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261112000200_question_bank.sql
+      - name: Import expanded 39-question answer atlas and online rotation
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261112000300_answer_atlas.sql
       - name: Verify secure attempts, timers, purchase gating, and ranks
         run: psql -v ON_ERROR_STOP=1 -f test/database-smoke.sql
 

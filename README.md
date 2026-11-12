@@ -2,7 +2,7 @@
 
 **A playable, mobile-friendly daily general-knowledge game.** Seven questions, two mindsets: find a rare correct answer in **Stand Out**, then predict the most popular answer in **Fit In**.
 
-> **Prototype v0.3 (online backend optional).** This is a static front-end prototype, not yet a production competitive service. No payments, accounts, or worldwide leaderboards are active.
+> **Prototype v0.4 (expanded answer atlas; online backend optional).** This is a static front-end prototype, not yet a production competitive service. No payments, accounts, or worldwide leaderboards are active.
 
 ## Play
 
@@ -64,6 +64,28 @@ The local My Stats page now includes a **Knowledge DNA** category breakdown.
 It shows your own average points per question by category based only on
 completed official guest dailies; practice never affects it.
 
+## Expanded answer pools — v0.4
+
+The daily Stand Out game now uses **39 broad question types**, each with
+**36–249 validated correct answers**, representing **3,796 accepted answer slots**
+across the question variations. Some answers appear in multiple questions.
+
+Every official day draws **two geography prompts, one science prompt, and
+one rotating general-knowledge prompt**, while the three Fit In rounds
+continue as before. The expanded bank includes 249 countries/territories,
+184 languages, 118 elements, 50 U.S. states, 50 state capitals, and 63
+national parks. **No prompt repeats within the same UTC week.**
+
+Answers such as Ivory Coast / Côte d'Ivoire and Aluminium / Aluminum both
+work. Following your answer reveal, you can **search all accepted answers**
+to discover unexpected choices and compare their points. There is also
+a **Request Answer Review** link if a valid response appears to be missing.
+
+The rarity points are still **curated approximations, not measurements of
+how often other players answer something**. See
+[Answer Atlas documentation](docs/ANSWER_ATLAS.md) for data sources,
+accepted-name rules, scoring transparency, and known limitations.
+
 ## Gameplay
 
 - One **official daily game** per UTC calendar day, with identical questions and presentation order for all visitors.
@@ -79,7 +101,7 @@ completed official guest dailies; practice never affects it.
 
 ## Prototype upgrade notes
 
-The weekly rotation uses 32 Stand Out prompts and 23 Fit In prompts (55 total). All four plus three questions in a daily slate are distinct, and each prompt can appear at most once in any Monday–Sunday UTC week. Returning players who started a daily challenge on v0.1 can resume their original slate (older stored scores are not recalculated). Daily records now save the exact question IDs so future in-progress resumes stay consistent.
+The current daily rotation uses 39 broad Stand Out prompts (from a total of 71 including legacy questions) and 23 Fit In prompts. Daily selection takes two geography, one science and one wildcard Stand Out question, with no repeated prompt within a Monday–Sunday UTC week. Saved older daily slates and historical scores are preserved.
 
 Achievements are intentionally **local-only** and are not public competitive claims. Badges include First Spark, On a Roll, Unstoppable, Worldly Mind, High Flyer, Clean Sweep, Deep Cut, and Mind Reader.
 
@@ -87,9 +109,9 @@ Achievements are intentionally **local-only** and are not public competitive cla
 
 Current game uses **editorially assigned rarity points** and **fictional sample crowd shares**. They are **not** measured player frequencies, scientific survey results, or real live global votes. The UI labels these clearly in gameplay and results.
 
-The Stand Out prompts intentionally restrict answers to well-defined sets, avoiding open-ended trivia questions the prototype cannot reliably validate. Accepted answers, spelling aliases, and scores live in src/data.js. Minor single-character typos are forgiven only when they uniquely identify one accepted answer. **If open-ended questions are added later, the project needs authoritative validation, alternate-answer review, and appeals before public launch.**
+The Stand Out prompts intentionally restrict answers to well-defined sets, avoiding open-ended trivia questions the prototype cannot reliably validate. Legacy answer aliases and scores live in src/data.js, while expanded answer pools live in src/atlas-questions.js. Minor single-character typos are forgiven only when they uniquely identify one accepted answer. **If open-ended questions are added later, the project needs authoritative validation, alternate-answer review, and appeals before public launch.**
 
-Daily generation is deterministically seeded by a UTC date, so every visitor with the same app version receives the same round sequence. The v0.2 question bank is large enough to ensure **no prompt repeats within a Monday–Sunday UTC week**, using a seeded, deterministic shuffle per week. Prompts may still return in later weeks. Production requires a much larger question calendar, versioned locked daily sets, and reliable editorial review.
+Daily generation is deterministically seeded by a UTC date, so every visitor with the same app version receives the same round sequence. The current question bank is large enough to ensure **no prompt repeats within a Monday–Sunday UTC week**, using a seeded, deterministic shuffle per week. Prompts may still return in later weeks. Production requires a much larger question calendar, versioned locked daily sets, and reliable editorial review.
 
 ### Limitations to address before a real launch
 
@@ -106,7 +128,9 @@ Daily generation is deterministically seeded by a UTC date, so every visitor wit
     index.html                Static app shell and metadata
     styles.css                Responsive game design and animations
     favicon.svg               Original OUTLIER icon
-    src/data.js               Curated question pools and prototype crowd boards
+    src/data.js               Legacy rare prompts and prototype crowd boards
+    src/atlas-data.js         Source reference facts for the larger answer atlas
+    src/atlas-questions.js    Expanded validated prompts and editorial scores
     src/game.js               Pure deterministic daily/weekly rules, scoring, utilities
     src/progression.js        Activity, streaks and official-day badges
     src/online-config.js      Public (blank by default) backend configuration
@@ -129,12 +153,13 @@ The app has no run-time JavaScript dependencies. CI checks JavaScript and Deno s
 ## Roadmap
 
 1. **Prototype v0.1:** daily 4+3 gameplay, practice, score reveals, locally stored records, share card.
-2. **Prototype v0.2 (current):** 7-day no-repeat question rotation, bigger pools, achievements, streaks, weekly calendar, enhanced timers/results, keyboard controls, daily-slate persistence.
+2. **Prototype v0.2:** 7-day no-repeat question rotation, bigger pools, achievements, streaks, weekly calendar, enhanced timers/results, keyboard controls, daily-slate persistence.
 3. **Closed beta:** real question quality testing, crowd baseline experiments, larger content bank, usability feedback, browser smoke tests.
 4. **Accounts + leaderboard service:** backend code implemented; account provisioning, secret setup, hosted deployment and live verification outstanding. server-enforced attempts, profiles, worldwide Daily / Lifetime Average / Lifetime Total rankings, friend groups.
 5. **One-time premium:** checkout/webhook implementation present; not active until an owner-configured Stripe account is connected. secure $4.99 unlimited unlock, durable entitlements, pricing and operating cost review.
 6. **Hosted v0.3 (source implemented):** verified ranked attempts, Deno Edge API, email login, lifetime payment webhooks; needs third-party deployment and end-to-end validation.
-7. **Public launch:** moderation/reporting, accessibility audit, anti-cheat, privacy policy, operations monitoring, content pipeline.
+7. **Expanded v0.4 (current):** large verified answer pools, per-category question rotation, an answer explorer and a missing-answer review workflow.
+8. **Public launch:** moderation/reporting, accessibility audit, anti-cheat, privacy policy, operations monitoring, content pipeline.
 
 ## Philosophy
 

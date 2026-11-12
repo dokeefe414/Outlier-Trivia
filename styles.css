@@ -457,3 +457,32 @@ p{line-height:1.6}
 .knowledge-row .bar-bg{height:9px}
 .knowledge-row .bar-fg{background:linear-gradient(90deg,#a079ec,#48e6c9)}
 @media(max-width:640px){.knowledge-list{grid-template-columns:1fr;gap:15px}.knowledge-card{padding:20px}.friend-challenge{margin-top:15px}}
+
+
+/* v0.4: discoverable, searchable expanded answer lists after a round. */
+.answer-explorer{margin-top:20px;border:1px solid rgba(171,137,235,.3);border-radius:15px;background:rgba(29,29,61,.55);overflow:hidden}
+.answer-explorer>summary{display:flex;align-items:center;justify-content:space-between;gap:14px;list-style:none;cursor:pointer;padding:17px 18px;color:#dbcaff;font-size:12px;font-weight:900;letter-spacing:.55px}
+.answer-explorer>summary::-webkit-details-marker{display:none}
+.answer-explorer>summary:hover{background:rgba(175,133,244,.09)}
+.explorer-plus{height:23px;width:23px;border-radius:8px;background:rgba(195,159,251,.14);display:grid;place-items:center;font-size:18px;font-weight:800;transition:transform .18s}
+.answer-explorer[open] .explorer-plus{transform:rotate(45deg)}
+.answer-explorer-body{padding:3px 18px 20px;border-top:1px solid rgba(171,137,235,.19)}
+.answer-explorer-body>p:first-child{margin:12px 0 19px}
+.answer-explorer-body .answer-input{width:100%;margin-bottom:12px}
+.answer-explorer-results{display:flex;flex-direction:column;gap:0;max-height:290px;overflow:auto;overscroll-behavior:contain;background:rgba(6,12,30,.5);border:1px solid rgba(172,182,230,.12);border-radius:12px}
+.explorer-row{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:11px 14px;border-bottom:1px solid rgba(172,182,230,.08);font-size:12px}
+.explorer-row:last-child{border-bottom:0}
+.explorer-row:nth-child(even){background:rgba(255,255,255,.025)}
+.explorer-row>strong{color:#f0edff;font-weight:750}
+.explorer-row>span{color:#a7ffe5;white-space:nowrap;font-weight:800}
+.explorer-row[hidden]{display:none!important}
+.answer-report{display:flex;align-items:center;gap:14px;justify-content:space-between;flex-wrap:wrap;margin-top:20px;padding:13px;border:1px dashed rgba(255,180,160,.3);border-radius:12px}
+.answer-report span{font-size:12px;color:#e7d6d4}
+.answer-report .btn{padding:9px 13px;font-size:10px;border-radius:9px}
+@media(max-width:540px){
+  .answer-explorer>summary{padding:15px;font-size:11px}
+  .answer-explorer-body{padding:3px 12px 15px}
+  .answer-explorer-results{max-height:250px}
+  .explorer-row{padding:11px;font-size:11px}
+  .answer-report .btn{width:100%}
+}

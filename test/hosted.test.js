@@ -4,12 +4,13 @@ import {readFileSync} from "node:fs";
 import {rareQuestions,fitQuestions} from "../src/data.js";
 import {ONLINE_ENABLED,SUPABASE_URL,SUPABASE_ANON_KEY} from "../src/online-config.js";
 
-const seed=readFileSync(new URL("../supabase/migrations/20261112000200_question_bank.sql",import.meta.url),"utf8");
+const legacySeed=readFileSync(new URL("../supabase/migrations/20261112000200_question_bank.sql",import.meta.url),"utf8");
+const atlasSeed=readFileSync(new URL("../supabase/migrations/20261112000300_answer_atlas.sql",import.meta.url),"utf8");
 const quote = value => "'" + String(value).replaceAll("'","''") + "'";
 
 test("every curated question and its scoring keys have been seeded server-side",()=>{
   const questions=[...rareQuestions.map(q=>({...q,kind:"rare"})),...fitQuestions.map(q=>({...q,kind:"fit"}))];
-  assert.equal(rareQuestions.length,32);
+  assert.equal(rareQuestions.length,71);
   assert.equal(fitQuestions.length,23);
   for(const q of questions) {
     const row = "(" + [
@@ -17,6 +18,7 @@ test("every curated question and its scoring keys have been seeded server-side",
       quote(JSON.stringify(q.answers??[]))+"::jsonb",
       quote(JSON.stringify(q.choices??[]))+"::jsonb"
     ].join(",") + ")";
+    const seed = q.bigPool ? atlasSeed : legacySeed;
     assert.ok(seed.includes(row),"Missing/outdated hosted question: "+q.id);
   }
 });

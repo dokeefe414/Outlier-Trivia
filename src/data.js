@@ -1,3 +1,4 @@
+import { broadQuestions } from "./atlas-questions.js";
 // OUTLIER prototype question bank.
 // Stand Out points are editorial prototype tiers, not measured live rarity.
 // Fit In shares are fictional calibrated examples, not real player survey results.
@@ -195,3 +196,7 @@ fitQuestions.push(
   {id:"rainy",category:"EVERYDAY",prompt:"Name something people do when it rains all day.",
    choices:[["Watch a movie",30],["Sleep",25],["Read a book",17],["Play games",13],["Cook",9],["Clean",6]]}
 );
+
+// Broad-pool prompts are the official v0.4 daily Stand Out slate.
+// Smaller legacy prompts remain available for historical saved sessions.
+rareQuestions.push(...broadQuestions);
