@@ -12,6 +12,16 @@ page.setDefaultTimeout(12000);
 async function runDaily() {
   await page.goto(url);
   await page.locator(".hero").waitFor();
+  await page.locator("#tour-dialog").waitFor();
+  for(let step=1;step<=4;step++){
+    assert.match(await page.locator("#tour-dialog .eyebrow").innerText(),new RegExp("0"+step));
+    await page.locator('button[data-action="tour-next"]').click();
+  }
+  assert.equal(await page.locator("#tour-dialog").count(),0,"intro should close");
+  await page.locator(".season-panel").waitFor();
+  await page.locator(".cosmetics-panel").waitFor();
+  await page.locator(".beta-panel").waitFor();
+  assert.equal(await page.locator(".theme-choice").count(),4);
   assert.match(await page.title(),/OUTLIER/);
   assert.match(await page.locator("h1").first().innerText(),/THINK/);
   await page.locator('button[data-action="daily"]').first().click();

@@ -52,6 +52,11 @@ async function invoke(action,{method="GET",payload=null,auth=true,query=""}={}) 
   }
   return body;
 }
+async function reloadCapabilities() {
+  try { state.capabilities=await invoke("capabilities",{auth:false}); }
+  catch(error){ state.capabilities={rankedReady:false,paymentReady:false};
+    state.message="The competitive server has not been verified as ready yet."; }
+}
 async function reloadProfile() {
   if (!state.user) return;
   const result = await invoke("profile");
@@ -177,10 +182,15 @@ function showMenu() {
   const heading='<div class="online-heading"><span class="eyebrow">THE COMPETITIVE LEAGUE</span>'+
    '<h1>PLAY WITH <span class="gradient-text">THE WORLD.</span></h1>'+
    '<p class="muted">One official seven-question run per day. Verified global scores, lifetime rankings, and a $4.99 lifetime unlimited unlock.</p></div>';
+  const rankedReady=state.capabilities?.rankedReady===true;
+  const paymentReady=state.capabilities?.paymentReady===true;
   const buttons=signedIn ?
-    '<div class="online-menu-actions">'+act("daily","PLAY MY OFFICIAL DAILY →")+
-      (state.profile?.unlimited ? act("practice","UNLIMITED PRACTICE ↻","btn-teal") :
-      act("checkout","UNLOCK PRACTICE · $4.99 ONCE","btn-ghost"))+
+    '<div class="online-menu-actions">'+
+      (rankedReady ? act("daily","PLAY MY OFFICIAL DAILY →") :
+        '<p class="small muted">Verified daily competition is awaiting its private question bank. The free guest game still works.</p>')+
+      (state.profile?.unlimited && rankedReady ? act("practice","UNLIMITED PRACTICE ↻","btn-teal") :
+        !state.profile?.unlimited && paymentReady && rankedReady ?
+          act("checkout","UNLOCK PRACTICE · $4.99 ONCE","btn-ghost") : '')+
       act("logout","SIGN OUT","btn-outline")+'</div>' :
     '<div class="card online-signup"><span class="pill pill-purple">FREE DAILY GAME</span>'+
     '<h3>Get on the leaderboard.</h3><p class="small muted">Enter your email and we’ll send a secure sign-in link. No password needed.</p>'+
@@ -190,6 +200,7 @@ function showMenu() {
     (state.sent ? notice("Check your email for your sign-in link.","ok") : "")+'</div>';
   setView(heading + (state.error ? notice(state.error,"warning") : "")+
     (state.message ? notice(state.message,"ok") : "")+
+    (!rankedReady?notice("Online beta setup is incomplete: verified ranked games are not open yet. The guest daily game is still free.","warning"):"")+
     buttons + profilePanel() + onlineJourney() + leaguesPanel() + boardUI());
 }
 function formatTime(deadline) {
@@ -400,7 +411,7 @@ async function handleClick(event) {
   if (action==="daily") await start("daily");
   if (action==="practice") await start("practice");
   if (action==="checkout") await checkout();
-  if (action==="menu") {await Promise.all([reloadBoard(),reloadProfile(),reloadLeagues()]).catch(()=>{});showMenu();}
+  if (action==="menu") {await Promise.all([reloadBoard(),reloadProfile(),reloadLeagues(),reloadCapabilities()]).catch(()=>{});showMenu();}
   if (action==="next") await advance();
   if (action==="pick") await submitAnswer(button.dataset.answer);
   if (action==="skip") await submitAnswer(null);
@@ -486,7 +497,7 @@ function onKeydown(event) {
 }
 export async function mountOnline(element, back) {
   container=element;onBack=back;
-  state={view:"loading",board:"daily",players:[],user:null,profile:null,game:null,feedback:null,
+  state={view:"loading",board:"daily",players:[],user:null,profile:null,capabilities:null,game:null,feedback:null,
     leagues:[],activeLeague:null,leaguePlayers:[],leaguePeriod:"week",error:null,message:null,sent:false};
   showBusy();
   if (!ONLINE_ENABLED) {
@@ -509,7 +520,7 @@ export async function mountOnline(element, back) {
     if (error) throw error;
     state.user=data.session?.user ?? null;
     if (state.user) await Promise.all([reloadProfile(),reloadLeagues()]);
-    await reloadBoard();
+    await Promise.all([reloadBoard(),reloadCapabilities()]);
     const params=new URLSearchParams(window.location.search);
     if (params.get("checkout")==="success") {
       state.message="Payment return received. Lifetime access appears after Stripe confirms it; reload if necessary.";

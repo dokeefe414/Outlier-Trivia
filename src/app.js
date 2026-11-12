@@ -2,6 +2,7 @@ import { buildRound, buildLegacyRound, utcDay, normalizeAnswer, evaluate, scoreO
 import { rareQuestions, fitQuestions } from "./data.js";
 import { activityWeek, currentStreak, longestStreak, earnedBadges } from "./progression.js";
 import { ONLINE_ENABLED } from "./online-config.js";
+import {THEMES,TOUR_STEPS,completedDailyCount,unlockableThemes,weeklySeason,seasonArchive,betaChecklistState,safeFeedbackUrl} from "./beta.js";
 import {scoreHistory,weekSummary,nextGoal,versusHistory,utcResetRemaining} from "./journey.js";
 import { readFriendChallenge, challengeLink, challengeOutcome, categoryInsights } from "./social.js";
 
@@ -15,9 +16,11 @@ function loadStore() {
     const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
     return { days: raw.days && typeof raw.days === "object" ? raw.days : {},
       arcade: raw.arcade && typeof raw.arcade === "object" ? raw.arcade : {},
-      sound: Boolean(raw.sound) };
+      sound: Boolean(raw.sound),
+      beta: raw.beta && typeof raw.beta === "object" ? raw.beta : {},
+      theme: typeof raw.theme === "string" ? raw.theme : "nebula" };
   } catch {
-    return { days: {}, arcade: {}, sound: false };
+    return { days: {}, arcade: {}, sound: false, beta: {}, theme: "nebula" };
   }
 }
 const storage = loadStore();
@@ -26,6 +29,8 @@ let session = null;
 let feedback = null;
 let boardTab = "daily";
 let practiceFormat = "classic";
+let tourPage = 0;
+let tourWasSeenThisSession = false;
 const friendChallenge = readFriendChallenge(window.location.search, utcDay());
 let intervalId = null;
 let toastTimeout = null;
@@ -168,6 +173,87 @@ function resultComparison(day,score) {
     '</p></div>';
 }
 
+
+function applyTheme() {
+  const state=unlockableThemes(storage.days,storage.theme);
+  storage.theme=state.active;
+  document.documentElement.dataset.skin=state.active;
+}
+function seasonPanel() {
+  const season=weeklySeason(storage.days,today());
+  const archive=seasonArchive(storage.days,today(),4);
+  const count=season.completed;
+  const goal=season.next?.threshold||7;
+  const percentage=Math.min(100,Math.round(count/goal*100));
+  return '<div class="card season-panel"><div class="season-head"><div>'+
+    '<span class="eyebrow">YOUR WEEKLY SEASON</span><h3>Brains earn their crowns.</h3>'+
+    '<p class="small muted">Every Monday–Sunday UTC week is a new seven-day season. Rewards are cosmetic only.</p></div>'+
+    '<span class="season-emblem">'+(season.achieved?.symbol||'✧')+'</span></div>'+
+    '<div class="season-progress"><div><strong>'+(season.achieved?.name||"New Challenger")+
+    '</strong><span>'+count+' of 7 official days completed</span></div><div class="season-track"><span style="width:'+percentage+'%"></span></div>'+
+    '<p class="small muted">'+(season.next?season.needed+' more daily '+(season.needed===1?'game':'games')+
+    ' to reach '+season.next.name: 'Season Legend! You played all seven days.')+'</p></div>'+
+    '<div class="season-tiers">'+season.tiers.map(t=>
+    '<div class="'+(count>=t.threshold?'unlocked':'locked')+'"><strong>'+t.symbol+'</strong><span>'+t.name+'</span>'+
+      '<small>'+t.threshold+' DAYS</small></div>').join('')+'</div>'+
+    (archive.length?'<div class="season-history"><strong>PAST SEASONS</strong>'+
+      archive.map(a=>'<span title="'+esc(a.start)+'">'+esc(a.badge)+' · '+a.completed+'/7</span>').join('')+'</div>':'')+
+    '</div>';
+}
+function themesPanel() {
+  const state=unlockableThemes(storage.days,storage.theme);
+  return '<div class="card cosmetics-panel"><div class="eyebrow">COLLECTIBLE GAME STYLES</div>'+
+    '<h3>Make OUTLIER yours.</h3><p class="small muted">Unlock color themes just by finishing official daily games. No purchases or score boosts.</p>'+
+    '<div class="theme-grid">'+state.themes.map(t=>'<button type="button" class="theme-choice '+(state.active===t.id?'selected':'')+
+      '" data-action="theme" data-theme="'+t.id+'" aria-pressed="'+(state.active===t.id)+'" '+(!t.unlocked?'disabled':'')+'>'+
+      '<span class="theme-orb '+t.id+'">'+t.symbol+'</span><strong>'+esc(t.name)+'</strong>'+
+      '<small>'+(t.unlocked?(state.active===t.id?'ACTIVE · CLICK TO KEEP':'UNLOCKED'):'LOCKED · '+t.remaining+' MORE DAYS')+
+      '</small></button>').join('')+'</div></div>';
+}
+function betaPanel() {
+  const checklist=betaChecklistState(storage.days,{
+    tutorial:storage.beta?.tutorial,
+    practice:storage.beta?.practice,
+    shared:storage.beta?.shared
+  });
+  const done=checklist.filter(x=>x.done).length;
+  return '<div class="card beta-panel"><div><span class="eyebrow">HELP SHAPE THE BETA</span>'+
+    '<h3>Be one of the first OUTLIERS.</h3>'+
+    '<p class="small muted">Try all four steps, then tell us what feels great and what needs work. We don\'t upload your browser history automatically.</p>'+
+    '<div class="beta-tasks">'+checklist.map(task=>'<span class="'+(task.done?'done':'')+'">'+
+      (task.done?'✓':'○')+' '+esc(task.label)+'</span>').join('')+'</div>'+
+    '<strong class="beta-count">'+done+' OF '+checklist.length+' COMPLETED</strong></div>'+
+    '<div class="beta-actions">'+homeButton('SEND GAME FEEDBACK ↗','feedback','btn-teal')+
+    homeButton('REPLAY TUTORIAL','tour','btn-ghost')+'</div></div>';
+}
+function openTour(page=0) {
+  tourPage=Math.max(0,Math.min(TOUR_STEPS.length-1,page));
+  const t=TOUR_STEPS[tourPage];
+  modalRoot.innerHTML='<div class="rules-modal-backdrop tour-backdrop"><section class="card tour-modal" role="dialog" aria-modal="true" aria-label="OUTLIER first-time tutorial" id="tour-dialog" tabindex="-1">'+
+    '<div class="tour-head"><span class="eyebrow">'+t.eyebrow+'</span>'+
+    '<button type="button" class="tour-skip" data-action="tour-skip">SKIP INTRO</button></div>'+
+    '<div class="tour-hero">'+t.symbol+'</div><h2>'+esc(t.title)+'</h2><p>'+esc(t.description)+'</p>'+
+    '<div class="tour-hint">'+esc(t.hint)+'</div><div class="tour-progress">'+TOUR_STEPS.map((_,i)=>
+      '<span class="'+(i===tourPage?'active':i<tourPage?'seen':'')+'"></span>').join('')+'</div>'+
+    '<div class="tour-actions">'+(tourPage>0?homeButton('← PREVIOUS','tour-prev','btn-ghost'):'')+
+      homeButton(tourPage===TOUR_STEPS.length-1?'START PLAYING →':'NEXT →','tour-next','btn-primary')+
+    '</div></section></div>';
+  modalRoot.querySelector("#tour-dialog")?.focus();
+}
+function finishTour() {
+  storage.beta.tutorial=true;
+  tourWasSeenThisSession=true;
+  saveStore();
+  modalRoot.replaceChildren();
+  if(screen==="home")renderHome();
+}
+function openFeedback() {
+  const url=safeFeedbackUrl("https://github.com/dokeefe414/Outlier-Trivia/issues/new",
+    "Design feedback");
+  window.open(url,"_blank","noopener,noreferrer");
+  toast("GitHub sign-in is needed to submit feedback. Please avoid including private information.");
+}
+
 function stat(label, value) {
   return '<div class="stat"><div class="stat-label">' + label + '</div><div class="stat-value">' + value + '</div></div>';
 }
@@ -223,6 +309,7 @@ function renderHome() {
   const started = Boolean(record?.answers?.length || record?.deadline);
   const action = ONLINE_ENABLED ? "online" : played ? "result" : "daily";
   const actionLabel = ONLINE_ENABLED ? "COMPETE ONLINE TODAY →" : played ? "VIEW TODAY'S RESULTS ↗" : started ? "CONTINUE TODAY'S GAME →" : "PLAY TODAY'S GAME →";
+  applyTheme();
   app.innerHTML = [
     '<section class="hero"><div class="hero-copy">',
     '<div class="eyebrow">THE DAILY BRAIN BATTLE</div>',
@@ -254,7 +341,7 @@ function renderHome() {
     stat("LIFETIME AVERAGE", fmt(stats.average)),
     stat("LIFETIME POINTS", fmt(stats.total)),
     stat("PERSONAL BEST", fmt(stats.best)),
-    '</div>' + progressPanel() + journeyPreview() + '</section>',
+    '</div>' + progressPanel() + journeyPreview() + seasonPanel() + themesPanel() + betaPanel() + '</section>',
     '<section class="promo"><div><span class="pill pill-purple" style="margin-bottom:13px">' +
       (ONLINE_ENABLED ? 'ONLINE LEAGUE' : 'COMING AFTER THE PROTOTYPE') + '</span>',
     '<h3>More trivia. No more waiting.</h3><p>' + (ONLINE_ENABLED ?
@@ -506,6 +593,7 @@ function renderResult() {
   const fitMax = session.questions.filter(q=>q.type==="fit").length*1000;
   let arcadeRecord=null;
   if (!daily && !session.arcadeRecorded) {
+    storage.beta.practice=true;
     const key=(session.practiceFormat||"classic")+":"+(session.practiceGroup||"surprise");
     const previous=storage.arcade[key] || {best:0,runs:0};
     arcadeRecord={previous:previous.best,personalBest:score>previous.best,format:session.practiceFormat||"classic"};
@@ -600,6 +688,8 @@ function renderLeaderboard() {
     '<div class="board-note">Only official daily games count. Unlimited practice never changes these numbers. Scores are stored locally on this device, not synced between devices.</div>',
     '</div>',
     personalJourneyPanel(),
+    seasonPanel(),
+    themesPanel(),
     renderKnowledgeProfile(),
     badgeCabinet(),
     histories.length ? '<div class="card result-breakdown board-history"><h3>Your recent daily scores</h3>' +
@@ -629,6 +719,7 @@ function openRules() {
 function closeRules() { modalRoot.replaceChildren(); }
 
 function shareResult() {
+  storage.beta.shared=true; saveStore();
   const link = challengeLink(window.location.href,session.day,scoreOf(session.answers));
   const value = shareText(session.day, session.answers) + "\nBEAT MY SCORE: " + link;
   if (navigator.clipboard?.writeText) {
@@ -678,6 +769,20 @@ document.addEventListener("click", event => {
     case "share": shareResult(); break;
     case "rules": openRules(); break;
     case "close-rules": closeRules(); break;
+    case "tour": openTour(0); break;
+    case "tour-next": tourPage+1>=TOUR_STEPS.length?finishTour():openTour(tourPage+1); break;
+    case "tour-prev": openTour(tourPage-1); break;
+    case "tour-skip": finishTour(); break;
+    case "feedback": openFeedback(); break;
+    case "theme": {
+      const desired=control.dataset.theme;
+      const options=unlockableThemes(storage.days,desired);
+      if(options.active!==desired)return;
+      storage.theme=desired;saveStore();applyTheme();
+      if(screen==="leaderboard")renderLeaderboard();else renderHome();
+      toast("Theme updated: "+(THEMES.find(t=>t.id===desired)?.name||"Nebula"));
+      break;
+    }
     case "sound":
       storage.sound = !storage.sound; saveStore(); renderSound(); sound(720,.1);
       toast(storage.sound ? "Sound on" : "Sound off");
@@ -706,7 +811,11 @@ document.addEventListener("submit", event => {
 });
 document.addEventListener("keydown", event => {
   if (event.key === "Escape") {
-    if (modalRoot.firstElementChild) { closeRules(); return; }
+    if (modalRoot.firstElementChild) {
+      if(modalRoot.querySelector("#tour-dialog")) finishTour();
+      else closeRules();
+      return;
+    }
   }
   if (modalRoot.firstElementChild || screen !== "game" || currentQuestion()?.type !== "fit") return;
   if (event.altKey || event.ctrlKey || event.metaKey || event.repeat) return;
@@ -723,6 +832,11 @@ document.addEventListener("keydown", event => {
 
 renderHome();
 renderSound();
+applyTheme();
+if(!storage.beta.tutorial && completedDailyCount(storage.days)===0 && !tourWasSeenThisSession &&
+    new URLSearchParams(window.location.search).get("online")!=="1") {
+  openTour(0);
+}
 const onlineNav = document.getElementById("online-nav");
 if (onlineNav && ONLINE_ENABLED) onlineNav.hidden = false;
 if (ONLINE_ENABLED && new URLSearchParams(window.location.search).get("online") === "1") showOnline();

@@ -77,6 +77,21 @@ jobs:
       - name: Verify secure friend leagues and historical crowd data
         run: psql -v ON_ERROR_STOP=1 -f test/competition-smoke.sql
 
+      - name: Apply private ranked scoring security migration
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261112000700_private_ranked_content.sql
+      - name: Apply replay-safe Stripe billing lifecycle
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261112000800_billing_lifecycle.sql
+      - name: Apply private beta operations and release checks
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261112000900_beta_operations.sql
+      - name: Verify production ranked question bank defaults to empty
+        run: |
+          COUNT=$(psql -Atc 'select count(*) from private.ranked_question_bank')
+          [ "$COUNT" = "0" ] || (echo "Ranked keys may be committed to public migrations!" && exit 1)
+      - name: Seed disposable private question fixtures for integration tests only
+        run: psql -v ON_ERROR_STOP=1 -f test/private-question-fixture.sql
+      - name: Test sealed daily games, request limits, billing and beta metrics
+        run: psql -v ON_ERROR_STOP=1 -f test/private-beta-smoke.sql
+
   browser-e2e:
     name: Desktop and mobile browser smoke
     needs: browser-code

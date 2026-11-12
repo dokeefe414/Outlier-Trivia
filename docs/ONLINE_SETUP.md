@@ -142,3 +142,49 @@ prior-day response-frequency summaries (hidden until 30 samples).
 The optional hosted features **remain inactive** with blank public config,
 and historical frequencies are observational, not an automatic revision
 of today's official editorial point values. See docs/COMPETITIVE_UPDATE.md.
+
+
+## v0.7 launch gate: private ranked questions, Stripe refunds and beta metrics
+
+**Do not launch paid or ranked play using the public v0.5 question seeds.**
+After applying migration \`20261112000700_private_ranked_content.sql\`, the
+actual online scoring system uses \`private.ranked_question_bank\`, which
+is deliberately **empty** in the public migrations. Curate real private
+questions and import them securely through Supabase (NOT GitHub or
+\`test/private-question-fixture.sql\`). See
+[PRIVATE_RANKED_CONTENT.md](PRIVATE_RANKED_CONTENT.md) for the required
+groups, minimum 49 question set, readiness API, and slate immutability.
+Until this content exists, online daily and checkout buttons stay disabled.
+
+Apply the later migrations in order:
+- \`20261112000800_billing_lifecycle.sql\` for durable Stripe event handling.
+- \`20261112000900_beta_operations.sql\` for request budgets, readiness checks
+  and privacy-safe aggregate beta reporting.
+
+In addition to the existing environment secrets, configure:
+
+    supabase secrets set STRIPE_MODE="test"
+    supabase secrets set OUTLIER_ADMIN_TOKEN="LONG_RANDOM_UNIQUE_SECRET_AT_LEAST_32_CHARS"
+
+The \`OUTLIER_ADMIN_TOKEN\` is for owner-only beta reporting:
+\`GET /functions/v1/outlier?action=admin-metrics\` with the private header
+\`X-Outlier-Admin-Token\`. Never put this token in browser source or a repo.
+
+Subscribe the Stripe webhook to:
+- \`checkout.session.completed\`
+- \`charge.refunded\`
+- \`charge.dispute.created\`
+
+The Edge Function verifies signatures **and** test/live mode, records unique
+events through a service-role RPC, and updates entitlements only after
+actual paid Checkout sessions. A full refund or dispute for the currently
+active PaymentIntent revokes access. Test partial refunds, repeated events,
+out-of-order delivery and a subsequent legitimate repurchase.
+
+**Test mode and live mode are separate.** Do not set \`STRIPE_MODE=live\`
+or live secret keys until owner policies, tax, refunds, support, account
+deletion, monitoring and live-browser tests have been reviewed.
+
+The public \`?action=capabilities\` route exposes a coarse ready/not-ready
+flag but not question keys. The optional online page uses it to avoid
+offering unusable ranked or payment buttons.

@@ -11,6 +11,8 @@ const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const siteUrl = Deno.env.get("SITE_URL") ?? "";
 const stripeKey = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
 const stripeWebhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET") ?? "";
+const stripeMode = Deno.env.get("STRIPE_MODE") ?? "test";
+const adminToken = Deno.env.get("OUTLIER_ADMIN_TOKEN") ?? "";
 
 class ApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
@@ -58,6 +60,7 @@ function json(data: unknown, status = 200, origin: string | null = null) {
 }
 function parseError(message: string): ApiError {
   if (message.includes("payment_required")) return new ApiError(402,"payment_required");
+  if (message.includes("private_question_bank_not_configured")) return new ApiError(503,"private_question_bank_not_configured");
   if (message.includes("game_already_finished")) return new ApiError(409,"game_already_finished");
   if (message.includes("incorrect_question_index")) return new ApiError(409,"incorrect_question_index");
   if (message.includes("game_not_found")) return new ApiError(404,"game_not_found");
@@ -120,6 +123,22 @@ async function entitlement(userId: string): Promise<boolean> {
   const rows = await database("/entitlements?user_id=eq." + encodeURIComponent(userId) + "&select=unlimited&limit=1");
   return Array.isArray(rows) && rows[0]?.unlimited === true;
 }
+async function enforceBudget(userId: string, action: string) {
+  const limits: Record<string,[number,number]> = {
+    "start":[20,3600],"answer":[45,3600],"advance":[45,3600],
+    "league-create":[5,86400],"league-join":[12,3600],
+    "review":[5,86400],"checkout":[5,3600],"name":[8,3600]
+  };
+  const [max,windowSeconds] = limits[action] ?? [20,3600];
+  const permitted=await rpc("outlier_request_budget",{
+    p_user:userId,p_action:action,p_max:max,p_window_seconds:windowSeconds
+  });
+  if(permitted !== true) throw new ApiError(429,"too_many_requests");
+}
+function adminAuthorized(req: Request): boolean {
+  const token=req.headers.get("X-Outlier-Admin-Token")??"";
+  return adminToken.length>=32 && token.length>=32 && constantTimeMatch(token,adminToken);
+}
 async function profile(user: User) {
   const [stats,people,paid,history] = await Promise.all([
     rpc("outlier_player_stats",{p_user:user.id}),
@@ -135,6 +154,8 @@ async function stripeCheckout(user: User): Promise<string> {
   if (await entitlement(user.id)) throw new ApiError(409,"already_unlocked");
   const params = new URLSearchParams();
   params.set("mode","payment");
+  // Card payments settle synchronously; delayed methods are not enabled.
+  params.set("payment_method_types[0]","card");
   params.set("line_items[0][price_data][currency]","usd");
   params.set("line_items[0][price_data][unit_amount]","499");
   params.set("line_items[0][price_data][product_data][name]","OUTLIER Unlimited — Lifetime");
@@ -178,24 +199,57 @@ async function verifyStripeWebhook(raw: string, header: string | null) {
 }
 async function processWebhook(req: Request) {
   const raw = await req.text();
+  if(raw.length > 512000) throw new ApiError(413,"webhook_too_large");
   await verifyStripeWebhook(raw,req.headers.get("Stripe-Signature"));
-  const event = JSON.parse(raw);
-  if (event?.type === "checkout.session.completed") {
-    const session = event.data?.object;
-    const userId = session?.metadata?.user_id;
-    // Never trust a client-supplied success URL or purchase status.
-    if (typeof userId !== "string" || userId !== session?.client_reference_id ||
-        session?.payment_status !== "paid" || session?.amount_total !== 499 ||
-        session?.currency !== "usd" || typeof session?.id !== "string") {
-      throw new ApiError(400,"invalid_paid_session");
-    }
-    ensureUuid(userId);
-    await database("/entitlements?on_conflict=user_id","POST",[
-      {user_id:userId,unlimited:true,stripe_session_id:session.id,purchased_at:new Date().toISOString()}
-    ]);
+  const event=JSON.parse(raw);
+  if (!event?.id || typeof event.id !== "string" || typeof event.livemode !== "boolean" ||
+      event.livemode !== (stripeMode === "live")) throw new ApiError(400,"stripe_mode_mismatch");
+  const data=event.data?.object;
+  let kind: "paid" | "refunded" | "disputed" | null = null;
+  let userId: string | null = null;
+  let sessionId: string | null = null;
+  let intent: string | null = null;
+  let amount: number = 0;
+  let currency: string = "";
+  if (event.type === "checkout.session.completed" ||
+      event.type === "checkout.session.async_payment_succeeded") {
+    // Only actual paid one-time purchases can grant an entitlement.
+    if (data?.payment_status !== "paid" || data?.mode !== "payment" ||
+        data?.amount_total !== 499 || data?.currency !== "usd" ||
+        typeof data?.client_reference_id !== "string" ||
+        data?.client_reference_id !== data?.metadata?.user_id ||
+        typeof data?.payment_intent !== "string") throw new ApiError(400,"invalid_paid_session");
+    kind="paid";
+    userId=ensureUuid(data.metadata.user_id);
+    sessionId=String(data.id);
+    intent=data.payment_intent;
+    amount=data.amount_total;
+    currency=data.currency;
+  } else if (event.type === "charge.refunded") {
+    // Partial refunds do not revoke access. The DB records the event for audit.
+    kind="refunded";
+    intent=typeof data?.payment_intent==="string"?data.payment_intent:null;
+    amount=Number(data?.amount_refunded);
+    currency=String(data?.currency ?? "");
+  } else if (event.type === "charge.dispute.created") {
+    kind="disputed";
+    intent=typeof data?.payment_intent==="string"?data.payment_intent:null;
+    amount=Number(data?.amount);
+    currency=String(data?.currency ?? "");
+  } else {
+    return {received:true,ignored:true};
   }
-  return {received:true};
+  if (!intent || !Number.isInteger(amount) || amount<0 ||
+      currency!=="usd" || typeof event.id!=="string") {
+    throw new ApiError(400,"unsupported_payment_event");
+  }
+  const result=await rpc("outlier_apply_billing_event",{
+    p_event:event.id,p_kind:kind,p_user:userId,p_session:sessionId,
+    p_intent:intent,p_amount:amount,p_currency:currency
+  });
+  return {received:true,result};
 }
+
 async function handle(req: Request): Promise<Response> {
   const origin = req.headers.get("Origin");
   if (!isAllowedOrigin(origin)) return json({error:"origin_not_allowed"},403,null);
@@ -204,6 +258,20 @@ async function handle(req: Request): Promise<Response> {
   const action = url.searchParams.get("action") ?? "";
   try {
     if (action === "webhook" && req.method === "POST") return json(await processWebhook(req),200,origin);
+    if (action === "capabilities" && req.method === "GET") {
+      const readiness=await rpc("outlier_launch_readiness",{});
+      const info=readiness as {ready?:boolean;privateQuestions?:number};
+      return json({rankedReady:info?.ready === true,
+        paymentReady:Boolean(stripeKey && stripeWebhookSecret && siteUrl),
+        privateQuestionCount:info?.privateQuestions??0},200,origin);
+    }
+    if (action === "admin-metrics" && req.method === "GET") {
+      if(!adminAuthorized(req))throw new ApiError(403,"admin_authorization_required");
+      const metrics=await rpc("outlier_beta_metrics",{});
+      const readiness=await rpc("outlier_launch_readiness",{});
+      return json({metrics,readiness,paymentConfigured:Boolean(stripeKey && stripeWebhookSecret)},
+        200,origin);
+    }
     if (action === "leaderboard" && req.method === "GET") {
       const board = url.searchParams.get("board") ?? "daily";
       if (!["daily","week","average","total"].includes(board)) throw new ApiError(400,"invalid_board");
@@ -213,6 +281,14 @@ async function handle(req: Request): Promise<Response> {
       return json({board,players:list},200,origin);
     }
     const user = await currentUser(req);
+    const mutationBudget: Record<string,string> = {
+      "profile":"name","start":"start","answer":"answer","advance":"advance",
+      "league-create":"league-create","league-join":"league-join",
+      "review":"review","checkout":"checkout"
+    };
+    if ((req.method==="POST" || req.method==="PATCH") && mutationBudget[action]) {
+      await enforceBudget(user.id,mutationBudget[action]);
+    }
     if (action === "profile" && req.method === "GET") {
       return json(await profile(user),200,origin);
     }

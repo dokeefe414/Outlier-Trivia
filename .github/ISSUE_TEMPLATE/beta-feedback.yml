@@ -1,0 +1,50 @@
+name: OUTLIER beta feedback
+description: Report a confusing answer, game bug, or an idea. Please avoid personal information.
+title: "[Beta] "
+labels: ["beta-feedback"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping OUTLIER grow. Do **not** include email addresses,
+        private invitation codes, passwords, payment data, or personal records.
+        If a specific answer was rejected, explain why it should count and
+        include a reliable public source. Please do not submit spoilers
+        for the current daily game.
+  - type: dropdown
+    id: category
+    attributes:
+      label: What would you like to report?
+      options:
+        - A valid answer wasn't accepted
+        - Gameplay bug
+        - Confusing question or scoring
+        - Visual or mobile issue
+        - New category or feature idea
+        - Other feedback
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: What happened, or what would you change?
+      description: Share the steps to reproduce a problem, or how an improvement would help.
+      placeholder: "I was playing Stand Out and..."
+    validations:
+      required: true
+  - type: input
+    id: expected
+    attributes:
+      label: What did you expect? (optional)
+  - type: textarea
+    id: sources
+    attributes:
+      label: Public source for a disputed answer (optional)
+      description: Add a link to a reliable reference supporting your answer.
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Before submitting
+      options:
+        - label: I've excluded private, financial and account information.
+          required: true

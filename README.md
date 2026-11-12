@@ -2,7 +2,7 @@
 
 **A playable, mobile-friendly daily general-knowledge game.** Seven questions, two mindsets: find a rare correct answer in **Stand Out**, then predict the most popular answer in **Fit In**.
 
-> **Prototype v0.6 (arcade and progression update; community backend optional).** This is a static front-end prototype, not yet a production competitive service. No payments, accounts, or worldwide leaderboards are active.
+> **Prototype v0.7 (public-beta readiness, cosmetic seasons and secure hosted preparation).** This is a static front-end prototype, not yet a production competitive service. No payments, accounts, or worldwide leaderboards are active.
 
 ## Play
 
@@ -142,6 +142,28 @@ editorially scored points.
 See [Competitive Update](docs/COMPETITIVE_UPDATE.md) for features,
 database requirements, security and fair-scoring limitations.
 
+## v0.7 — First impressions, seasons, and secure competition
+
+The free GitHub Pages game now has a **four-step skippable tutorial**,
+weekly cosmetic seasons (Rookie / Contender / Ace / Legend), a past-season
+archive, four unlockable game color themes, and a guided beta checklist.
+Players earn cosmetic unlocks through **completed official daily games only**;
+purchases and unlimited practice never improve their rankings.
+
+The optional online code now includes a **separate empty private ranked
+question bank** (future official answers are not committed publicly), sealed
+daily question slates, immutable keys after publication, verified billing
+event handling including refunds/disputes, request budgets, and owner-only
+aggregate beta metrics. None of those online or payment services are live
+with the current blank public Supabase configuration.
+
+This release prepares for **20–50 opt-in beta testers**, not an automatic
+public launch. We still need owner-controlled Supabase/Stripe services,
+privately authored ranked questions, live end-to-end testing, moderation
+and support before enabling multiplayer or purchases. See
+[v0.7 release notes](docs/RELEASE_V07.md) and
+[private ranked content guide](docs/PRIVATE_RANKED_CONTENT.md).
+
 ## Gameplay
 
 - One **official daily game** per UTC calendar day, with identical questions and presentation order for all visitors.
@@ -194,6 +216,9 @@ Daily generation is deterministically seeded by a UTC date, so every visitor wit
     src/content-packs.js      66 additional curated answer-rich questions
     src/fit-expansion.js      30 additional example Fit In crowd boards
     src/journey.js            Weekly missions, recent scores, personal bests
+    src/beta.js               Tutorial, weekly cosmetic seasons, beta checklist
+    docs/RELEASE_V07.md       Security, monetization and beta launch plan
+    docs/PRIVATE_RANKED_CONTENT.md Private answer curation and quality controls
     test/arcade.test.js       Three arcade format scoring and topic tests
     test/journey.test.js      Daily reset and personal progress tests
     test/competition-smoke.sql Verified leagues, reviews and response sample tests
@@ -226,8 +251,9 @@ The app has no run-time JavaScript dependencies. CI checks JavaScript and Deno s
 6. **Hosted v0.3 (source implemented):** verified ranked attempts, Deno Edge API, email login, lifetime payment webhooks; needs third-party deployment and end-to-end validation.
 7. **Expanded v0.4:** large verified answer pools, per-category question rotation, an answer explorer and a missing-answer review workflow.
 8. **Knowledge Arcade v0.5:** 66 new topical Stand Out questions, 30 more Fit In boards, and 13 selectable practice categories.
-9. **Arcade & Competition v0.6 (current):** three replay formats, weekly journey, optional friend leagues and server-reviewed answers.
-10. **Public launch:** moderation/reporting, accessibility audit, anti-cheat, privacy policy, operations monitoring, content pipeline.
+9. **Arcade & Competition v0.6:** three replay formats, weekly journey, optional friend leagues and server-reviewed answers.
+10. **Public Beta Readiness v0.7 (current):** tutorial, weekly cosmetic seasons, themes, private ranked-content isolation, hardened purchase lifecycle and aggregate retention reporting.
+11. **Public launch:** moderation/reporting, accessibility audit, anti-cheat, privacy policy, operations monitoring, content pipeline.
 
 ## Philosophy
 

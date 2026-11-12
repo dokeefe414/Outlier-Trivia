@@ -594,3 +594,71 @@ p{line-height:1.6}
 .online-review{margin-top:20px;display:flex;flex-direction:column;gap:9px;border:1px dashed rgba(237,185,144,.3);background:rgba(148,102,74,.07);border-radius:13px;padding:15px}
 .online-review textarea{width:100%;resize:vertical;background:#10172b;border:1px solid rgba(168,181,219,.3);color:#f5efff;padding:12px;border-radius:9px;font-family:inherit}
 @media(max-width:700px){.league-forms{grid-template-columns:1fr}.league-card{align-items:stretch;flex-direction:column}.league-card-actions button{flex:1}.online-journey-grid{gap:4px}.league-panel,.online-journey{padding:19px}}
+
+
+/* OUTLIER v0.7 — earned cosmetic skins and accessible introduction */
+:root[data-skin="aurora"] { --purple:#64ecd1; --teal:#a2eafa; --yellow:#c5f7d9; }
+:root[data-skin="sunset"] { --purple:#ffc183; --teal:#ff9cbd; --yellow:#ffdb72; }
+:root[data-skin="champion"] { --purple:#f9d47b; --teal:#a1e6ce; --yellow:#ffdf88; }
+:root[data-skin="aurora"] .gradient-text{background-image:linear-gradient(105deg,#84ffde,#bcf5ff,#7fdbb6)}
+:root[data-skin="sunset"] .gradient-text{background-image:linear-gradient(105deg,#ffe6a6,#f99bbc,#ffc47d)}
+:root[data-skin="champion"] .gradient-text{background-image:linear-gradient(105deg,#fff5c1,#dfb969,#f5d58a)}
+:root[data-skin="aurora"] .btn-primary{background:linear-gradient(105deg,#5edabc,#b7fff2)}
+:root[data-skin="sunset"] .btn-primary{background:linear-gradient(105deg,#ffc77c,#ff9fb8)}
+:root[data-skin="champion"] .btn-primary{background:linear-gradient(105deg,#ebbb65,#ffeab3)}
+:root[data-skin="aurora"] .brand-mark{background:linear-gradient(135deg,#b8ffed,#42bcb7)}
+:root[data-skin="sunset"] .brand-mark{background:linear-gradient(135deg,#ffd27c,#f28eaf)}
+:root[data-skin="champion"] .brand-mark{background:linear-gradient(135deg,#fff5c7,#d99b47)}
+:root[data-skin="aurora"] .ambient-one{background:#076d7c}
+:root[data-skin="sunset"] .ambient-one{background:#a54682}
+:root[data-skin="champion"] .ambient-one{background:#866338}
+.season-panel,.cosmetics-panel,.beta-panel{padding:26px;margin-top:20px}
+.season-head{display:flex;justify-content:space-between;align-items:center;gap:20px}
+.season-head h3,.cosmetics-panel h3,.beta-panel h3{font-size:26px;margin:12px 0 7px}
+.season-emblem{font-size:40px;background:rgba(255,214,143,.11);border-radius:22px;padding:13px 17px;color:#f4d48a}
+.season-progress{margin:22px 0 17px}
+.season-progress>div:first-child{display:flex;justify-content:space-between;gap:12px;align-items:center}
+.season-progress strong{font-size:14px;color:#f4e7ff}
+.season-progress span{font-size:11px;color:#b8bfdc}
+.season-track{height:10px;border-radius:12px;background:rgba(159,165,214,.18);margin:12px 0;overflow:hidden}
+.season-track span{display:block;height:100%;background:linear-gradient(90deg,#9f85e9,#61e4c3);border-radius:10px;transition:width .35s}
+.season-tiers{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.season-tiers>div{border-radius:13px;background:rgba(18,26,53,.72);border:1px solid rgba(186,203,249,.12);min-height:95px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px}
+.season-tiers>div.locked{opacity:.48}
+.season-tiers strong{font-size:23px}
+.season-tiers span{font-size:11px;font-weight:900}
+.season-tiers small{font-size:9px;color:#aeb9d4}
+.season-history{display:flex;gap:10px;align-items:center;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:15px;margin-top:20px}
+.season-history>strong{font-size:10px;color:#b5b9d1;letter-spacing:1px}
+.season-history>span{font-size:10px;border-radius:8px;padding:8px 10px;background:rgba(113,91,165,.17)}
+.theme-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:20px}
+.theme-choice{display:flex;flex-direction:column;align-items:center;gap:8px;border-radius:14px;border:1px solid rgba(183,192,236,.14);background:rgba(14,23,50,.7);color:#f9f6ff;padding:16px 7px}
+.theme-choice:not(:disabled):hover{border-color:rgba(224,198,255,.6)}
+.theme-choice.selected{outline:2px solid var(--teal);outline-offset:1px}
+.theme-choice:disabled{opacity:.44}
+.theme-orb{display:grid;place-items:center;width:50px;height:50px;border-radius:50%;font-size:25px;background:linear-gradient(120deg,#9274d8,#5ac9c3)}
+.theme-orb.aurora{background:linear-gradient(120deg,#53b18b,#71d8e4)}
+.theme-orb.sunset{background:linear-gradient(120deg,#eac276,#d96b99)}
+.theme-orb.champion{background:linear-gradient(120deg,#ffdc8f,#c59542)}
+.theme-choice strong{font-size:12px}
+.theme-choice small{font-size:9px;color:#acb8d5;text-align:center}
+.beta-panel{display:flex;align-items:center;justify-content:space-between;gap:26px;background:linear-gradient(125deg,rgba(39,45,82,.95),rgba(17,49,59,.84))}
+.beta-tasks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:20px 0}
+.beta-tasks span{font-size:11px;border:1px solid rgba(192,196,239,.15);border-radius:10px;padding:11px;background:rgba(12,24,46,.34)}
+.beta-tasks span.done{color:#abf8dc;background:rgba(47,159,136,.13)}
+.beta-count{font-size:11px;color:#d6c5ff}
+.beta-actions{display:flex;flex-direction:column;gap:11px;min-width:190px}
+.tour-modal{max-width:520px;width:100%;padding:32px;max-height:92vh;overflow:auto;text-align:center}
+.tour-head{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.tour-skip{background:transparent;color:#c1c9e0;border:0;font-size:10px;letter-spacing:1px;font-weight:900}
+.tour-hero{font-size:65px;display:grid;place-items:center;height:123px;margin:14px 0 6px;background:radial-gradient(ellipse,rgba(179,139,250,.16),transparent 64%)}
+.tour-modal h2{font-size:33px;margin-bottom:18px}
+.tour-modal p{font-size:15px;color:#d0cde9;line-height:1.75}
+.tour-hint{margin:22px 0;padding:13px;border-radius:12px;background:rgba(116,100,172,.13);border:1px solid rgba(192,160,245,.16);font-size:12px;color:#c8e7e8}
+.tour-progress{display:flex;justify-content:center;gap:8px;margin:20px 0}
+.tour-progress span{width:29px;height:6px;border-radius:20px;background:rgba(187,195,230,.2)}
+.tour-progress span.active{background:#77e7d0}
+.tour-progress span.seen{background:#a587e4}
+.tour-actions{display:flex;gap:10px;justify-content:center}
+@media(max-width:750px){.beta-panel{flex-direction:column;align-items:stretch}.beta-actions{flex-direction:row}.theme-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:500px){.season-panel,.cosmetics-panel,.beta-panel{padding:18px}.season-tiers{gap:5px}.season-tiers>div{min-height:85px}.season-tiers span{font-size:9px}.beta-tasks{grid-template-columns:1fr}.beta-actions{flex-direction:column}.tour-modal{padding:20px}.tour-modal h2{font-size:26px}.tour-actions{flex-direction:column}}
