@@ -45,7 +45,7 @@ begin
  if result ? 'retry' then raise exception 'valid answer treated as retry'; end if;
  if (result->'feedback'->>'points')::integer<=0 then
    raise exception 'valid library answer should earn points'; end if;
- if (result->'state'->>'index'<>'1' then
+ if result->'state'->>'index'<>'1' then
    raise exception 'valid library answer did not finalize round'; end if;
  if (select jsonb_array_length(answers) from public.game_attempts where id=g)<>1 then
    raise exception 'valid answer not recorded exactly once'; end if;

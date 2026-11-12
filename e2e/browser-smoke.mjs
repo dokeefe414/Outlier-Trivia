@@ -37,7 +37,7 @@ async function runDaily() {
       await page.locator("#rare-answer").fill("this-answer-is-not-in-the-library-98765");
       await page.locator("#rare-form button[type=submit]").click();
       await page.locator("#answer-validation:not([hidden])").waitFor();
-      assert.match(await page.locator(".game-head h2").innerText(),/Question\\s*1/);
+      assert.match(await page.locator(".game-head h2").innerText(),/Question\s*1/);
       assert.equal(await page.locator(".feedback-card").count(),0,"rejected guess must not reveal the round");
       assert.equal(await page.locator(".game-score strong").innerText(),"0");
       assert.equal(await page.locator("#rare-answer").inputValue(),"","invalid answer should clear for a retry");
@@ -52,7 +52,7 @@ async function runDaily() {
       await page.locator("#rare-answer").fill("clearly-not-a-real-trivia-answer");
       await page.locator("#rare-form button[type=submit]").click();
       await page.locator("#answer-validation:not([hidden])").waitFor();
-      assert.match(await page.locator(".game-head h2").innerText(),/Question\\s*1/);
+      assert.match(await page.locator(".game-head h2").innerText(),/Question\s*1/);
       await page.locator("#rare-answer").fill(question.answers[0][0]);
       await page.locator("#rare-form button[type=submit]").click();
       await page.locator(".feedback-card").waitFor();
