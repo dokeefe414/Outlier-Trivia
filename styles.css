@@ -662,3 +662,20 @@ p{line-height:1.6}
 .tour-actions{display:flex;gap:10px;justify-content:center}
 @media(max-width:750px){.beta-panel{flex-direction:column;align-items:stretch}.beta-actions{flex-direction:row}.theme-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:500px){.season-panel,.cosmetics-panel,.beta-panel{padding:18px}.season-tiers{gap:5px}.season-tiers>div{min-height:85px}.season-tiers span{font-size:9px}.beta-tasks{grid-template-columns:1fr}.beta-actions{flex-direction:column}.tour-modal{padding:20px}.tour-modal h2{font-size:26px}.tour-actions{flex-direction:column}}
+
+
+/* v0.8: invalid free-text guesses stay on the same question */
+.answer-validation:not([hidden]){display:block;padding:11px 13px;border-radius:11px;margin:12px 0 7px;
+  background:rgba(255,129,150,.1);border:1px solid rgba(255,129,150,.38);
+  color:#ffd4dc;font-size:13px;font-weight:800;line-height:1.45}
+.answer-validation[hidden]{display:none}
+.answer-input[aria-invalid="true"]{border-color:#ff99af;box-shadow:0 0 0 2px rgba(255,129,150,.13)}
+.retry-hint{font-size:12px;color:#a9dece;margin:12px 0 0;line-height:1.5}
+.retry-report{margin:14px 0;padding:15px;border:1px dashed rgba(177,167,235,.32);
+  border-radius:12px;background:rgba(113,93,181,.09);display:flex;flex-direction:column;gap:11px}
+.retry-report>span,.retry-report label{color:#d8d8ef;font-size:11px;font-weight:800;line-height:1.55}
+.retry-report form{display:flex;flex-direction:column;gap:9px}
+.retry-report textarea{background:#10172b;border:1px solid rgba(168,181,219,.3);
+  border-radius:9px;color:#f5efff;font-family:inherit;padding:12px;max-width:100%;resize:vertical}
+.retry-report button{align-self:flex-start}
+.answer-review-ok{font-size:12px;font-weight:700;color:#a1f2ce}

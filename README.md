@@ -2,7 +2,7 @@
 
 **A playable, mobile-friendly daily general-knowledge game.** Seven questions, two mindsets: find a rare correct answer in **Stand Out**, then predict the most popular answer in **Fit In**.
 
-> **Prototype v0.7 (public-beta readiness, cosmetic seasons and secure hosted preparation).** This is a static front-end prototype, not yet a production competitive service. No payments, accounts, or worldwide leaderboards are active.
+> **Prototype v0.8 (retry invalid answers without losing the round).** This is a static front-end prototype, not yet a production competitive service. No payments, accounts, or worldwide leaderboards are active.
 
 ## Play
 
@@ -164,6 +164,29 @@ and support before enabling multiplayer or purchases. See
 [v0.7 release notes](docs/RELEASE_V07.md) and
 [private ranked content guide](docs/PRIVATE_RANKED_CONTENT.md).
 
+## v0.8 — Keep guessing until an approved answer is found
+
+On **Stand Out** rounds, a submitted answer that is **not in the accepted
+answer library** now shows a clear inline message and lets the player
+keep trying on the **same question**. An unrecognized guess:
+
+- **does not** count as one of the seven official answers,
+- **does not** award points or end the round,
+- **does not** reveal the answer list or reset the timer,
+- **does not** prevent the player from entering another valid answer.
+
+An accepted answer immediately locks in and scores normally. The question
+ends with zero points only when its original 45-second timer runs out or
+the player deliberately presses **Skip**. Practice formats keep their own
+original time limits. The same rule is implemented in the optional hosted
+Supabase scoring RPC so invalid answers cannot advance a verified game.
+Players can still request an answer review if they believe a rejected
+answer should count.
+
+See `test/retry-invalid-smoke.sql` for server tests and the desktop/mobile
+browser tests for guest behavior. Note: actual online mode still requires
+owner-controlled Supabase deployment and private ranked questions.
+
 ## Gameplay
 
 - One **official daily game** per UTC calendar day, with identical questions and presentation order for all visitors.
@@ -252,8 +275,9 @@ The app has no run-time JavaScript dependencies. CI checks JavaScript and Deno s
 7. **Expanded v0.4:** large verified answer pools, per-category question rotation, an answer explorer and a missing-answer review workflow.
 8. **Knowledge Arcade v0.5:** 66 new topical Stand Out questions, 30 more Fit In boards, and 13 selectable practice categories.
 9. **Arcade & Competition v0.6:** three replay formats, weekly journey, optional friend leagues and server-reviewed answers.
-10. **Public Beta Readiness v0.7 (current):** tutorial, weekly cosmetic seasons, themes, private ranked-content isolation, hardened purchase lifecycle and aggregate retention reporting.
-11. **Public launch:** moderation/reporting, accessibility audit, anti-cheat, privacy policy, operations monitoring, content pipeline.
+10. **Public Beta Readiness v0.7:** tutorial, weekly cosmetic seasons, themes, private ranked-content isolation, hardened purchase lifecycle and aggregate retention reporting.
+11. **Fair Answer Retries v0.8 (current):** Invalid guesses can be retried until accepted, skipped, or timed out, in guest and hosted play.
+12. **Public launch:** moderation/reporting, accessibility audit, anti-cheat, privacy policy, operations monitoring, content pipeline.
 
 ## Philosophy
 

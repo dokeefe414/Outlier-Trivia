@@ -225,6 +225,7 @@ function showGame() {
   if (state.game.complete) return showResults();
   if (!state.game.question?.deadline) return readyNext();
   state.view="game";
+  state.rejected=null;
   const q=state.game.question;
   const isFit=q.type==="fit";
   const options=isFit ?
@@ -232,8 +233,11 @@ function showGame() {
       '<button class="fit-option" data-online="pick" data-answer="'+escape(choice)+'"><span>'+escape(choice)+'</span><span>'+
       String.fromCharCode(65+index)+'</span></button>').join("")+'</div>' :
     '<form data-form="answer"><label class="answer-label" for="online-answer">YOUR MOST UNEXPECTED CORRECT ANSWER</label>'+
-    '<div class="answer-row"><input class="answer-input" maxlength="100" id="online-answer" required autocomplete="off" placeholder="Type your answer...">'+
-    '<button type="submit" class="btn btn-primary">LOCK IT IN →</button></div></form>';
+    '<div class="answer-row"><input class="answer-input" maxlength="100" id="online-answer" required autocomplete="off" aria-describedby="online-answer-validation" placeholder="Type your answer...">'+
+    '<button type="submit" class="btn btn-primary">LOCK IT IN →</button></div>'+
+    '<p id="online-answer-validation" class="answer-validation" role="alert" aria-live="assertive" hidden></p>'+
+    '<p class="retry-hint">Not recognized? Keep guessing — the clock stays running.</p>'+
+    '</form><div id="online-retry-report"></div>';
   setView('<div class="game-head"><div><span class="eyebrow">VERIFIED '+(state.game.mode==="daily"?"DAILY GAME":"UNRANKED PRACTICE")+'</span>'+
     '<h2>Question '+(state.game.index+1)+' / 7</h2></div><div class="game-score"><div class="tiny muted">YOUR SCORE</div>'+
     '<strong>'+number(state.game.score)+'</strong></div></div>'+
@@ -318,14 +322,35 @@ function showResults() {
     (g.mode==="daily"?"One official attempt per UTC day. Practice never counts toward the public leaderboards.":
      "This practice result does not affect your lifetime rankings.")+'</p>');
 }
+function showRetryWarning(message="That answer isn't in our accepted library. Try another answer before time runs out!") {
+  const warning=container.querySelector("#online-answer-validation");
+  const field=container.querySelector("#online-answer");
+  if(warning){ warning.textContent=message; warning.hidden=false; }
+  if(field){field.value="";field.setAttribute("aria-invalid","true");field.focus({preventScroll:true});}
+  const report=container.querySelector("#online-retry-report");
+  if(report && state.rejected?.guess && state.game?.question?.type==="rare"){
+    report.innerHTML='<div class="retry-report">'+
+      '<span>Think this answer should count? You can request a review without giving up the round.</span>'+
+      '<form data-form="review"><label for="review-reason">WHY SHOULD “'+escape(state.rejected.guess)+'” COUNT?</label>'+
+      '<textarea id="review-reason" minlength="12" maxlength="500" required rows="2" '+
+      'placeholder="Include a reliable reference..."></textarea>'+
+      '<button type="submit" class="btn btn-ghost">REQUEST REVIEW ↗</button></form></div>';
+  }
+}
 async function submitAnswer(response) {
   if (busy || state.view!=="game" || !state.game) return;
-  busy=true;stopTimer();
+  busy=true;
   try {
     const result=await invoke("answer", {method:"POST",payload:{
       game:state.game.id,index:state.game.index,response
     }});
     state.game=result.state;
+    if(result.retry){
+      state.rejected={guess:String(response||""),questionId:state.game.question?.id};
+      showRetryWarning();
+      return;
+    }
+    state.rejected=null;
     state.feedback=result;
     showFeedback();
   } catch(e) {
@@ -411,7 +436,7 @@ async function handleClick(event) {
   if (action==="daily") await start("daily");
   if (action==="practice") await start("practice");
   if (action==="checkout") await checkout();
-  if (action==="menu") {await Promise.all([reloadBoard(),reloadProfile(),reloadLeagues(),reloadCapabilities()]).catch(()=>{});showMenu();}
+  if (action==="menu") {state.rejected=null;await Promise.all([reloadBoard(),reloadProfile(),reloadLeagues(),reloadCapabilities()]).catch(()=>{});showMenu();}
   if (action==="next") await advance();
   if (action==="pick") await submitAnswer(button.dataset.answer);
   if (action==="skip") await submitAnswer(null);
@@ -461,18 +486,26 @@ async function handleSubmit(event) {
   }
   if (form.dataset.form==="review") {
     busy=true;
+    const retrying=state.view==="game";
     try {
-      const f=state.feedback?.feedback;
-      if(!f?.questionId||!state.game?.id)throw new Error("No eligible answer for review");
+      const id=retrying?state.rejected?.questionId:state.feedback?.feedback?.questionId;
+      if(!id||!state.game?.id)throw new Error("No eligible answer for review");
       await invoke("review",{method:"POST",payload:{
-        game:state.game.id,questionId:f.questionId,
+        game:state.game.id,questionId:id,
         reason:container.querySelector("#review-reason")?.value
       }});
-      state.message="Answer review submitted. The score is unchanged pending manual review.";
-      if(state.feedback?.feedback)state.feedback.feedback.response=null;
-      showFeedback();
-    }catch(e){state.message="Review not submitted: "+e.message;showFeedback();}
-    finally{busy=false;}
+      state.message="Answer review submitted. You can keep guessing; your score is unchanged.";
+      if(retrying) {
+        const report=container.querySelector("#online-retry-report");
+        if(report) report.innerHTML='<p class="answer-review-ok" role="status">Review submitted! Keep guessing while time remains.</p>';
+      } else {
+        if(state.feedback?.feedback)state.feedback.feedback.response=null;
+        showFeedback();
+      }
+    } catch(e) {
+      if(retrying) showRetryWarning("Review couldn't be submitted: "+e.message+". Keep guessing!");
+      else { state.message="Review not submitted: "+e.message;showFeedback(); }
+    } finally{busy=false;}
     return;
   }
   if (form.dataset.form==="name") {
@@ -497,7 +530,7 @@ function onKeydown(event) {
 }
 export async function mountOnline(element, back) {
   container=element;onBack=back;
-  state={view:"loading",board:"daily",players:[],user:null,profile:null,capabilities:null,game:null,feedback:null,
+  state={view:"loading",board:"daily",players:[],user:null,profile:null,capabilities:null,game:null,feedback:null,rejected:null,
     leagues:[],activeLeague:null,leaguePlayers:[],leaguePeriod:"week",error:null,message:null,sent:false};
   showBusy();
   if (!ONLINE_ENABLED) {
@@ -509,6 +542,13 @@ export async function mountOnline(element, back) {
   }
   container.onclick=handleClick;
   container.onsubmit=handleSubmit;
+  container.oninput=event=>{
+    if(event.target?.id==="online-answer") {
+      const warning=container.querySelector("#online-answer-validation");
+      if(warning) warning.hidden=true;
+      event.target.removeAttribute("aria-invalid");
+    }
+  };
   window.addEventListener("keydown",onKeydown);
   try {
     // SDK only loads when backend is configured and the player enters online mode.

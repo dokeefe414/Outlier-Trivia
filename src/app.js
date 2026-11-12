@@ -438,15 +438,17 @@ function renderGame() {
     '</div><p class="keyboard-hint">QUICK PICK: PRESS A–F OR 1–6</p>'
   :
     '<form id="rare-form" autocomplete="off"><label class="answer-label" for="rare-answer">YOUR MOST UNEXPECTED CORRECT ANSWER</label>' +
-    '<div class="answer-row"><input id="rare-answer" class="answer-input" name="answer" type="text" maxlength="80" placeholder="Type your answer..." required spellcheck="false" autocapitalize="words">' +
-    '<button class="btn btn-primary" type="submit">LOCK IT IN →</button></div></form>';
+    '<div class="answer-row"><input id="rare-answer" class="answer-input" name="answer" type="text" maxlength="80" placeholder="Type your answer..." required spellcheck="false" autocapitalize="words" aria-describedby="answer-validation">' +
+    '<button class="btn btn-primary" type="submit">LOCK IT IN →</button></div>' +
+    '<p id="answer-validation" class="answer-validation" role="alert" aria-live="assertive" hidden></p>' +
+    '<p class="retry-hint">Not recognized? Keep trying — incorrect guesses do not use up this round.</p></form>';
   app.innerHTML = [
     '<div class="game-wrap"><div class="topbar"><button class="back-link" data-action="home" type="button">← BACK TO HOME</button>',
     '<span class="session-pill">' + (session.mode === "daily" ? 'DAILY · ' + esc(session.day) : "PRACTICE · " + esc((session.practiceGroup||"surprise").toUpperCase())) + '</span></div>',
     '<div class="game-head"><div><div class="eyebrow" style="margin-bottom:10px">THE CHALLENGE</div>',
     '<h2>Question ' + (session.index + 1) + ' <span class="muted">/ ' +session.questions.length+'</span></h2><p>Every answer counts. Trust your instincts.</p></div>',
     '<div class="game-score"><div class="tiny muted">YOUR SCORE</div><strong>' + fmt(scoreOf(session.answers)) + '</strong></div></div>',
-    '<div class="progress-track"><div class="progress-fill" style="width:' + (session.index/7*100) + '%"></div></div>',
+    '<div class="progress-track"><div class="progress-fill" style="width:' + (session.index/session.questions.length*100) + '%"></div></div>',
     roundDots(),'<article class="card question-card ' + q.type + '">',
     '<div class="question-head"><span class="pill ' + (fit ? "pill-teal" : "pill-purple") + '">' + (fit ? "◎ FIT IN — MATCH THE CROWD" : "✦ STAND OUT — BE THE EXCEPTION") + '</span>',
     '<div id="timer" class="timer" aria-label="Time remaining">0:45</div></div>',
@@ -483,13 +485,33 @@ function tickTimer() {
 
 function submitAnswer(value) {
   if (screen !== "game" || !session) return;
-  clearInterval(intervalId);
   const q = currentQuestion();
-  feedback = { question:q, result:evaluate(q,value), number:session.index+1 };
-  session.answers.push(feedback.result);
+  // Keep the original deadline through every failed guess. Only an
+  // accepted answer, explicit skip, or timer expiry completes the round.
+  const expired = Date.now() >= session.deadline;
+  const submitted = value === null || expired ? null : value;
+  const result = evaluate(q, submitted);
+  if (submitted !== null && !result.valid) {
+    const field = document.getElementById("rare-answer");
+    const warning = document.getElementById("answer-validation");
+    if (warning) {
+      warning.textContent = "That answer isn't in our accepted library. Try another answer before time runs out!";
+      warning.hidden = false;
+    }
+    if (field) {
+      field.value = "";
+      field.setAttribute("aria-invalid","true");
+      field.focus({preventScroll:true});
+    }
+    sound(250,.07);
+    return;
+  }
+  clearInterval(intervalId);
+  feedback = {question:q,result,number:session.index+1};
+  session.answers.push(result);
   session.deadline = null;
   saveDaily();
-  sound(feedback.result.points > 0 ? 580 : 220, .14);
+  sound(result.points > 0 ? 580 : 220, .14);
   renderFeedback();
 }
 
@@ -791,6 +813,12 @@ document.addEventListener("click", event => {
 });
 
 document.addEventListener("input", event => {
+  if(event.target?.id === "rare-answer") {
+    const warning = document.getElementById("answer-validation");
+    if (warning) warning.hidden = true;
+    event.target.removeAttribute("aria-invalid");
+    return;
+  }
   if(event.target?.id !== "answer-explorer-filter") return;
   const needle=normalizeAnswer(event.target.value);
   let shown=0;

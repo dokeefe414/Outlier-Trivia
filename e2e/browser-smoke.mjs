@@ -1,6 +1,7 @@
 // Real-browser smoke checks against local static GitHub Pages files.
 // Run via npm run test:browser after installing Playwright + Chromium.
 import {chromium} from "playwright";
+import {rareQuestions} from "../src/data.js";
 import assert from "node:assert/strict";
 
 const browser = await chromium.launch({headless:true});
@@ -31,8 +32,36 @@ async function runDaily() {
     assert.match(text,new RegExp("Question\\s*"+round));
     const isFit=round%2===0;
     assert.equal(await page.locator(".question-card").getAttribute("class"),"card question-card "+(isFit?"fit":"rare"));
-    await page.locator('button[data-action="skip"]').click();
-    await page.locator(".feedback-card").waitFor();
+    if(round===1) {
+      const initialTimer=await page.locator("#timer").innerText();
+      await page.locator("#rare-answer").fill("this-answer-is-not-in-the-library-98765");
+      await page.locator("#rare-form button[type=submit]").click();
+      await page.locator("#answer-validation:not([hidden])").waitFor();
+      assert.match(await page.locator(".game-head h2").innerText(),/Question\\s*1/);
+      assert.equal(await page.locator(".feedback-card").count(),0,"rejected guess must not reveal the round");
+      assert.equal(await page.locator(".game-score strong").innerText(),"0");
+      assert.equal(await page.locator("#rare-answer").inputValue(),"","invalid answer should clear for a retry");
+      const afterTimer=await page.locator("#timer").innerText();
+      assert.ok(Number(afterTimer.split(":")[1])<=Number(initialTimer.split(":")[1]),
+        "rejected answer must not reset timer");
+    }
+    if(i===1){
+      const prompt=await page.locator(".question-prompt").innerText();
+      const question=rareQuestions.find(q=>q.prompt===prompt);
+      assert.ok(question,"practice prompt should exist in approved library");
+      await page.locator("#rare-answer").fill("clearly-not-a-real-trivia-answer");
+      await page.locator("#rare-form button[type=submit]").click();
+      await page.locator("#answer-validation:not([hidden])").waitFor();
+      assert.match(await page.locator(".game-head h2").innerText(),/Question\\s*1/);
+      await page.locator("#rare-answer").fill(question.answers[0][0]);
+      await page.locator("#rare-form button[type=submit]").click();
+      await page.locator(".feedback-card").waitFor();
+      assert.ok(Number((await page.locator(".feedback-points").innerText()).replace(/[^0-9]/g,""))>0,
+        "valid library answer must finish the same question with points");
+    }else{
+      await page.locator('button[data-action="skip"]').click();
+      await page.locator(".feedback-card").waitFor();
+    }
     if (round===1) {
       const explorer = page.locator(".answer-explorer");
       await explorer.waitFor();

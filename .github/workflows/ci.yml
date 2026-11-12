@@ -91,6 +91,10 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f test/private-question-fixture.sql
       - name: Test sealed daily games, request limits, billing and beta metrics
         run: psql -v ON_ERROR_STOP=1 -f test/private-beta-smoke.sql
+      - name: Apply v0.8 retry-in-place answer validation
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261112001000_retry_unrecognized.sql
+      - name: Verify invalid retry, accepted answer, manual skip and timeout
+        run: psql -v ON_ERROR_STOP=1 -f test/retry-invalid-smoke.sql
 
   browser-e2e:
     name: Desktop and mobile browser smoke
