@@ -2,7 +2,7 @@
 -- These rows deliberately copy PUBLIC prototype answers to test the secure RPCs.
 -- Real ranked content must use distinct privately authored keys not in GitHub.
 insert into private.ranked_question_bank(id,kind,pool_group,category,prompt,detail,answers,choices)
-select 'rk_'||id,kind,
+select 'rk_fixture_'||id,kind,
   case when kind='fit' then 'fit'
     when id like 'atlas-geo-%' then 'geo'
     when id like 'atlas-science-%' then 'science'
