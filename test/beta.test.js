@@ -5,8 +5,8 @@ import {THEMES,TOUR_STEPS,completedDailyCount,unlockableThemes,weeklySeason,
 const makeRun=score=>({complete:true,answers:Array.from({length:7},()=>({points:score,type:"rare",valid:true}))});
 test("tour includes scoring transparency and makes no unsupported popularity claims",()=>{
  assert.equal(TOUR_STEPS.length,4);
- assert.ok(TOUR_STEPS.some(s=>s.description.includes("estimated tiers")));
- assert.ok(TOUR_STEPS.some(s=>s.description.includes("sample distributions")));
+ assert.ok(TOUR_STEPS.some(s=>(s.description+" "+s.hint).includes("estimated tiers")));
+ assert.ok(TOUR_STEPS.some(s=>(s.description+" "+s.hint).includes("sample distributions")));
  assert.equal(new Set(TOUR_STEPS.map(s=>s.title)).size,4);
 });
 test("cosmetic themes unlock ONLY on completed official daily games",()=>{
@@ -23,7 +23,7 @@ test("cosmetic themes unlock ONLY on completed official daily games",()=>{
  assert.equal(unlockableThemes(days,"champion").active,"champion");
 });
 test("weekly season rewards depend on days, never points or premium spending",()=>{
- const days=Object.fromEntries([9,10,11,12,13].map(x=>["2026-11-"+x,makeRun(0)]));
+ const days=Object.fromEntries([9,10,11,12,13].map(x=>["2026-11-"+String(x).padStart(2,"0"),makeRun(0)]));
  const season=weeklySeason(days,"2026-11-12");
  assert.equal(season.monday,"2026-11-09");
  assert.equal(season.completed,5);

@@ -33,7 +33,7 @@ revoke all on private.official_daily_slates from public,anon,authenticated;
 -- Fix a mistaken key by versioning a new question ID for future weeks.
 create or replace function private.prevent_published_answer_edits()
 returns trigger language plpgsql security definer
-set search_path=private,public,pg_temp as $
+set search_path=private,public,pg_temp as $$
 begin
   if exists(select 1 from private.official_daily_slates
       where old.id=any(question_ids)) then
