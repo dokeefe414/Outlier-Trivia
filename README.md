@@ -2,7 +2,7 @@
 
 **A playable, mobile-friendly daily general-knowledge game.** Seven questions, two mindsets: find a rare correct answer in **Stand Out**, then predict the most popular answer in **Fit In**.
 
-> **Prototype v0.4 (expanded answer atlas; online backend optional).** This is a static front-end prototype, not yet a production competitive service. No payments, accounts, or worldwide leaderboards are active.
+> **Prototype v0.5 (full knowledge arcade; online backend optional).** This is a static front-end prototype, not yet a production competitive service. No payments, accounts, or worldwide leaderboards are active.
 
 ## Play
 
@@ -86,6 +86,37 @@ how often other players answer something**. See
 [Answer Atlas documentation](docs/ANSWER_ATLAS.md) for data sources,
 accepted-name rules, scoring transparency, and known limitations.
 
+## Knowledge Arcade v0.5 — movies, music, animals, sports and more
+
+**This release adds 66 new large-pool Stand Out prompts and 30 new Fit In
+questions.** The game now holds **137 Stand Out prompts** (105 broad + 32
+historical) and **53 Fit In prompts**. The broad question variations
+contain **23,617 approved answer slots** between them; many entries can
+be accepted across multiple questions, so this is not a claim of 23,617
+unique entities.
+
+The major new topic collections cover films, television, performers,
+music genres, historical pro sports teams, NBA MVPs, common animals,
+bird species, dog breeds, fruits, vegetables, Pokémon, board games,
+scientists, and famous people.
+
+- New **category-based practice arcade** with 13 options including
+  Surprise Mix, Geography, Movies, Television, Music, Sports, Animals,
+  Gaming, History, and more.
+- Daily games continue **4 Stand Out + 3 Fit In**, but their four rare
+  rounds now mix topics from different fields; a single question can
+  accept up to **998 canonical answers**.
+- New daily topic rotation begins **November 13, 2026 (UTC)**, to avoid
+  changing the already-published November 12 question set.
+- Answer Explorer continues to reveal valid alternatives after a round.
+- Everything in local practice remains **unranked**. A $4.99 lifetime
+  unlock and real server rankings require external service activation.
+
+**These are curated, finite reference collections, not universal entity
+recognition or real-world crowd percentages.** Read the
+[full content notes](docs/CONTENT_ATLAS.md) for sources,
+historical-data boundaries, scoring caveats, and QA.
+
 ## Gameplay
 
 - One **official daily game** per UTC calendar day, with identical questions and presentation order for all visitors.
@@ -101,7 +132,7 @@ accepted-name rules, scoring transparency, and known limitations.
 
 ## Prototype upgrade notes
 
-The current daily rotation uses 39 broad Stand Out prompts (from a total of 71 including legacy questions) and 23 Fit In prompts. Daily selection takes two geography, one science and one wildcard Stand Out question, with no repeated prompt within a Monday–Sunday UTC week. Saved older daily slates and historical scores are preserved.
+v0.5 includes 105 broad prompts (39 original plus 66 new), 32 legacy Stand Out prompts, and 53 Fit In prompts. Mixed-category weekly slates are deterministic, with no repeated prompt during a UTC Monday–Sunday week. Older saved daily slates and scores remain intact.
 
 Achievements are intentionally **local-only** and are not public competitive claims. Badges include First Spark, On a Roll, Unstoppable, Worldly Mind, High Flyer, Clean Sweep, Deep Cut, and Mind Reader.
 
@@ -130,7 +161,13 @@ Daily generation is deterministically seeded by a UTC date, so every visitor wit
     favicon.svg               Original OUTLIER icon
     src/data.js               Legacy rare prompts and prototype crowd boards
     src/atlas-data.js         Source reference facts for the larger answer atlas
-    src/atlas-questions.js    Expanded validated prompts and editorial scores
+    src/atlas-questions.js    Country, science and geography atlas prompts
+    src/media-facts.js        Films, television, music, people and games
+    src/nature-facts.js       Animals, birds, dogs, produce and Pokémon
+    src/sports-facts.js       Historical league snapshot and award winners
+    src/hiphop-facts.js       XXL Freshman historic artist reference
+    src/content-packs.js      66 additional curated answer-rich questions
+    src/fit-expansion.js      30 additional example Fit In crowd boards
     src/game.js               Pure deterministic daily/weekly rules, scoring, utilities
     src/progression.js        Activity, streaks and official-day badges
     src/online-config.js      Public (blank by default) backend configuration
@@ -158,8 +195,9 @@ The app has no run-time JavaScript dependencies. CI checks JavaScript and Deno s
 4. **Accounts + leaderboard service:** backend code implemented; account provisioning, secret setup, hosted deployment and live verification outstanding. server-enforced attempts, profiles, worldwide Daily / Lifetime Average / Lifetime Total rankings, friend groups.
 5. **One-time premium:** checkout/webhook implementation present; not active until an owner-configured Stripe account is connected. secure $4.99 unlimited unlock, durable entitlements, pricing and operating cost review.
 6. **Hosted v0.3 (source implemented):** verified ranked attempts, Deno Edge API, email login, lifetime payment webhooks; needs third-party deployment and end-to-end validation.
-7. **Expanded v0.4 (current):** large verified answer pools, per-category question rotation, an answer explorer and a missing-answer review workflow.
-8. **Public launch:** moderation/reporting, accessibility audit, anti-cheat, privacy policy, operations monitoring, content pipeline.
+7. **Expanded v0.4:** large verified answer pools, per-category question rotation, an answer explorer and a missing-answer review workflow.
+8. **Knowledge Arcade v0.5 (current):** 66 new topical Stand Out questions, 30 more Fit In boards, and 13 selectable practice categories.
+9. **Public launch:** moderation/reporting, accessibility audit, anti-cheat, privacy policy, operations monitoring, content pipeline.
 
 ## Philosophy
 

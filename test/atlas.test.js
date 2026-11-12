@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { rareQuestions, fitQuestions } from "../src/data.js";
 import { matchRare, normalizeAnswer, buildRound } from "../src/game.js";
 
-const atlas = rareQuestions.filter(question => question.bigPool);
+const atlas = rareQuestions.filter(question => question.id.startsWith("atlas-"));
 const byId = id => atlas.find(question => question.id === id);
 
 test("the atlas has 39 broad prompts, with 36–249 approved answers per prompt", () => {

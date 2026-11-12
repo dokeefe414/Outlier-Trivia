@@ -1,4 +1,4 @@
-import { buildRound, buildLegacyRound, utcDay, normalizeAnswer, evaluate, scoreOf, getTier, lifetimeStats, shareText, shuffled, randomFromSeed, seedFromString, QUESTION_SECONDS, MAX_SCORE } from "./game.js";
+import { buildRound, buildLegacyRound, utcDay, normalizeAnswer, evaluate, scoreOf, getTier, lifetimeStats, shareText, shuffled, randomFromSeed, seedFromString, practiceCategoryOptions, QUESTION_SECONDS, MAX_SCORE } from "./game.js";
 import { rareQuestions, fitQuestions } from "./data.js";
 import { activityWeek, currentStreak, longestStreak, earnedBadges } from "./progression.js";
 import { ONLINE_ENABLED } from "./online-config.js";
@@ -166,7 +166,7 @@ function renderHome() {
     '<section class="hero"><div class="hero-copy">',
     '<div class="eyebrow">THE DAILY BRAIN BATTLE</div>',
     '<h1>THINK <span class="gradient-text">OUTSIDE</span><br>THE CROWD.</h1>',
-    '<p class="hero-description">Seven questions. Two ways to win. Find the rare answers nobody thinks of, or predict what everyone else will say. How different is your brain?</p>',
+    '<p class="hero-description">Seven questions. Two ways to win. Think of an answer from a massive knowledge pool, or predict the crowd\'s favorite. How different is your brain?</p>',
     '<div class="hero-actions">',
     homeButton(actionLabel, action), ONLINE_ENABLED ?
       homeButton("PLAY FREE AS GUEST", "daily", "btn-ghost") :
@@ -207,7 +207,28 @@ function renderHome() {
   window.scrollTo(0,0);
 }
 
-function newSession(mode) {
+
+function renderPracticeSelect() {
+  screen="practice-select";
+  clearInterval(intervalId);
+  const total=rareQuestions.filter(q=>q.bigPool).length;
+  app.innerHTML='<section class="practice-select">' +
+    '<button type="button" class="back-link" data-action="home">← BACK TO HOME</button>' +
+    '<div class="practice-heading"><span class="eyebrow">THE KNOWLEDGE ARCADE</span>' +
+    '<h1>PICK YOUR <span class="gradient-text">PLAYGROUND.</span></h1>' +
+    '<p class="muted">Choose a subject you love, or let OUTLIER surprise you. Every round still has four Stand Out answers and three Fit In predictions.</p>' +
+    '<div class="practice-meta"><span>✦ '+total+' BROAD RARE-ANSWER PROMPTS</span><span>◎ '+fitQuestions.length+' CROWD QUESTIONS</span><span>♾ UNRANKED TEST PRACTICE</span></div></div>' +
+    '<div class="practice-grid">' + practiceCategoryOptions.map(option => {
+      const matches=rareQuestions.filter(q=>q.bigPool && q.poolGroup===option.value);
+      return '<button type="button" data-action="start-practice" data-group="'+esc(option.value)+'" class="practice-option '+(option.value==="surprise"?"featured":"")+'">'+
+        '<span class="practice-art">'+option.icon+'</span><strong>'+esc(option.label)+'</strong>'+
+        '<span class="practice-description">'+esc(option.detail)+'</span>'+
+        '<span class="practice-count">'+(option.value==="surprise"?"ALL CATEGORIES":matches.length+" RARE PROMPTS")+' <b>↗</b></span></button>';
+    }).join("")+'</div><p class="practice-footnote">Practice is free during beta testing. It never affects official daily or lifetime leaderboards. The $4.99 lifetime unlock is not active yet.</p></section>';
+  window.scrollTo(0,0);
+}
+
+function newSession(mode,practiceGroup = 'surprise') {
   clearInterval(intervalId);
   feedback = null;
   if (mode === "daily") {
@@ -229,7 +250,7 @@ function newSession(mode) {
     };
     if (existing?.complete || session.index >= 7) { renderResult(); return; }
   } else {
-    session = { mode, day: today(), questions: buildRound(today(), true), answers:[], index:0, deadline:null };
+    session = { mode, day: today(), practiceGroup, questions: buildRound(today(), true, practiceGroup), answers:[], index:0, deadline:null };
   }
   renderGame();
 }
@@ -264,7 +285,7 @@ function renderGame() {
     '<button class="btn btn-primary" type="submit">LOCK IT IN →</button></div></form>';
   app.innerHTML = [
     '<div class="game-wrap"><div class="topbar"><button class="back-link" data-action="home" type="button">← BACK TO HOME</button>',
-    '<span class="session-pill">' + (session.mode === "daily" ? 'DAILY · ' + esc(session.day) : "PRACTICE · UNRANKED") + '</span></div>',
+    '<span class="session-pill">' + (session.mode === "daily" ? 'DAILY · ' + esc(session.day) : "PRACTICE · " + esc((session.practiceGroup||"surprise").toUpperCase())) + '</span></div>',
     '<div class="game-head"><div><div class="eyebrow" style="margin-bottom:10px">THE CHALLENGE</div>',
     '<h2>Question ' + (session.index + 1) + ' <span class="muted">/ 7</span></h2><p>Every answer counts. Trust your instincts.</p></div>',
     '<div class="game-score"><div class="tiny muted">YOUR SCORE</div><strong>' + fmt(scoreOf(session.answers)) + '</strong></div></div>',
@@ -544,7 +565,8 @@ document.addEventListener("click", event => {
   switch (action) {
     case "home": renderHome(); break;
     case "daily": newSession("daily"); break;
-    case "practice": ONLINE_ENABLED ? showOnline() : newSession("practice"); break;
+    case "practice": ONLINE_ENABLED ? showOnline() : renderPracticeSelect(); break;
+    case "start-practice": newSession("practice", control.dataset.group||"surprise"); break;
     case "online": showOnline(); break;
     case "result": newSession("daily"); break;
     case "fit-answer": submitAnswer(control.dataset.answer); break;

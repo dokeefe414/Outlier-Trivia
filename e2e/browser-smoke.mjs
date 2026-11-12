@@ -58,7 +58,11 @@ async function runMobile() {
   const widths=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,viewport:window.innerWidth}));
   assert.ok(widths.scroll <= widths.viewport+2,"mobile horizontal overflow: "+JSON.stringify(widths));
   await page.locator('button[data-action="practice"]').first().click();
+  await page.locator(".practice-grid").waitFor();
+  assert.ok((await page.locator(".practice-option").count())>=10,"practice should have category options");
+  await page.locator('button[data-action="start-practice"][data-group="music"]').click();
   await page.locator(".question-card").waitFor();
+  assert.match(await page.locator(".session-pill").innerText(),/MUSIC/);
   const widths2=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,viewport:window.innerWidth}));
   assert.ok(widths2.scroll<=widths2.viewport+2,"mobile game overflow: "+JSON.stringify(widths2));
   console.log("PASS mobile friend challenge, practice game and viewport fit");

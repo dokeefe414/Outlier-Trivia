@@ -486,3 +486,25 @@ p{line-height:1.6}
   .explorer-row{padding:11px;font-size:11px}
   .answer-report .btn{width:100%}
 }
+
+
+/* v0.5: subject-selectable practice arcade */
+.practice-select{padding:52px 0 90px}
+.practice-heading{text-align:center;max-width:760px;margin:20px auto 37px}
+.practice-heading .eyebrow{margin-bottom:17px}
+.practice-heading h1{font-size:clamp(43px,7vw,72px);line-height:1.04;margin-bottom:20px}
+.practice-heading p{font-size:15px;max-width:570px;margin:0 auto}
+.practice-meta{display:flex;justify-content:center;flex-wrap:wrap;gap:10px;margin-top:23px}
+.practice-meta span{font-size:10px;font-weight:900;letter-spacing:.6px;color:#e4d6ff;background:rgba(177,143,252,.1);border:1px solid rgba(177,143,252,.16);border-radius:100px;padding:9px 11px}
+.practice-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px}
+.practice-option{display:flex;flex-direction:column;align-items:flex-start;min-height:181px;padding:21px;text-align:left;background:linear-gradient(145deg,rgba(31,38,69,.95),rgba(20,25,49,.96));border:1px solid rgba(183,194,247,.17);border-radius:20px;color:white;box-shadow:0 14px 38px rgba(3,5,20,.13);transition:transform .15s,border-color .15s,box-shadow .15s}
+.practice-option:hover{transform:translateY(-3px);border-color:rgba(197,152,255,.7);box-shadow:0 17px 38px rgba(3,5,20,.33)}
+.practice-option.featured{background:linear-gradient(130deg,rgba(117,72,204,.45),rgba(26,48,73,.85));border-color:rgba(192,154,255,.37)}
+.practice-art{display:grid;place-items:center;height:47px;width:47px;border-radius:14px;margin-bottom:14px;background:rgba(193,152,250,.16);font-size:25px}
+.practice-option strong{font:800 15px 'Space Grotesk',sans-serif;letter-spacing:.3px}
+.practice-description{color:#b8c3df;font-size:11px;margin-top:6px;line-height:1.5}
+.practice-count{width:100%;display:flex;align-items:center;justify-content:space-between;margin-top:auto;padding-top:19px;font-size:10px;font-weight:900;letter-spacing:.5px;color:#a5eedf}
+.practice-count b{font-size:20px;line-height:1}
+.practice-footnote{color:#8e9abd;max-width:700px;text-align:center;font-size:12px;line-height:1.65;margin:27px auto}
+@media(max-width:780px){.practice-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:540px){.practice-select{padding-top:26px}.practice-heading{margin:24px auto}.practice-heading h1{font-size:45px}.practice-heading p{font-size:13px}.practice-grid{gap:10px}.practice-option{padding:15px;min-height:178px;border-radius:15px}.practice-option strong{font-size:12px}.practice-art{height:41px;width:41px;font-size:23px;margin-bottom:10px}.practice-description{font-size:10px}.practice-meta{justify-content:flex-start}.practice-footnote{font-size:11px}}

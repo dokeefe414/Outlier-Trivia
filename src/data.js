@@ -1,3 +1,5 @@
+import { extraFitQuestions } from "./fit-expansion.js";
+import { contentPackQuestions } from "./content-packs.js";
 import { broadQuestions } from "./atlas-questions.js";
 // OUTLIER prototype question bank.
 // Stand Out points are editorial prototype tiers, not measured live rarity.
@@ -200,3 +202,8 @@ fitQuestions.push(
 // Broad-pool prompts are the official v0.4 daily Stand Out slate.
 // Smaller legacy prompts remain available for historical saved sessions.
 rareQuestions.push(...broadQuestions);
+// v0.5 entertainment, nature, sports, games and people catalog expansions.
+rareQuestions.push(...contentPackQuestions);
+
+// v0.5 varied crowd prediction questions (illustrative fixed distributions).
+fitQuestions.push(...extraFitQuestions);

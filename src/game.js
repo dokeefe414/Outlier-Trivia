@@ -58,7 +58,7 @@ export function weekStart(day = utcDay()) {
   return date.toISOString().slice(0, 10);
 }
 
-export function buildRound(day = utcDay(), practice = false) {
+export function buildAtlasRound(day = utcDay(), practice = false) {
   const broad = rareQuestions.filter(question => question.bigPool);
   const geoPool = broad.filter(question => question.poolGroup === "geo");
   const sciencePool = broad.filter(question => question.poolGroup === "science");
@@ -89,6 +89,76 @@ export function buildRound(day = utcDay(), practice = false) {
   }
   return DAILY_PATTERN.map((type, index) => ({
     ...((type === "rare") ? rare.shift() : fit.shift()), type, index
+  }));
+}
+
+
+// v0.5 official schedule. The older atlas schedule is retained for games
+// dated <= 2026-11-12, preserving the last v0.4 launch day.
+export const dailyCategorySchedule = Object.freeze([
+  ["geo","movies","animals","sports"],
+  ["science","tv","music","food"],
+  ["wild","games","history","people"],
+  ["geo","movies","music","animals"],
+  ["science","tv","sports","games"],
+  ["wild","food","people","history"],
+  ["geo","music","sports","animals"]
+]);
+export const practiceCategoryOptions = Object.freeze([
+  {value:"surprise",label:"SURPRISE MIX",icon:"✦",detail:"A balanced mix of everything"},
+  {value:"geo",label:"GEOGRAPHY",icon:"🌍",detail:"Countries, places and capitals"},
+  {value:"science",label:"SCIENCE",icon:"⚛",detail:"Chemistry and elements"},
+  {value:"movies",label:"MOVIES",icon:"🎬",detail:"Classic and popular films"},
+  {value:"tv",label:"TELEVISION",icon:"📺",detail:"Series and show titles"},
+  {value:"music",label:"MUSIC",icon:"🎵",detail:"Performers, styles and instruments"},
+  {value:"sports",label:"SPORTS",icon:"🏀",detail:"Teams, leagues and MVPs"},
+  {value:"animals",label:"ANIMALS",icon:"🐾",detail:"Wildlife, birds and dog breeds"},
+  {value:"food",label:"FOOD",icon:"🍉",detail:"Fruits and vegetables"},
+  {value:"games",label:"GAMING",icon:"🎮",detail:"Pokémon and board games"},
+  {value:"history",label:"HISTORY",icon:"🏛",detail:"Scientists and mythology"},
+  {value:"people",label:"PEOPLE",icon:"🎤",detail:"Famous entertainers"},
+  {value:"wild",label:"CLASSIC TRIVIA",icon:"🧠",detail:"Languages, national parks, USA"}
+]);
+function groupQuestions(group) {
+  return rareQuestions.filter(q => q.bigPool && q.poolGroup === group);
+}
+export function buildRound(day = utcDay(), practice = false, practiceGroup = "surprise") {
+  if (!practice && day <= "2026-11-12") return buildAtlasRound(day,false);
+  const allGroups = [...new Set(practiceCategoryOptions.map(c=>c.value).filter(x=>x!=="surprise"))];
+  if (practice) {
+    let rare;
+    if (practiceGroup === "surprise" || !allGroups.includes(practiceGroup)) {
+      const groupNames = shuffled(allGroups,Math.random).slice(0,4);
+      rare=groupNames.map(group=>{
+        const q=shuffled(groupQuestions(group),Math.random)[0];
+        if(!q)throw new Error("Missing practice questions in "+group);
+        return q;
+      });
+    } else {
+      rare=shuffled(groupQuestions(practiceGroup),Math.random).slice(0,4);
+    }
+    if(rare.length !== 4 || new Set(rare.map(q=>q.id)).size !== 4) throw new Error("Invalid practice slate");
+    const fit=shuffled(fitQuestions,Math.random).slice(0,3);
+    return DAILY_PATTERN.map((type,index)=>({
+      ...(type==="rare" ? rare.shift() : fit.shift()),type,index
+    }));
+  }
+  const monday=weekStart(day);
+  const dayIndex=Math.round((Date.parse(day+"T00:00:00Z")-Date.parse(monday+"T00:00:00Z"))/86400000);
+  if(dayIndex<0 || dayIndex>6)throw new Error("Invalid UTC day");
+  const groups=dailyCategorySchedule[dayIndex];
+  const rare=groups.map((group)=>{
+    const occurrence=dailyCategorySchedule.slice(0,dayIndex).flat().filter(x=>x===group).length;
+    const pool=shuffled(groupQuestions(group),randomFromSeed(seedFromString("outlier-v05-week:"+monday+"|"+group)));
+    const selected=pool[occurrence];
+    if(!selected)throw new Error("Not enough "+group+" questions for a full week");
+    return selected;
+  });
+  const order=shuffled(rare,randomFromSeed(seedFromString("outlier-v05-order:"+day)));
+  const fit=shuffled(fitQuestions,randomFromSeed(seedFromString("outlier-v05-fit:"+monday))).slice(dayIndex*3,dayIndex*3+3);
+  if(fit.length!==3)throw new Error("Need at least 21 Fit In prompts per week");
+  return DAILY_PATTERN.map((type,index)=>({
+    ...(type==="rare" ? order.shift() : fit.shift()),type,index
   }));
 }
 

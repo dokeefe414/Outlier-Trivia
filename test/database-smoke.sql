@@ -21,6 +21,15 @@ begin
   if (select count(*) from private.question_bank where id like 'atlas-%') <> 39 then
     raise exception 'broad atlas seed must contain exactly 39 prompts';
   end if;
+  if (select count(*) from private.question_bank where id like 'pack-%') <> 66 then
+    raise exception 'missing broad entertainment/sports/wildlife question catalog';
+  end if;
+  if (select min(jsonb_array_length(answers)) from private.question_bank where id like 'pack-%') < 28 then
+    raise exception 'content pack includes too few valid answers';
+  end if;
+  if (select count(*) from private.question_bank where id like 'fit-v05-%') <> 30 then
+    raise exception 'missing new Fit In question boards';
+  end if;
   if (select min(jsonb_array_length(answers)) from private.question_bank where id like 'atlas-%') < 36 then
     raise exception 'broad atlas contains an undersized answer pool';
   end if;

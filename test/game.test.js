@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { rareQuestions, fitQuestions, DAILY_PATTERN } from "../src/data.js";
 import {
-  buildRound, buildLegacyRound, weekStart, normalizeAnswer, matchRare, evaluate, scoreOf, lifetimeStats,
+  buildRound, buildLegacyRound, buildAtlasRound, weekStart, normalizeAnswer, matchRare, evaluate, scoreOf, lifetimeStats,
   seedFromString, randomFromSeed, getTier, shareText
 } from "../src/game.js";
 import { activityWeek, currentStreak, longestStreak, earnedBadges } from "../src/progression.js";
@@ -84,15 +84,16 @@ test("Result summaries and sharing have stable, non-spoiling outputs", () => {
 
 
 test("seven-day schedules do not repeat prompts and remain deterministic", () => {
-  const week = ["2026-11-09","2026-11-10","2026-11-11","2026-11-12","2026-11-13","2026-11-14","2026-11-15"];
+  const week = ["2026-11-16","2026-11-17","2026-11-18","2026-11-19","2026-11-20","2026-11-21","2026-11-22"];
   const rounds = week.map(day=>buildRound(day));
   const ids = rounds.flatMap(qs=>qs.map(q=>q.id));
   assert.equal(new Set(ids).size, 49, "each prompt should appear only once per week");
-  assert.deepEqual(buildRound("2026-11-12"), rounds[3]);
+  assert.deepEqual(buildRound("2026-11-19"), rounds[3]);
   assert.equal(weekStart("2026-11-12"),"2026-11-09");
   assert.equal(weekStart("2026-11-15"),"2026-11-09");
   assert.equal(weekStart("2026-11-16"),"2026-11-16");
-  assert.notDeepEqual(buildRound("2026-11-09").map(q=>q.id),buildLegacyRound("2026-11-09").map(q=>q.id));
+  assert.notDeepEqual(buildRound("2026-11-16").map(q=>q.id),buildLegacyRound("2026-11-16").map(q=>q.id));
+  assert.deepEqual(buildRound("2026-11-12"), buildAtlasRound("2026-11-12"));
   assert.equal(buildLegacyRound("2026-11-12").length,7);
 });
 
