@@ -88,3 +88,28 @@ begin
   end if;
   raise notice 'OUTLIER database smoke passed: one official run, scores, boards, timer pauses and entitlement';
 end $outlier_test$;
+
+
+-- Validate future 2026-11-16 through 2026-11-22 rounds now, without
+-- altering the authoritative server clock or creating fake ranked attempts.
+do $future_release$
+declare
+  v_day date;
+  v_ids text[];
+  v_all text[]:=array[]::text[];
+  v_unique integer;
+  v_group_count integer;
+begin
+  for v_day in select (date '2026-11-16' + d) from generate_series(0,6) d loop
+    v_ids:=private.outlier_preview_daily_ids(v_day);
+    if array_length(v_ids,1)<>7 then raise exception 'invalid future daily slate length for %',v_day; end if;
+    if v_ids<>private.outlier_preview_daily_ids(v_day) then raise exception 'daily slate not deterministic %',v_day; end if;
+    select count(*) into v_group_count from unnest(array[v_ids[1],v_ids[3],v_ids[5],v_ids[7]]) t(id)
+    where id like 'atlas-%' or id like 'pack-%';
+    if v_group_count<>4 then raise exception 'future day does not contain four broad questions %',v_day; end if;
+    v_all:=v_all||v_ids;
+  end loop;
+  select count(distinct id)::int into v_unique from unnest(v_all) t(id);
+  if v_unique<>49 then raise exception 'future week repeats question (% distinct of 49)',v_unique; end if;
+  raise notice 'OUTLIER v0.5 future-schedule smoke passed: seven complete unique days';
+end $future_release$;

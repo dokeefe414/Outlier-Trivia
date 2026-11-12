@@ -16,7 +16,7 @@ test("every curated question and its scoring keys have been seeded server-side",
   assert.equal(fitQuestions.length,53);
   for(const q of questions) {
     const row = "(" + [
-      quote(q.id),quote(q.kind),quote(q.category),quote(q.prompt),quote(q.detail),
+      quote(q.id),quote(q.kind),quote(q.category),quote(q.prompt),quote(q.id.startsWith("fit-v05-") ? "Six example crowd responses. These percentages are illustrative." : q.detail),
       quote(JSON.stringify(q.answers??[]))+"::jsonb",
       quote(JSON.stringify(q.choices??[]))+"::jsonb"
     ].join(",") + ")";

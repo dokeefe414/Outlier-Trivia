@@ -2,6 +2,64 @@
 -- Existing authenticated daily attempts keep the exact question_ids stored at start.
 -- Old v0.4 daily schedule stays on 2026-11-12; new rotation starts 2026-11-13.
 -- Each daily game retains 4 rare and 3 Fit In, with a deterministic weekly rotation.
+
+-- Schedule preview is deliberately service-only; it makes the future-day
+-- rotation testable without changing the trusted server clock.
+create or replace function private.outlier_preview_daily_ids(p_day date)
+returns text[] language plpgsql stable security definer
+set search_path = private, public, pg_temp as $$
+declare
+  v_week date := p_day - (extract(isodow from p_day)::int - 1);
+  v_day_index integer := extract(isodow from p_day)::int - 1;
+  v_salt text := 'outlier-online-content-v1:' || v_week::text;
+  v_schedule text[][] := array[
+    array['geo','movies','animals','sports'],
+    array['science','tv','music','food'],
+    array['wild','games','history','people'],
+    array['geo','movies','music','animals'],
+    array['science','tv','sports','games'],
+    array['wild','food','people','history'],
+    array['geo','music','sports','animals']
+  ];
+  v_k integer;
+  v_rank integer;
+  v_group text;
+  v_selected text;
+  v_rare text[] := array[]::text[];
+  v_fit text[] := array[]::text[];
+  v_ids text[];
+begin
+  for v_k in 1..4 loop
+    v_group := v_schedule[v_day_index+1][v_k];
+    select count(*)::int into v_rank
+      from generate_series(0,v_day_index) d
+      cross join generate_series(1,4) slot
+      where (d<v_day_index or slot<v_k)
+        and v_schedule[d+1][slot]=v_group;
+    select id into v_selected from private.question_bank
+      where (v_group in ('geo','science','wild') and id like 'atlas-'||v_group||'-%')
+        or id like 'pack-'||v_group||'-%'
+      order by md5(v_salt||id)
+      offset v_rank limit 1;
+    if v_selected is null then raise exception 'question_bank_too_small'; end if;
+    v_rare[v_k]:=v_selected;
+  end loop;
+  with f as (
+    select id,row_number() over(order by md5(v_salt||id)) as rank
+    from private.question_bank where kind='fit'
+  )
+  select array[(select id from f where rank=v_day_index*3+1),
+               (select id from f where rank=v_day_index*3+2),
+               (select id from f where rank=v_day_index*3+3)]
+    into v_fit;
+  v_ids := array[v_rare[1],v_fit[1],v_rare[2],v_fit[2],v_rare[3],v_fit[3],v_rare[4]];
+  if array_position(v_ids,null) is not null then raise exception 'question_bank_too_small'; end if;
+  return v_ids;
+end $$;
+
+revoke all on function private.outlier_preview_daily_ids(date) from public,anon,authenticated;
+grant execute on function private.outlier_preview_daily_ids(date) to service_role;
+
 create or replace function public.outlier_start(p_user uuid, p_mode text)
 returns uuid language plpgsql security definer
 set search_path = public, private, pg_temp as $$
@@ -61,33 +119,7 @@ begin
         (select id from wilds where rank=v_day_index+1)
       ] into v_ids;
     else
-      -- Category-rotating schedule: no duplicate prompt within the UTC week.
-      v_salt := 'outlier-online-content-v1:' || v_week::text;
-      for v_k in 1..4 loop
-        v_group := v_schedule[v_day_index+1][v_k];
-        select count(*)::int into v_rank
-          from generate_series(0,v_day_index) d
-          cross join generate_series(1,4) slot
-          where (d<v_day_index or slot < v_k)
-            and v_schedule[d+1][slot] = v_group;
-        select id into v_selected from private.question_bank
-          where (v_group in ('geo','science','wild') and id like 'atlas-'||v_group||'-%')
-             or id like 'pack-'||v_group||'-%'
-          order by md5(v_salt || id) offset v_rank limit 1;
-        if v_selected is null then raise exception 'question_bank_too_small'; end if;
-        v_rare[v_k] := v_selected;
-      end loop;
-      with f as (
-        select id,row_number() over(order by md5(v_salt || id)) as rank
-        from private.question_bank where kind='fit'
-      )
-      select array[
-        (select id from f where rank=v_day_index*3+1),
-        (select id from f where rank=v_day_index*3+2),
-        (select id from f where rank=v_day_index*3+3)
-      ] into v_fit;
-      v_ids := array[v_rare[1],v_fit[1],v_rare[2],v_fit[2],
-                      v_rare[3],v_fit[3],v_rare[4]];
+      v_ids := private.outlier_preview_daily_ids(v_day);
     end if;
     if array_position(v_ids,null) is not null then raise exception 'question_bank_too_small'; end if;
     insert into public.game_attempts(user_id,mode,game_day,question_ids,question_started_at)

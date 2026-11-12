@@ -23,15 +23,15 @@ test("the atlas has 39 broad prompts, with 36–249 approved answers per prompt"
 });
 
 test("each official and practice round has four broad questions and three Fit In rounds", () => {
-  const days=["2026-11-09","2026-11-10","2026-11-11","2026-11-12","2026-11-13","2026-11-14","2026-11-15"];
+  const days=["2026-11-16","2026-11-17","2026-11-18","2026-11-19","2026-11-20","2026-11-21","2026-11-22"];
   const all=days.map(day=>buildRound(day));
   const ids=all.flatMap(qs=>qs.map(q=>q.id));
   assert.equal(new Set(ids).size,49);
   for(const rounds of all) {
     assert.equal(rounds.length,7);
     const rares=rounds.filter(q=>q.type==="rare");
-    assert.deepEqual(rares.map(q=>q.poolGroup).sort(),["geo","geo","science","wild"]);
-    assert.ok(rares.every(q=>q.answers.length>=36));
+    assert.equal(rares.length,4);
+    assert.ok(rares.every(q=>q.bigPool));
     assert.equal(rounds.filter(q=>q.type==="fit").length,3);
   }
   for(let i=0;i<25;i++) {
