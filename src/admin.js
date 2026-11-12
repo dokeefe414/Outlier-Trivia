@@ -29,14 +29,20 @@ function metric(label,value){
   box.append(element("strong","",value??"—"));return box;
 }
 async function loadMetrics(){
-  const result=await request("admin-metrics");const m=result.metrics||{},r=result.reviews||{};
+  const result=await request("admin-metrics");const m=result.metrics||{},r=result.reviews||{},q=result.quality||{};
   metrics.replaceChildren(
     metric("Daily completion",m.completionPercent===undefined?"—":m.completionPercent+"%"),
-    metric("Players",m.uniquePlayers??0),
+    metric("Official players",m.uniquePlayers??0),
     metric("Next-day return",m.day1Percent===null?"Not enough data":m.day1Percent===undefined?"—":m.day1Percent+"%"),
-    metric("Pending reviews",(r.pending??0)+(r.needsMoreInfo??0))
+    metric("Seven-day return",m.day7Percent===null?"Not enough data":m.day7Percent===undefined?"—":m.day7Percent+"%"),
+    metric("Rejected guesses this week",q.rejectedGuesses??"—"),
+    metric("Games affected",q.gamesWithRejectedGuesses??"—"),
+    metric("Pending reviews",(r.pending??0)+(r.needsMoreInfo??0)),
+    metric("Private ranked questions",result.readiness?.verifiedQuestions??0)
   );
-  if(result.readiness?.ready===false)say("Private ranked bank is not yet ready. Review mode is available in a connected backend.");
+  if(result.readiness?.ready===false)say(
+    "Ranked launch blocked until all private questions pass validation. Invalid rows: "+
+    (result.readiness?.invalidQuestions??0)+".");
 }
 function reviewCard(row){
   const wrap=element("article","review");

@@ -222,3 +222,39 @@ Apply `supabase/migrations/20261112001300_unicode_normalization.sql`
 after the review-admin migration. It aligns hosted approved-name normalization
 with the browser for accents, ligatures, ampersands and Pokémon sex symbols.
 It does not add missing official ranked answers or alter published scores.
+
+
+## v1.0 beta candidate: final security and activation requirements
+
+After the earlier v0.9 migrations, apply these **in order**:
+
+1. \`supabase/migrations/20261112001400_v1_content_integrity.sql\` —
+   validates every private rare/fit question and prevents a ranked game
+   from starting when the bank contains malformed or incomplete records.
+   Anonymous clients never receive the hidden keys.
+2. \`supabase/migrations/20261112001500_v1_community_metrics.sql\` —
+   includes verified last-week friend standings and aggregate owner-only
+   answer-rejection/quality metrics.
+
+The optional site now accepts \`?online=1&league=INVITECODE\` invite URLs.
+Clicking one does NOT join the person automatically. They sign in and
+explicitly choose to join; the code is not sent to unrelated sites.
+
+Stripe checkout has explicit **test/live** readiness checks. For test
+checkout use a real \`sk_test_\` key, webhook secret and
+\`STRIPE_MODE=test\`. The UI labels it "TEST CHECKOUT · NO CHARGE".
+To permit **actual live charges**, the owner must deliberately use
+\`STRIPE_MODE=live\`, a matching \`sk_live_\` key, and set
+\`OUTLIER_ENABLE_LIVE_CHECKOUT=true\`. Keep that setting absent or false
+until you have validated support, privacy, refunds, taxes, account
+recovery and a two-account beta. A redirect from Stripe is never used
+as proof of payment; signed webhook entitlements are authoritative.
+
+The signed-in user can call \`GET ?action=purchase-status\` to verify
+whether their own lifetime entitlement is active. No client-supplied
+payment success flag grants unlimited practice. The owner metrics
+endpoint includes aggregated \`quality\` totals; it is private and does
+not expose raw player responses or private question keys.
+
+See [V1_BETA_PLAYBOOK.md](V1_BETA_PLAYBOOK.md) for the recommended
+14-day testing sequence and release checklist.

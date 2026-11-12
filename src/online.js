@@ -1,4 +1,5 @@
 import {rarityTier} from "./answer-intelligence.js";
+import {readLeagueInvite,leagueInviteLink,removeLeagueInvite,officialShareMessage,comparisonLabel} from "./community.js";
 import { ONLINE_ENABLED, SUPABASE_URL, SUPABASE_ANON_KEY } from "./online-config.js";
 
 const escape = value => String(value ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -148,7 +149,7 @@ function leaguesPanel() {
     '<strong>🏆 '+escape(item.title)+'</strong><small>'+number(item.members)+' / 50 MEMBERS</small>'+
     '</div><div class="league-card-actions">'+
     '<button type="button" data-online="league-view" data-id="'+escape(item.id)+'">VIEW STANDINGS</button>'+
-    '<button type="button" data-online="league-copy" data-code="'+escape(item.code)+'">COPY INVITE</button>'+
+    '<button type="button" data-online="league-copy" data-code="'+escape(item.code)+'">COPY INVITE LINK</button>'+
     '</div></div>').join("");
   return '<div class="card league-panel"><div class="section-heading"><div>'+
     '<span class="eyebrow">YOUR INNER CIRCLE</span><h3>Build your own league.</h3>'+
@@ -179,9 +180,19 @@ function showLeague() {
     '<div class="online-heading"><span class="eyebrow">FRIEND LEAGUE</span><h1>🏆 '+escape(league.title)+'</h1>'+
     '<p class="muted">Real scores, real friends. Practice and purchased access do not add points.</p></div>'+
     '<div class="card online-board"><div class="board-tabs">'+
-    [["today","TODAY"],["week","THIS WEEK"],["all","ALL-TIME"]].map(([period,label])=>
+    [["today","TODAY"],["week","THIS WEEK"],["last-week","LAST WEEK"],["all","ALL-TIME"]].map(([period,label])=>
       '<button class="board-tab '+(state.leaguePeriod===period?'active':'')+
       '" data-online="league-period" data-period="'+period+'">'+label+'</button>').join("")+'</div>'+
+    (state.leaguePeriod==="week"&&state.leaguePlayers?.[0]?.days>0?
+      '<div class="league-spotlight"><span class="eyebrow">CURRENT WEEKLY LEADER</span>'+
+      '<strong>🏆 '+escape(state.leaguePlayers[0].name)+'</strong>'+
+      '<span>'+number(state.leaguePlayers[0].score)+' verified points · '+
+      number(state.leaguePlayers[0].days)+' completed days</span>'+
+      '<p class="muted small">The week is still open — the winner is decided Sunday at 23:59 UTC.</p></div>':'')+
+    (state.leaguePeriod==="last-week"&&state.leaguePlayers?.[0]?.days>0?
+      '<div class="league-spotlight"><span class="eyebrow">LAST WEEK\'S CHAMPION</span>'+
+      '<strong>👑 '+escape(state.leaguePlayers[0].name)+'</strong>'+
+      '<span>'+number(state.leaguePlayers[0].score)+' verified points</span></div>':'')+
     (rows||'<div class="board-empty"><p class="muted">Nobody has completed an official game yet.</p></div>')+
     '<div class="league-code"><span>INVITE CODE: <strong>'+escape(league.code)+'</strong></span>'+
     act("league-copy","COPY INVITE CODE","btn-ghost")+'</div></div></div>');
@@ -196,13 +207,15 @@ function showMenu() {
    '<p class="muted">One official seven-question run per day. Verified global scores, lifetime rankings, and a $4.99 lifetime unlimited unlock.</p></div>';
   const rankedReady=state.capabilities?.rankedReady===true;
   const paymentReady=state.capabilities?.paymentReady===true;
+  const isTestCheckout=state.capabilities?.paymentMode==="test";
   const buttons=signedIn ?
     '<div class="online-menu-actions">'+
       (rankedReady ? act("daily","PLAY MY OFFICIAL DAILY →") :
         '<p class="small muted">Verified daily competition is awaiting its private question bank. The free guest game still works.</p>')+
       (state.profile?.unlimited && rankedReady ? act("practice","UNLIMITED PRACTICE ↻","btn-teal") :
         !state.profile?.unlimited && paymentReady && rankedReady ?
-          act("checkout","UNLOCK PRACTICE · $4.99 ONCE","btn-ghost") : '')+
+          act("checkout",isTestCheckout?"TRY TEST CHECKOUT · NO CHARGE":"UNLOCK PRACTICE · $4.99 ONCE","btn-ghost") : '')+
+      act("restore","CHECK / RESTORE LIFETIME ACCESS","btn-outline")+
       act("logout","SIGN OUT","btn-outline")+'</div>' :
     '<div class="card online-signup"><span class="pill pill-purple">FREE DAILY GAME</span>'+
     '<h3>Get on the leaderboard.</h3><p class="small muted">Enter your email and we’ll send a secure sign-in link. No password needed.</p>'+
@@ -210,7 +223,15 @@ function showMenu() {
     '<div class="answer-row"><input class="answer-input" id="online-email" type="email" required autocomplete="email" placeholder="you@example.com">'+
     '<button class="btn btn-primary" type="submit">SEND LINK</button></div></form>'+
     (state.sent ? notice("Check your email for your sign-in link.","ok") : "")+'</div>';
-  setView(heading + (state.error ? notice(state.error,"warning") : "")+
+  const inviteBanner=state.pendingInvite?
+    '<div class="card invited-banner"><span class="eyebrow">YOU HAVE BEEN INVITED</span>'+
+    '<h3>You've got friends waiting in OUTLIER.</h3>'+
+    '<p class="small muted">Join a private league to compare verified daily scores. A link never joins you automatically.</p>'+
+    (signedIn?act("join-invite","JOIN FRIENDS LEAGUE →","btn-teal")+
+      act("dismiss-invite","NOT NOW","btn-ghost"):
+      '<p class="small muted">Sign in below to accept your league invitation.</p>')+
+    '</div>':"";
+  setView(heading + inviteBanner + (state.error ? notice(state.error,"warning") : "")+
     (state.message ? notice(state.message,"ok") : "")+
     (!rankedReady?notice("Online beta setup is incomplete: verified ranked games are not open yet. The guest daily game is still free.","warning"):"")+
     buttons + profilePanel() + onlineJourney() + myReviewsPanel() + leaguesPanel() + boardUI());
@@ -423,6 +444,24 @@ async function handleClick(event) {
   const action=button.dataset.online;
   if (action==="back") {stopTimer();container.onclick=null;container.onsubmit=null;window.removeEventListener("keydown",onKeydown);onBack();return;}
   if (busy) return;
+  if (action==="dismiss-invite") {
+    state.pendingInvite=null;
+    window.history.replaceState(null,"",removeLeagueInvite(window.location.href));
+    showMenu();
+  }
+  if (action==="join-invite") {
+    if(!state.user||!state.pendingInvite)return;
+    busy=true;
+    try {
+      await invoke("league-join",{method:"POST",payload:{code:state.pendingInvite}});
+      state.pendingInvite=null;
+      window.history.replaceState(null,"",removeLeagueInvite(window.location.href));
+      await reloadLeagues();
+      state.message="You're in! Your friends' league is now listed below.";
+      showMenu();
+    }catch(e){showError(e,"Could not join the league")}
+    finally{busy=false;}
+  }
   if (action==="league-view") {
     state.activeLeague=(state.leagues||[]).find(l=>l.id===button.dataset.id)||null;
     state.leaguePeriod="week";
@@ -438,8 +477,13 @@ async function handleClick(event) {
   if (action==="league-copy") {
     const code=button.dataset.code || state.activeLeague?.code;
     if(code){
-      try {await navigator.clipboard.writeText(code);state.message="League invite code copied!";}
-      catch {state.message="Could not copy. Your invite code is "+code;}
+      const link=leagueInviteLink(window.location.href,code);
+      try {
+        await navigator.clipboard.writeText(link);
+        state.message="Invite link copied! Friends choose whether to join.";
+      }catch {
+        state.message="Copy unavailable. Share this league code: "+code;
+      }
       if(state.view==="league")showLeague();else showMenu();
     }
   }
@@ -451,13 +495,29 @@ async function handleClick(event) {
   if (action==="daily") await start("daily");
   if (action==="practice") await start("practice");
   if (action==="checkout") await checkout();
+  if (action==="restore") {
+    busy=true;
+    try{
+      const result=await invoke("purchase-status");
+      await reloadProfile();
+      state.message=result.unlimited
+        ?"Your lifetime access is confirmed on this account. Unlimited practice is unlocked."
+        :result.refundedAt
+          ?"Lifetime access is not active: the recorded purchase was refunded or disputed."
+          :"No confirmed lifetime unlock is attached to this account. A return from Stripe alone doesn't activate access.";
+      state.error=null;showMenu();
+    }catch(e){showError(e,"Purchase status unavailable")}
+    finally{busy=false;}
+  }
   if (action==="menu") {state.rejected=null;await Promise.all([reloadBoard(),reloadProfile(),reloadLeagues(),reloadCapabilities()]).catch(()=>{});showMenu();}
   if (action==="next") await advance();
   if (action==="pick") await submitAnswer(button.dataset.answer);
   if (action==="skip") await submitAnswer(null);
   if (action==="share") {
-    const text="OUTLIER "+friendly(state.game.day)+"\n"+number(state.game.score)+"/7,000\n4 Stand Out · 3 Fit In\n"+
-      window.location.origin+window.location.pathname;
+    const text=officialShareMessage({
+      day:state.game.day,score:state.game.score,mode:state.game.mode,
+      name:state.profile?.name||""
+    })+"\n"+window.location.origin+window.location.pathname;
     try {await navigator.clipboard.writeText(text);state.message="Score copied!";}catch{state.message="Could not copy in this browser.";}
     showResults();
   }
@@ -478,7 +538,10 @@ async function handleSubmit(event) {
     if (!email) return;
     busy=true;
     try {
-      const redirectTo=window.location.origin+window.location.pathname+"?online=1";
+      const redirect=new URL(window.location.origin+window.location.pathname);
+      redirect.searchParams.set("online","1");
+      if(state.pendingInvite)redirect.searchParams.set("league",state.pendingInvite);
+      const redirectTo=redirect.href;
       const {error}=await supabase.auth.signInWithOtp({email,options:{emailRedirectTo:redirectTo}});
       if (error) throw error;
       state.sent=true;state.error=null;showMenu();
@@ -546,7 +609,9 @@ function onKeydown(event) {
 export async function mountOnline(element, back) {
   container=element;onBack=back;
   state={view:"loading",board:"daily",players:[],user:null,profile:null,capabilities:null,game:null,feedback:null,rejected:null,
-    leagues:[],activeLeague:null,leaguePlayers:[],leaguePeriod:"week",error:null,message:null,sent:false};
+    leagues:[],activeLeague:null,leaguePlayers:[],leaguePeriod:"week",
+    pendingInvite:readLeagueInvite(window.location.search),
+    error:null,message:null,sent:false};
   showBusy();
   if (!ONLINE_ENABLED) {
     setView('<div class="card online-ready"><h2>Online mode is not connected yet.</h2>'+
@@ -578,7 +643,14 @@ export async function mountOnline(element, back) {
     await Promise.all([reloadBoard(),reloadCapabilities()]);
     const params=new URLSearchParams(window.location.search);
     if (params.get("checkout")==="success") {
-      state.message="Payment return received. Lifetime access appears after Stripe confirms it; reload if necessary.";
+      state.message="Checkout returned. Payment status is not proof of a purchase. Select CHECK / RESTORE LIFETIME ACCESS to verify the signed webhook.";
+    } else if(params.get("checkout")==="cancel") {
+      state.message="Checkout canceled. No payment was recorded.";
+    }
+    if(params.has("checkout")){
+      params.delete("checkout");
+      window.history.replaceState(null,"",
+        window.location.pathname+(params.toString()?"?"+params:"")+window.location.hash);
     }
     showMenu();
   } catch (e) {state.error="Connection is unavailable. Check the hosted API setup. "+(e?.message||"");showMenu();}

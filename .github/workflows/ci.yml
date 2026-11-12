@@ -110,6 +110,12 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261112001300_unicode_normalization.sql
       - name: Verify accented names, ligatures and ambiguous symbols
         run: psql -v ON_ERROR_STOP=1 -f test/unicode-normalization-smoke.sql
+      - name: Apply v1 private content integrity and guarded ranked starts
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261112001400_v1_content_integrity.sql
+      - name: Apply v1 friend league history and beta quality metrics
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261112001500_v1_community_metrics.sql
+      - name: Verify v1 launch gate, previous week standings, and reporting privacy
+        run: psql -v ON_ERROR_STOP=1 -f test/v1-integrity-smoke.sql
 
   browser-e2e:
     name: Desktop and mobile browser smoke

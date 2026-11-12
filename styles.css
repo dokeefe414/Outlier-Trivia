@@ -707,3 +707,39 @@ p{line-height:1.6}
   .rarity-pill{font-size:9px}
 }
 @media(prefers-reduced-motion:reduce){.answer-validation.retry-bounce,.feedback-card .high-rarity{animation:none}}
+
+
+/* OUTLIER v1.0 — multiplayer beta invite, purchase and accessibility polish */
+.invited-banner{padding:23px 26px;margin:22px 0;
+  background:linear-gradient(115deg,rgba(99,66,165,.38),rgba(47,119,132,.22));
+  border:1px solid rgba(182,150,251,.38)}
+.invited-banner h3{font:800 24px 'Space Grotesk',sans-serif;margin:11px 0 7px}
+.invited-banner .btn{margin:9px 10px 0 0}
+.invited-banner p{max-width:660px}
+.league-spotlight{display:flex;flex-direction:column;gap:8px;margin:16px 0 20px;
+  border:1px solid rgba(248,205,139,.31);
+  border-radius:15px;padding:19px 21px;
+  background:linear-gradient(120deg,rgba(202,146,64,.13),rgba(89,69,140,.15))}
+.league-spotlight strong{font:800 22px 'Space Grotesk',sans-serif;color:#ffedbc}
+.league-spotlight>span:not(.eyebrow){font-size:12px;color:#d9ddf0}
+.league-spotlight p{margin:2px 0 0}
+.league-code{overflow-wrap:anywhere}
+.league-code strong{user-select:all}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
+  outline:3px solid #a1fbe0!important;outline-offset:3px
+}
+.feedback-next:focus-visible{outline-offset:5px!important}
+.game-wrap,.feedback-wrap,.result-wrap{animation:outlier-v1-screen .25s ease both}
+@keyframes outlier-v1-screen{
+  from{opacity:.15;transform:translateY(7px)}
+  to{opacity:1;transform:translateY(0)}
+}
+@media(max-width:700px){
+  .invited-banner{padding:19px 17px}
+  .invited-banner h3{font-size:21px}
+  .invited-banner .btn{max-width:100%;white-space:normal}
+  .league-spotlight{padding:15px}
+}
+@media(prefers-reduced-motion:reduce){
+  .game-wrap,.feedback-wrap,.result-wrap{animation:none}
+}

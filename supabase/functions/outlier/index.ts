@@ -13,6 +13,20 @@ const stripeKey = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
 const stripeWebhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET") ?? "";
 const stripeMode = Deno.env.get("STRIPE_MODE") ?? "test";
 const adminToken = Deno.env.get("OUTLIER_ADMIN_TOKEN") ?? "";
+const allowLiveCheckout = Deno.env.get("OUTLIER_ENABLE_LIVE_CHECKOUT") === "true";
+function billingConfiguration() {
+  const mode = stripeMode==="live"?"live":stripeMode==="test"?"test":"disabled";
+  let safeSite=false;
+  try {const u=new URL(siteUrl);
+    safeSite=u.protocol==="https:" ||
+      (mode==="test" && u.protocol==="http:" && ["localhost","127.0.0.1"].includes(u.hostname));
+  } catch {}
+  const validKey=(mode==="test"&&stripeKey.startsWith("sk_test_")) ||
+    (mode==="live"&&stripeKey.startsWith("sk_live_"));
+  const configured=mode!=="disabled" && safeSite && validKey &&
+    stripeWebhookSecret.startsWith("whsec_") && (mode!=="live"||allowLiveCheckout);
+  return {ready:configured,mode:configured?mode:"disabled"};
+}
 
 class ApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
@@ -153,7 +167,9 @@ async function profile(user: User) {
     stats,history,reviews,unlimited:paid};
 }
 async function stripeCheckout(user: User): Promise<string> {
-  if (!stripeKey || !siteUrl) throw new ApiError(503,"checkout_not_configured");
+  if(!billingConfiguration().ready)throw new ApiError(503,"checkout_not_configured");
+  const readiness=await rpc("outlier_launch_readiness",{}) as {ready?:boolean};
+  if(readiness?.ready!==true)throw new ApiError(503,"private_question_bank_not_configured");
   if (await entitlement(user.id)) throw new ApiError(409,"already_unlocked");
   const params = new URLSearchParams();
   params.set("mode","payment");
@@ -264,18 +280,21 @@ async function handle(req: Request): Promise<Response> {
     if (action === "capabilities" && req.method === "GET") {
       const readiness=await rpc("outlier_launch_readiness",{});
       const info=readiness as {ready?:boolean;privateQuestions?:number};
+      const billing=billingConfiguration();
       return json({rankedReady:info?.ready === true,
-        paymentReady:Boolean(stripeKey && stripeWebhookSecret && siteUrl),
+        paymentReady:info?.ready===true && billing.ready,
+        paymentMode:info?.ready===true?billing.mode:"disabled",
         privateQuestionCount:info?.privateQuestions??0},200,origin);
     }
     if (action === "admin-metrics" && req.method === "GET") {
       if(!adminAuthorized(req))throw new ApiError(403,"admin_authorization_required");
-      const [metrics,readiness,reviews]=await Promise.all([
+      const [metrics,readiness,reviews,quality]=await Promise.all([
         rpc("outlier_beta_metrics",{}),rpc("outlier_launch_readiness",{}),
-        rpc("outlier_admin_review_counts",{})
+        rpc("outlier_admin_review_counts",{}),rpc("outlier_beta_quality_metrics",{})
       ]);
-      return json({metrics,readiness,reviews,
-        paymentConfigured:Boolean(stripeKey && stripeWebhookSecret)},200,origin);
+      return json({metrics,readiness,reviews,quality,
+        paymentConfigured:billingConfiguration().ready,
+        paymentMode:billingConfiguration().mode},200,origin);
     }
     if (action === "admin-review-queue" && req.method === "GET") {
       if(!adminAuthorized(req))throw new ApiError(403,"admin_authorization_required");
@@ -349,7 +368,7 @@ async function handle(req: Request): Promise<Response> {
     if (action === "league-standings" && req.method === "GET") {
       const leagueId=ensureUuid(url.searchParams.get("league"));
       const period=url.searchParams.get("period")??"week";
-      if(!["today","week","all"].includes(period)) throw new ApiError(400,"invalid_period");
+      if(!["today","week","last-week","all"].includes(period)) throw new ApiError(400,"invalid_period");
       const players=await rpc("outlier_league_standings",{
         p_user:user.id,p_league:leagueId,p_period:period
       });
@@ -399,6 +418,18 @@ async function handle(req: Request): Promise<Response> {
         });
       }
       return json(payload,200,origin);
+    }
+    if (action === "purchase-status" && req.method === "GET") {
+      const [paid,profileData]=await Promise.all([
+        entitlement(user.id),
+        database("/entitlements?user_id=eq."+encodeURIComponent(user.id)+
+          "&select=purchased_at,refunded_at&limit=1")
+      ]);
+      const own=Array.isArray(profileData)?profileData[0]:null;
+      return json({unlimited:paid,
+        purchasedAt:own?.purchased_at??null,
+        refundedAt:own?.refunded_at??null,
+        paymentMode:billingConfiguration().mode},200,origin);
     }
     if (action === "checkout" && req.method === "POST") {
       return json({url:await stripeCheckout(user)},200,origin);

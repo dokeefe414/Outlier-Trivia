@@ -454,11 +454,11 @@ function renderGame() {
     '<span class="session-pill">' + (session.mode === "daily" ? 'DAILY · ' + esc(session.day) : "PRACTICE · " + esc((session.practiceGroup||"surprise").toUpperCase())) + '</span></div>',
     '<div class="game-head"><div><div class="eyebrow" style="margin-bottom:10px">THE CHALLENGE</div>',
     '<h2>Question ' + (session.index + 1) + ' <span class="muted">/ ' +session.questions.length+'</span></h2><p>Every answer counts. Trust your instincts.</p></div>',
-    '<div class="game-score"><div class="tiny muted">YOUR SCORE</div><strong>' + fmt(scoreOf(session.answers)) + '</strong></div></div>',
+    '<div class="game-score" aria-label="Current game score"><div class="tiny muted">YOUR SCORE</div><strong>' + fmt(scoreOf(session.answers)) + '</strong></div></div>',
     '<div class="progress-track"><div class="progress-fill" style="width:' + (session.index/session.questions.length*100) + '%"></div></div>',
     roundDots(),'<article class="card question-card ' + q.type + '">',
     '<div class="question-head"><span class="pill ' + (fit ? "pill-teal" : "pill-purple") + '">' + (fit ? "◎ FIT IN — MATCH THE CROWD" : "✦ STAND OUT — BE THE EXCEPTION") + '</span>',
-    '<div id="timer" class="timer" aria-label="Time remaining">0:45</div></div>',
+    '<div id="timer" class="timer" role="timer" aria-label="Time remaining" aria-live="off">0:45</div></div>',
     '<div class="time-track" role="presentation"><div id="timebar" class="time-fill"></div></div>',
     '<div class="question-category">' + esc(q.category) + ' · ROUND ' + (session.index+1) + '</div>',
     '<h2 class="question-prompt">' + esc(q.prompt) + '</h2>',
@@ -591,7 +591,7 @@ function renderFeedback() {
     '<div class="text-center"><div class="feedback-graphic" aria-hidden="true">' + info.icon + '</div>',
     '<div class="eyebrow" style="justify-content:center;margin-bottom:15px">ANSWER LOCKED</div>',
     '<div class="feedback-title">' + info.title + '</div>',
-    '<div class="feedback-points gradient-text '+(!fit && result.points>=850?'high-rarity':'')+'">+' + fmt(result.points) + '</div>',
+    '<div class="feedback-points gradient-text '+(!fit && result.points>=850?'high-rarity':'')+'" role="status" aria-live="polite">+' + fmt(result.points) + '</div>',
     '<div class="feedback-name">' + esc(result.accepted || (result.response ? '"' + result.response + '" — not in the approved answer set' : 'No answer submitted')) + '</div>',
     '<p class="small">' + info.description + '</p>',
     '<span class="pill pill-yellow">TOTAL ' + fmt(scoreOf(session.answers)) + ' PTS</span>'+tier+'</div>',
@@ -609,6 +609,8 @@ function renderFeedback() {
     '</article></div>'
   ].join("");
   window.scrollTo(0,0);
+  // The next action is always keyboard reachable after a result reveal.
+  app.querySelector(".feedback-next")?.focus({preventScroll:true});
 }
 
 function nextRound() {

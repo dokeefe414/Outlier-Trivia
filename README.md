@@ -2,7 +2,7 @@
 
 **A playable, mobile-friendly daily general-knowledge game.** Seven questions, two mindsets: find a rare correct answer in **Stand Out**, then predict the most popular answer in **Fit In**.
 
-> **Prototype v0.9 (Answer Intelligence, rarity insight and beta review tooling).** This is a static front-end prototype, not yet a production competitive service. No payments, accounts, or worldwide leaderboards are active.
+> **v1.0 beta candidate — the playable free game is live; online competition is not yet activated.** The repository now contains production-oriented account, private-content, social league, editorial-review and Stripe test-mode infrastructure. Supabase/Stripe credentials, privately authored ranked answers and real-user validation are still required. No live payments or worldwide leaderboards are active.
 
 ## Play
 
@@ -28,6 +28,35 @@ The browser must load the site over HTTP, not the file protocol, because the gam
 4. Once GitHub finishes deploying, the expected URL is **https://dokeefe414.github.io/Outlier-Trivia/**.
 
 Pages is **not enabled automatically** by these commits, and the expected URL should not be considered live until deployment succeeds.
+
+## v1.0 beta candidate — six core upgrades
+
+This update strengthens the move from a fun prototype to an account-backed
+competitive game **without replacing the free daily experience**:
+
+- **Verified competition gate:** Server rejects incomplete private question
+  banks, checking accepted aliases, integer scores, reference coverage and
+  six-choice Fit In totals before starting any online ranked game.
+- **Social league invitations:** Shareable private league links, explicit
+  opt-in joining, weekly leaders and previous-week champions, with official
+  daily scores only.
+- **Better game feel:** Keyboard focus after answer reveals, accessible score
+  announcements, responsive social views and reduced-motion support.
+- **Privacy-safe beta insights:** Aggregate rejected-guess and affected-game
+  counts alongside existing completion and cohort-retention reporting,
+  restricted to the owner.
+- **One-time purchase controls:** Stripe test/live key separation, explicit
+  owner approval before live checkout, and a server-verified restore/check
+  purchase button.
+- **Release playbook:** A concrete two-week 20–50-person test plan, QA gates,
+  moderation requirements and owner deployment steps.
+
+The **v1.0 beta candidate is not an online launch**. The real Supabase
+project, private ranked answer bank and Stripe merchant test accounts have
+not been connected or activated. The daily guest game remains free and
+playable with no registration.
+
+See [v1.0 beta launch playbook](docs/V1_BETA_PLAYBOOK.md).
 
 ## Online league upgrade (v0.3)
 
@@ -313,8 +342,9 @@ The app has no run-time JavaScript dependencies. CI checks JavaScript and Deno s
 9. **Arcade & Competition v0.6:** three replay formats, weekly journey, optional friend leagues and server-reviewed answers.
 10. **Public Beta Readiness v0.7:** tutorial, weekly cosmetic seasons, themes, private ranked-content isolation, hardened purchase lifecycle and aggregate retention reporting.
 11. **Fair Answer Retries v0.8:** Invalid guesses can be retried until accepted, skipped, or timed out, in guest and hosted play.
-12. **Answer Intelligence v0.9 (current):** vetted nicknames and scoring calibration, faster safe matching, better rarity reveals, audited review administration and private-beta validation scripts.
-13. **Public launch:** moderation/reporting, accessibility audit, anti-cheat, privacy policy, operations monitoring, content pipeline.
+12. **Answer Intelligence v0.9:** vetted nicknames and scoring calibration, faster safe matching, better rarity reveals, audited review administration and private-beta validation scripts.
+13. **Competitive Beta v1.0 candidate (current):** strict private-bank launch gate, consent-based friend invites, previous-week champions, owner-only quality analytics and explicit Stripe live-mode controls.
+14. **Public launch:** moderation/reporting, accessibility audit, anti-cheat, privacy policy, operations monitoring, content pipeline.
 
 ## Philosophy
 
