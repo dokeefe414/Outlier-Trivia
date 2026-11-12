@@ -1,4 +1,4 @@
-import { buildRound, buildLegacyRound, utcDay, evaluate, scoreOf, getTier, lifetimeStats, shareText, shuffled, randomFromSeed, seedFromString, QUESTION_SECONDS, MAX_SCORE } from "./game.js";
+import { buildRound, buildLegacyRound, utcDay, normalizeAnswer, evaluate, scoreOf, getTier, lifetimeStats, shareText, shuffled, randomFromSeed, seedFromString, QUESTION_SECONDS, MAX_SCORE } from "./game.js";
 import { rareQuestions, fitQuestions } from "./data.js";
 import { activityWeek, currentStreak, longestStreak, earnedBadges } from "./progression.js";
 import { ONLINE_ENABLED } from "./online-config.js";
