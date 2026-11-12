@@ -21,13 +21,13 @@ begin
     for v_row in select value from jsonb_array_elements(p_answers) loop
       if jsonb_typeof(v_row)<>'array' or jsonb_array_length(v_row) not between 2 and 3
          or jsonb_typeof(v_row->0)<>'string'
-         or length(trim(v_row->>0)) not between 2 and 100
+         or length(trim(v_row->>0)) not between 1 and 100
          or jsonb_typeof(v_row->1)<>'number'
          or (v_row->>1)!~ '^[0-9]+$' then return false; end if;
       v_points:=(v_row->>1)::integer;
       if v_points not between 1 and 1000 then return false; end if;
       v_owner:=private.normalized_answer(v_row->>0);
-      if v_owner='' or length(v_owner)<2 then return false; end if;
+      if v_owner='' or length(v_owner)<1 then return false; end if;
       if v_seen ? v_owner then return false; end if;
       v_seen:=jsonb_set(v_seen,array[v_owner],to_jsonb(v_owner),true);
       if jsonb_array_length(v_row)=3 then
@@ -35,7 +35,7 @@ begin
         for v_alias in select value from jsonb_array_elements(v_row->2) loop
           if jsonb_typeof(v_alias)<>'string' then return false; end if;
           v_key:=private.normalized_answer(v_alias #>> '{}');
-          if v_key='' or length(v_key)<2 then return false; end if;
+          if v_key='' or length(v_key)<1 then return false; end if;
           -- Aliases for different entities may never collapse to one key.
           if v_seen ? v_key and v_seen->>v_key<>v_owner then return false; end if;
           v_seen:=jsonb_set(v_seen,array[v_key],to_jsonb(v_owner),true);
