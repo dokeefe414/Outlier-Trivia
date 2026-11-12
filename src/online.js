@@ -57,12 +57,25 @@ async function reloadProfile() {
   const result = await invoke("profile");
   state.profile = result;
 }
+async function reloadLeagues() {
+  if(!state.user){state.leagues=[];return;}
+  const response=await invoke("leagues");
+  state.leagues=Array.isArray(response.leagues)?response.leagues:[];
+}
+async function reloadLeagueStandings() {
+  const id=state.activeLeague?.id;
+  if(!id) return;
+  const response=await invoke("league-standings",{
+    query:"league="+encodeURIComponent(id)+"&period="+encodeURIComponent(state.leaguePeriod)
+  });
+  state.leaguePlayers=Array.isArray(response.players)?response.players:[];
+}
 async function reloadBoard() {
   const result = await invoke("leaderboard",{auth:false,query:"board="+encodeURIComponent(state.board)});
   state.players = Array.isArray(result.players) ? result.players : [];
 }
 function boardUI() {
-  const headings = {daily:"TODAY'S TOP MINDS",average:"BEST LIFETIME AVERAGE",total:"MOST LIFETIME POINTS"};
+  const headings = {daily:"TODAY'S TOP MINDS",week:"THIS WEEK'S TOP MINDS",average:"BEST LIFETIME AVERAGE",total:"MOST LIFETIME POINTS"};
   const rows = state.players.map(player=>
     '<div class="leader-row '+(state.user?.id===player.userId?'is-me':'')+'">'+
     '<div class="leader-rank">'+number(player.position)+'</div>'+
@@ -71,7 +84,7 @@ function boardUI() {
   ).join("");
   return '<div class="card online-board"><div class="section-heading"><div><span class="eyebrow">GLOBAL LEADERBOARD</span>'+
     '<h3>'+headings[state.board]+'</h3></div><span class="pill pill-teal">SERVER VERIFIED</span></div>'+
-    '<div class="board-tabs">'+[["daily","DAILY"],["average","LIFETIME AVG"],["total","LIFETIME TOTAL"]]
+    '<div class="board-tabs">'+[["daily","DAILY"],["week","WEEKLY"],["average","LIFETIME AVG"],["total","LIFETIME TOTAL"]]
       .map(([id,label])=>'<button class="board-tab '+(state.board===id?"active":"")+
         '" data-online="board" data-board="'+id+'">'+label+'</button>').join("")+'</div>'+
     (rows || '<div class="board-empty"><div class="big-icon">🏁</div><h3>No ranked scores yet</h3>'+
@@ -79,6 +92,7 @@ function boardUI() {
     '<p class="small muted" style="margin-top:20px">'+
       (state.board==="average"?"Players need at least 10 completed daily games to qualify. ":
       state.board==="daily"?"Only today's one official daily attempt counts. ":
+      state.board==="week"?"Weekly rankings reset Monday at 00:00 UTC. " :
       "Only official daily scores accumulate. ") +
       'Unlimited practice never affects these rankings.</p></div>';
 }
@@ -98,6 +112,64 @@ function profilePanel() {
      '<div class="answer-row"><input class="answer-input" id="online-display" name="name" maxlength="24" required value="'+escape(state.profile.name||"")+'">'+
      '<button class="btn btn-ghost" type="submit">SAVE NAME</button></div></form></div>';
 }
+
+function onlineJourney() {
+  const entries=Array.isArray(state.profile?.history)?state.profile.history:[];
+  if(!entries.length)return "";
+  const recent=[...entries].slice(0,14);
+  const best=Math.max(...entries.map(x=>x.score));
+  return '<div class="card online-journey"><div class="eyebrow">YOUR OFFICIAL JOURNEY</div>'+
+    '<h3>Progress worth coming back for.</h3><div class="online-journey-grid">'+
+    recent.map(item=>'<div title="'+escape(item.day)+' · '+number(item.score)+' points">'+
+      '<span style="height:'+Math.max(8,item.score/70)+'%"></span></div>').join("")+
+    '</div><div class="journey-metrics"><div><small>RECENT RUNS</small><strong>'+recent.length+'</strong></div>'+
+    '<div><small>BEST IN HISTORY</small><strong>'+number(best)+'</strong></div></div></div>';
+}
+function leaguesPanel() {
+  if(!state.user)return "";
+  const cards=(state.leagues||[]).map(item=>'<div class="league-card"><div>'+
+    '<strong>🏆 '+escape(item.title)+'</strong><small>'+number(item.members)+' / 50 MEMBERS</small>'+
+    '</div><div class="league-card-actions">'+
+    '<button type="button" data-online="league-view" data-id="'+escape(item.id)+'">VIEW STANDINGS</button>'+
+    '<button type="button" data-online="league-copy" data-code="'+escape(item.code)+'">COPY INVITE</button>'+
+    '</div></div>').join("");
+  return '<div class="card league-panel"><div class="section-heading"><div>'+
+    '<span class="eyebrow">YOUR INNER CIRCLE</span><h3>Build your own league.</h3>'+
+    '<p class="small muted">Up to 50 friends per league. Only verified official daily games count.</p></div>'+
+    '<span class="pill pill-purple">'+(state.leagues?.length||0)+' LEAGUES</span></div>'+
+    (cards||'<p class="muted small">No leagues yet. Create one and challenge your friends.</p>')+
+    '<div class="league-forms">'+
+      '<form data-form="league-create"><label for="league-name">NEW LEAGUE NAME</label>'+
+      '<input id="league-name" class="answer-input" type="text" minlength="3" maxlength="40" required placeholder="e.g. Campus Brain Battle">'+
+      '<button class="btn btn-teal" type="submit">CREATE LEAGUE</button></form>'+
+      '<form data-form="league-join"><label for="league-code">JOIN WITH INVITE CODE</label>'+
+      '<input id="league-code" class="answer-input" type="text" minlength="12" maxlength="12" required placeholder="12-character invite code">'+
+      '<button class="btn btn-ghost" type="submit">JOIN FRIENDS</button></form></div>'+
+      '<p class="small muted">Friend leagues are free and never change your daily score. Share invite codes only with people you want in your group.</p></div>';
+}
+function showLeague() {
+  stopTimer();
+  if(!state.activeLeague)return showMenu();
+  state.view="league";
+  const league=state.activeLeague;
+  const rows=(state.leaguePlayers||[]).map(player=>
+    '<div class="leader-row '+(state.user?.id===player.userId?'is-me':'')+'">'+
+    '<span class="leader-rank">'+number(player.position)+'</span>'+
+    '<span class="leader-name">'+escape(player.name)+(state.user?.id===player.userId?' <small>YOU</small>':'')+'</span>'+
+    '<span class="leader-score">'+number(player.score)+'<small>'+number(player.days)+' days</small></span></div>'
+  ).join("");
+  setView('<div class="league-screen"><button class="back-link" data-online="menu">← BACK TO LEAGUES</button>'+
+    '<div class="online-heading"><span class="eyebrow">FRIEND LEAGUE</span><h1>🏆 '+escape(league.title)+'</h1>'+
+    '<p class="muted">Real scores, real friends. Practice and purchased access do not add points.</p></div>'+
+    '<div class="card online-board"><div class="board-tabs">'+
+    [["today","TODAY"],["week","THIS WEEK"],["all","ALL-TIME"]].map(([period,label])=>
+      '<button class="board-tab '+(state.leaguePeriod===period?'active':'')+
+      '" data-online="league-period" data-period="'+period+'">'+label+'</button>').join("")+'</div>'+
+    (rows||'<div class="board-empty"><p class="muted">Nobody has completed an official game yet.</p></div>')+
+    '<div class="league-code"><span>INVITE CODE: <strong>'+escape(league.code)+'</strong></span>'+
+    act("league-copy","COPY INVITE CODE","btn-ghost")+'</div></div></div>');
+}
+
 function showMenu() {
   stopTimer();
   state.view = "menu";
@@ -118,7 +190,7 @@ function showMenu() {
     (state.sent ? notice("Check your email for your sign-in link.","ok") : "")+'</div>';
   setView(heading + (state.error ? notice(state.error,"warning") : "")+
     (state.message ? notice(state.message,"ok") : "")+
-    buttons + profilePanel() + boardUI());
+    buttons + profilePanel() + onlineJourney() + leaguesPanel() + boardUI());
 }
 function formatTime(deadline) {
   if (!deadline) return 45;
@@ -195,7 +267,18 @@ function showFeedback() {
     escape(f.accepted||"No accepted answer")+'</p><span class="pill pill-yellow">TOTAL '+number(state.game.score)+' PTS</span></div>'+
     '<div class="feedback-divider"></div><h3>'+(isFit?"Crowd response board":"Some of the highest-scoring answers")+
     '</h3>'+examples+
-    '<p class="insight">Prototype crowd shares and rarity rankings are fixed examples. Online points are calculated on the server.</p>'+
+    (state.feedback?.history?.available && !isFit ?
+      '<div class="observed-rarity"><span class="eyebrow">REAL HISTORICAL RESPONSES</span>'+
+      '<p class="small muted">From '+number(state.feedback.history.sampleSize)+
+      ' completed games on earlier days. These counts describe players, not your score.</p>'+
+      (state.feedback.history.answers||[]).slice(0,6).map(row=>
+        '<div><strong>'+escape(row.name)+'</strong><span>'+row.percent+'% · '+number(row.picks)+' picks</span></div>'
+      ).join("")+'</div>' : '')+
+    (!isFit && !f.valid && f.response ?
+      '<form class="online-review" data-form="review"><label for="review-reason">THINK '+escape(f.response)+
+      ' SHOULD COUNT? EXPLAIN WHY</label><textarea id="review-reason" required minlength="12" maxlength="500" rows="3" placeholder="Include an explanation and a reliable source..."></textarea>'+
+      '<button class="btn btn-ghost" type="submit">REQUEST ANSWER REVIEW</button></form>' : '')+
+    '<p class="insight">Prototype rarity points are fixed editorial tiers. Historical response counts (when available) are observational and do not change today’s score.</p>'+
     act("next",state.game.complete?"SEE FINAL RESULTS →":"NEXT QUESTION →",isFit?"btn-teal btn-wide feedback-next":"btn-primary btn-wide feedback-next")+
     '</div>');
 }
@@ -289,6 +372,26 @@ async function handleClick(event) {
   const action=button.dataset.online;
   if (action==="back") {stopTimer();container.onclick=null;container.onsubmit=null;window.removeEventListener("keydown",onKeydown);onBack();return;}
   if (busy) return;
+  if (action==="league-view") {
+    state.activeLeague=(state.leagues||[]).find(l=>l.id===button.dataset.id)||null;
+    state.leaguePeriod="week";
+    if(!state.activeLeague) return;
+    showBusy("Loading your league...");
+    try {await reloadLeagueStandings();showLeague();}catch(e){showError(e);}
+  }
+  if (action==="league-period") {
+    state.leaguePeriod=button.dataset.period||"week";
+    showBusy("Loading friends' standings...");
+    try {await reloadLeagueStandings();showLeague();}catch(e){showError(e);}
+  }
+  if (action==="league-copy") {
+    const code=button.dataset.code || state.activeLeague?.code;
+    if(code){
+      try {await navigator.clipboard.writeText(code);state.message="League invite code copied!";}
+      catch {state.message="Could not copy. Your invite code is "+code;}
+      if(state.view==="league")showLeague();else showMenu();
+    }
+  }
   if (action==="board") {
     state.board=button.dataset.board;
     showBusy("Loading rankings...");
@@ -297,7 +400,7 @@ async function handleClick(event) {
   if (action==="daily") await start("daily");
   if (action==="practice") await start("practice");
   if (action==="checkout") await checkout();
-  if (action==="menu") {await Promise.all([reloadBoard(),reloadProfile()]).catch(()=>{});showMenu();}
+  if (action==="menu") {await Promise.all([reloadBoard(),reloadProfile(),reloadLeagues()]).catch(()=>{});showMenu();}
   if (action==="next") await advance();
   if (action==="pick") await submitAnswer(button.dataset.answer);
   if (action==="skip") await submitAnswer(null);
@@ -331,6 +434,36 @@ async function handleSubmit(event) {
     } catch(e) {showError(e,"Sign-in link failed");}
     finally {busy=false;}
   }
+  if (form.dataset.form==="league-create" || form.dataset.form==="league-join") {
+    busy=true;
+    try {
+      const create=form.dataset.form==="league-create";
+      const payload=create ? {title:container.querySelector("#league-name")?.value} :
+        {code:container.querySelector("#league-code")?.value};
+      await invoke(create?"league-create":"league-join",{method:"POST",payload});
+      await reloadLeagues();
+      state.message=create?"Your new league is ready. Share its invite code!":"You joined the league.";
+      state.error=null;showMenu();
+    }catch(e){showError(e,"Could not update league");}
+    finally{busy=false;}
+    return;
+  }
+  if (form.dataset.form==="review") {
+    busy=true;
+    try {
+      const f=state.feedback?.feedback;
+      if(!f?.questionId||!state.game?.id)throw new Error("No eligible answer for review");
+      await invoke("review",{method:"POST",payload:{
+        game:state.game.id,questionId:f.questionId,
+        reason:container.querySelector("#review-reason")?.value
+      }});
+      state.message="Answer review submitted. The score is unchanged pending manual review.";
+      if(state.feedback?.feedback)state.feedback.feedback.response=null;
+      showFeedback();
+    }catch(e){state.message="Review not submitted: "+e.message;showFeedback();}
+    finally{busy=false;}
+    return;
+  }
   if (form.dataset.form==="name") {
     busy=true;
     try {
@@ -353,7 +486,8 @@ function onKeydown(event) {
 }
 export async function mountOnline(element, back) {
   container=element;onBack=back;
-  state={view:"loading",board:"daily",players:[],user:null,profile:null,game:null,feedback:null,error:null,message:null,sent:false};
+  state={view:"loading",board:"daily",players:[],user:null,profile:null,game:null,feedback:null,
+    leagues:[],activeLeague:null,leaguePlayers:[],leaguePeriod:"week",error:null,message:null,sent:false};
   showBusy();
   if (!ONLINE_ENABLED) {
     setView('<div class="card online-ready"><h2>Online mode is not connected yet.</h2>'+
@@ -374,7 +508,7 @@ export async function mountOnline(element, back) {
     const {data,error}=await supabase.auth.getSession();
     if (error) throw error;
     state.user=data.session?.user ?? null;
-    if (state.user) await reloadProfile();
+    if (state.user) await Promise.all([reloadProfile(),reloadLeagues()]);
     await reloadBoard();
     const params=new URLSearchParams(window.location.search);
     if (params.get("checkout")==="success") {

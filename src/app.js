@@ -1,7 +1,8 @@
-import { buildRound, buildLegacyRound, utcDay, normalizeAnswer, evaluate, scoreOf, getTier, lifetimeStats, shareText, shuffled, randomFromSeed, seedFromString, practiceCategoryOptions, QUESTION_SECONDS, MAX_SCORE } from "./game.js";
+import { buildRound, buildLegacyRound, utcDay, normalizeAnswer, evaluate, scoreOf, getTier, lifetimeStats, shareText, shuffled, randomFromSeed, seedFromString, practiceCategoryOptions, buildArcadeRound, arcadeFormats, arcadeMaximum, QUESTION_SECONDS, MAX_SCORE } from "./game.js";
 import { rareQuestions, fitQuestions } from "./data.js";
 import { activityWeek, currentStreak, longestStreak, earnedBadges } from "./progression.js";
 import { ONLINE_ENABLED } from "./online-config.js";
+import {scoreHistory,weekSummary,nextGoal,versusHistory,utcResetRemaining} from "./journey.js";
 import { readFriendChallenge, challengeLink, challengeOutcome, categoryInsights } from "./social.js";
 
 const STORAGE_KEY = "outlier-prototype-v1";
@@ -12,9 +13,11 @@ const modalRoot = document.getElementById("modal-root");
 function loadStore() {
   try {
     const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
-    return { days: raw.days && typeof raw.days === "object" ? raw.days : {}, sound: Boolean(raw.sound) };
+    return { days: raw.days && typeof raw.days === "object" ? raw.days : {},
+      arcade: raw.arcade && typeof raw.arcade === "object" ? raw.arcade : {},
+      sound: Boolean(raw.sound) };
   } catch {
-    return { days: {}, sound: false };
+    return { days: {}, arcade: {}, sound: false };
   }
 }
 const storage = loadStore();
@@ -22,6 +25,7 @@ let screen = "home";
 let session = null;
 let feedback = null;
 let boardTab = "daily";
+let practiceFormat = "classic";
 const friendChallenge = readFriendChallenge(window.location.search, utcDay());
 let intervalId = null;
 let toastTimeout = null;
@@ -105,6 +109,63 @@ function badgeCabinet() {
       '<div class="achievement-art">' + esc(b.icon) + '</div><strong>' + esc(b.title) + '</strong>' +
       '<p>' + esc(b.detail) + '</p><small>' + (b.earned ? '✓ UNLOCKED' : 'LOCKED') + '</small></div>').join("") +
     '</div></div>';
+}
+
+
+function nextClock() {
+  return '<span class="reset-clock" id="reset-clock" aria-label="Time until next UTC daily game">--:--:--</span>';
+}
+function refreshResetClock() {
+  const target = document.getElementById("reset-clock");
+  if (!target) return;
+  const value=utcResetRemaining();
+  target.textContent=[value.hours,value.minutes,value.seconds].map(x=>String(x).padStart(2,"0")).join(":");
+}
+function journeyPreview() {
+  const week=weekSummary(storage.days,today());
+  const goal=nextGoal(storage.days,today());
+  return '<div class="card weekly-quest"><div class="weekly-quest-heading"><div>'+
+    '<span class="eyebrow">YOUR WEEKLY MISSION</span><h3>Make every answer count.</h3>'+
+    '<p class="muted small">A new personal challenge every week. Only official daily games count.</p></div>'+
+    '<div class="weekly-quest-score"><strong>'+week.played+'<small> / 7</small></strong><span>DAYS THIS WEEK</span></div></div>'+
+    '<div class="weekly-quest-days">'+week.days.map((item,i)=>'<span class="'+(item.played?'played ':'')+
+      (item.day===today()?'today':'')+'" title="'+esc(item.day)+'" aria-label="'+esc(item.day)+
+      (item.played?', played':', not played')+'">'+(item.played?'✦':['M','T','W','T','F','S','S'][i])+'</span>').join('')+'</div>'+
+    '<div class="weekly-quest-footer"><div><span class="tiny muted">WEEKLY POINTS</span><b>'+fmt(week.total)+'</b></div>'+
+    '<div><span class="tiny muted">NEXT PLAY MILESTONE</span><b>'+goal.nextDayMilestone+' DAYS <small>('+goal.daysRemaining+' TO GO)</small></b></div>'+
+    '<div><span class="tiny muted">NEXT DAILY RESET</span><b>'+nextClock()+'</b></div></div></div>';
+}
+function personalJourneyPanel() {
+  const history=scoreHistory(storage.days,28,today());
+  const week=weekSummary(storage.days,today());
+  const goal=nextGoal(storage.days,today());
+  const filled=history.filter(d=>d.played);
+  return '<div class="card history-chart"><div class="section-heading"><div>'+
+    '<span class="eyebrow">YOUR 28-DAY JOURNEY</span><h3>The story behind your scores.</h3>'+
+    '<p class="muted small">Every bar is an official daily game. Gaps mean no completed game.</p></div>'+
+    '<span class="pill pill-purple">'+filled.length+' GAMES</span></div>'+
+    '<div class="history-bars" role="img" aria-label="Your official scores over the past 28 days">'+
+    history.map(item=>'<div class="history-bar-day" title="'+esc(item.day)+' · '+
+      (item.played?fmt(item.score)+' points':'not played')+'"><div class="history-bar '+
+      (item.played?'played':'missed')+'" style="height:'+
+      (item.played?Math.max(8,item.score/70):5)+'%"></div></div>').join('')+
+    '</div><div class="history-scale"><span>28 DAYS AGO</span><span>TODAY</span></div>'+
+    '<div class="journey-metrics">'+
+      '<div><small>THIS WEEK</small><strong>'+fmt(week.total)+'</strong><span>POINTS</span></div>'+
+      '<div><small>WEEKLY AVG</small><strong>'+fmt(week.average)+'</strong><span>POINTS / DAY PLAYED</span></div>'+
+      '<div><small>LONGEST STREAK</small><strong>'+goal.streak+' <small>NOW</small></strong><span>BEST: '+week.longest+' DAYS</span></div>'+
+      '<div><small>NEXT MILESTONE</small><strong>'+goal.nextDayMilestone+'</strong><span>COMPLETED GAMES</span></div></div></div>';
+}
+function resultComparison(day,score) {
+  const compare=versusHistory(storage.days,day,score);
+  if(!compare)return '<div class="first-run-bonus">✦ Your first official result is in the books. Your journey starts here!</div>';
+  const diff=compare.change;
+  return '<div class="result-momentum '+(diff>=0?'up':'down')+'"><span>'+
+    (compare.personalBest?'🏆 NEW DAILY PERSONAL BEST':diff>=0?'↗ YOU BEAT YOUR LAST GAME':'↗ YOUR NEXT GOAL IS SET')+'</span>'+
+    '<strong>'+(diff>=0?'+':'−')+fmt(Math.abs(diff))+' <small>VS. YOUR PREVIOUS DAILY SCORE</small></strong>'+
+    '<p>Your earlier daily average was '+fmt(compare.average)+' points. '+
+    (compare.aboveAverage?'You scored at or above it today.':'Keep the streak going and try again tomorrow.')+
+    '</p></div>';
 }
 
 function stat(label, value) {
@@ -193,7 +254,7 @@ function renderHome() {
     stat("LIFETIME AVERAGE", fmt(stats.average)),
     stat("LIFETIME POINTS", fmt(stats.total)),
     stat("PERSONAL BEST", fmt(stats.best)),
-    '</div>' + progressPanel() + '</section>',
+    '</div>' + progressPanel() + journeyPreview() + '</section>',
     '<section class="promo"><div><span class="pill pill-purple" style="margin-bottom:13px">' +
       (ONLINE_ENABLED ? 'ONLINE LEAGUE' : 'COMING AFTER THE PROTOTYPE') + '</span>',
     '<h3>More trivia. No more waiting.</h3><p>' + (ONLINE_ENABLED ?
@@ -205,8 +266,9 @@ function renderHome() {
       '</section>'
   ].join("");
   window.scrollTo(0,0);
+  refreshResetClock();
+  intervalId=setInterval(refreshResetClock,1000);
 }
-
 
 function renderPracticeSelect() {
   screen="practice-select";
@@ -216,9 +278,14 @@ function renderPracticeSelect() {
     '<button type="button" class="back-link" data-action="home">← BACK TO HOME</button>' +
     '<div class="practice-heading"><span class="eyebrow">THE KNOWLEDGE ARCADE</span>' +
     '<h1>PICK YOUR <span class="gradient-text">PLAYGROUND.</span></h1>' +
-    '<p class="muted">Choose a subject you love, or let OUTLIER surprise you. Every round still has four Stand Out answers and three Fit In predictions.</p>' +
+    '<p class="muted">Choose a subject, then pick your format. Four rare answers and three crowd predictions in Classic—or test your instincts in quicker and tougher challenges.</p>' +
     '<div class="practice-meta"><span>✦ '+total+' BROAD RARE-ANSWER PROMPTS</span><span>◎ '+fitQuestions.length+' CROWD QUESTIONS</span><span>♾ UNRANKED TEST PRACTICE</span></div></div>' +
-    '<div class="practice-grid">' + practiceCategoryOptions.map(option => {
+    '<div class="arcade-format-grid" role="group" aria-label="Practice format">' +
+      arcadeFormats.map(format => '<button type="button" class="arcade-format '+(practiceFormat===format.value?'selected':'')+
+      '" data-action="practice-format" data-format="'+format.value+'" aria-pressed="'+(practiceFormat===format.value)+'">'+
+      '<span class="arcade-format-icon">'+format.icon+'</span><strong>'+format.title+'</strong>'+
+      '<span>'+format.description+'</span><small>'+format.rounds+' ROUNDS · '+format.seconds+' SEC EACH</small></button>').join('')+
+      '</div><div class="practice-grid">' + practiceCategoryOptions.map(option => {
       const matches=rareQuestions.filter(q=>q.bigPool && q.poolGroup===option.value);
       return '<button type="button" data-action="start-practice" data-group="'+esc(option.value)+'" class="practice-option '+(option.value==="surprise"?"featured":"")+'">'+
         '<span class="practice-art">'+option.icon+'</span><strong>'+esc(option.label)+'</strong>'+
@@ -250,7 +317,10 @@ function newSession(mode,practiceGroup = 'surprise') {
     };
     if (existing?.complete || session.index >= 7) { renderResult(); return; }
   } else {
-    session = { mode, day: today(), practiceGroup, questions: buildRound(today(), true, practiceGroup), answers:[], index:0, deadline:null };
+    const format = arcadeFormats.find(item=>item.value===practiceFormat) || arcadeFormats[0];
+    session = {mode,day:today(),practiceGroup,practiceFormat:format.value,
+      questions:buildArcadeRound(today(),practiceGroup,format.value),
+      timerSeconds:format.seconds,answers:[],index:0,deadline:null,arcadeRecorded:false};
   }
   renderGame();
 }
@@ -271,7 +341,7 @@ function renderGame() {
   if (!q) return renderResult();
   screen = "game";
   clearInterval(intervalId);
-  if (!session.deadline) session.deadline = Date.now() + QUESTION_SECONDS * 1000;
+  if (!session.deadline) session.deadline = Date.now() + (session.timerSeconds||QUESTION_SECONDS) * 1000;
   saveDaily();
   const fit = q.type === "fit";
   const optionContent = fit ?
@@ -287,7 +357,7 @@ function renderGame() {
     '<div class="game-wrap"><div class="topbar"><button class="back-link" data-action="home" type="button">← BACK TO HOME</button>',
     '<span class="session-pill">' + (session.mode === "daily" ? 'DAILY · ' + esc(session.day) : "PRACTICE · " + esc((session.practiceGroup||"surprise").toUpperCase())) + '</span></div>',
     '<div class="game-head"><div><div class="eyebrow" style="margin-bottom:10px">THE CHALLENGE</div>',
-    '<h2>Question ' + (session.index + 1) + ' <span class="muted">/ 7</span></h2><p>Every answer counts. Trust your instincts.</p></div>',
+    '<h2>Question ' + (session.index + 1) + ' <span class="muted">/ ' +session.questions.length+'</span></h2><p>Every answer counts. Trust your instincts.</p></div>',
     '<div class="game-score"><div class="tiny muted">YOUR SCORE</div><strong>' + fmt(scoreOf(session.answers)) + '</strong></div></div>',
     '<div class="progress-track"><div class="progress-fill" style="width:' + (session.index/7*100) + '%"></div></div>',
     roundDots(),'<article class="card question-card ' + q.type + '">',
@@ -318,7 +388,7 @@ function tickTimer() {
   }
   const bar = document.getElementById("timebar");
   if (bar) {
-    bar.style.width = Math.max(0,Math.min(100,((session.deadline - Date.now()) / (QUESTION_SECONDS * 1000))*100)) + "%";
+    bar.style.width = Math.max(0,Math.min(100,((session.deadline - Date.now()) / ((session.timerSeconds||QUESTION_SECONDS) * 1000))*100)) + "%";
     bar.classList.toggle("urgent",remaining <= 10);
   }
   if (remaining === 0) submitAnswer(null);
@@ -385,7 +455,7 @@ function renderFeedback() {
       '<div class="bar-bg"><div class="bar-fg" style="width:' + (share / Math.max(...q.choices.map(([,s])=>s)) * 100) + '%"></div></div></div>'
       ).join("");
   app.innerHTML = [
-    '<div class="feedback-wrap"><div class="topbar"><span class="session-pill">ROUND ' + feedback.number + ' OF 7</span>',
+    '<div class="feedback-wrap"><div class="topbar"><span class="session-pill">ROUND ' + feedback.number + ' OF '+session.questions.length+'</span>',
     '<span class="pill ' + (fit ? 'pill-teal' : 'pill-purple') + '">' + (fit ? '◎ FIT IN' : '✦ STAND OUT') + '</span></div>',
     '<article class="card feedback-card ' + q.type + '">',
     '<div class="text-center"><div class="feedback-graphic" aria-hidden="true">' + info.icon + '</div>',
@@ -405,7 +475,7 @@ function renderFeedback() {
     '<p class="insight">' + (fit ?
       'These percentages are fixed example values for the prototype, NOT survey data or live player votes. Everyone gets the same score for the same pick.' :
       'Stand Out scores are curated prototype rarity tiers, NOT actual frequencies from other players. Answers are checked against a finite validated list.') + '</p>',
-    homeButton(feedback.number===7 ? 'SEE MY FINAL RESULTS →' : 'NEXT QUESTION →', "next", fit ? "btn-teal btn-wide feedback-next" : "btn-primary btn-wide feedback-next"),
+    homeButton(feedback.number===session.questions.length ? 'SEE MY FINAL RESULTS →' : 'NEXT QUESTION →', "next", fit ? "btn-teal btn-wide feedback-next" : "btn-primary btn-wide feedback-next"),
     '</article></div>'
   ].join("");
   window.scrollTo(0,0);
@@ -415,7 +485,7 @@ function nextRound() {
   if (screen !== "feedback" || !session) return;
   session.index += 1;
   feedback = null;
-  if (session.index >= 7) return renderResult();
+  if (session.index >= session.questions.length) return renderResult();
   renderGame();
 }
 
@@ -426,11 +496,23 @@ function renderResult() {
   session.deadline = null;
   saveDaily();
   const score = scoreOf(session.answers);
-  const tier = getTier(score);
+  const maxScore = arcadeMaximum(session.questions);
+  const tier = getTier(Math.round(score / maxScore * MAX_SCORE));
   const rival = session.mode==="daily" ? challengeOutcome(friendChallenge,session.day,score) : null;
   const daily = session.mode === "daily";
   const totalStats = lifetimeStats(storage.days);
   const rareScore = scoreOf(session.answers.filter(a => a.type === "rare"));
+  const rareMax = session.questions.filter(q=>q.type==="rare").length*1000;
+  const fitMax = session.questions.filter(q=>q.type==="fit").length*1000;
+  let arcadeRecord=null;
+  if (!daily && !session.arcadeRecorded) {
+    const key=(session.practiceFormat||"classic")+":"+(session.practiceGroup||"surprise");
+    const previous=storage.arcade[key] || {best:0,runs:0};
+    arcadeRecord={previous:previous.best,personalBest:score>previous.best,format:session.practiceFormat||"classic"};
+    storage.arcade[key]={best:Math.max(previous.best,score),runs:previous.runs+1};
+    session.arcadeRecorded=true;
+    saveStore();
+  }
   const fitScore = scoreOf(session.answers.filter(a => a.type === "fit"));
   const previousOfficial = {...storage.days};
   if (daily) delete previousOfficial[session.day];
@@ -448,32 +530,37 @@ function renderResult() {
     '<span class="session-pill">' + (daily ? 'DAILY FINISHED' : 'PRACTICE FINISHED · UNRANKED') + '</span></div>',
     '<div class="card result-scorecard"><div class="result-crown" aria-hidden="true">🏆</div>',
     '<div class="eyebrow" style="justify-content:center;margin-top:10px">YOUR OUTLIER SCORE</div>',
-    '<div class="result-number gradient-text">' + fmt(score) + '</div><div class="result-max">OUT OF ' + fmt(MAX_SCORE) + ' POINTS</div>',
+    '<div class="result-number gradient-text">' + fmt(score) + '</div><div class="result-max">OUT OF ' + fmt(maxScore) + ' POINTS</div>',
+    arcadeRecord?.personalBest ? '<div class="arcade-new-best">✦ NEW PERSONAL BEST</div>' : '',
     '<h2 class="result-title">' + esc(tier.title) + '</h2><p class="result-description">' + esc(tier.description) + '</p>',
-    '<div class="score-tiles" aria-label="Seven round result tiles">' + tiles + '</div>',
+    '<div class="score-tiles" aria-label="Round-by-round results">' + tiles + '</div>',
+    daily ? resultComparison(session.day,score) : '',
     rival ? '<div class="rival-outcome ' + (rival.won?'rival-win':rival.tied?'rival-tie':'rival-loss') + '">' +
       '<strong>⚔ ' + rival.label + '</strong><span>' + esc(rival.message) + '</span></div>' : '',
     '<div class="result-actions">',
-    daily ? homeButton('COPY & CHALLENGE ↗','share','btn-primary') : homeButton('PLAY ANOTHER ROUND ↻','practice','btn-primary'),
+    daily ? homeButton('COPY & CHALLENGE ↗','share','btn-primary') : homeButton('GO AGAIN ↻','retry-practice','btn-primary'),
     homeButton('MY STATS →','leaderboard','btn-ghost'),
-    daily ? homeButton('PRACTICE AGAIN ↻','practice','btn-ghost') : '',
+    daily ? homeButton('PRACTICE AGAIN ↻','practice','btn-ghost') : homeButton('CHANGE CATEGORY','practice','btn-ghost'),
     '</div></div>',
-    '<div class="card result-modes"><div class="mode-stat rare"><span>💎 STAND OUT</span><strong>' + fmt(rareScore) + '<small> / 4,000</small></strong>' +
-      '<div class="bar-bg"><div class="bar-fg" style="width:' + (rareScore/40) + '%"></div></div></div>' +
-      '<div class="mode-stat fit"><span>◎ FIT IN</span><strong>' + fmt(fitScore) + '<small> / 3,000</small></strong>' +
-      '<div class="bar-bg"><div class="bar-fg" style="width:' + (fitScore/30) + '%"></div></div></div></div>',
+    '<div class="card result-modes"><div class="mode-stat rare"><span>💎 STAND OUT</span><strong>' + fmt(rareScore) + '<small> / '+fmt(rareMax)+'</small></strong>' +
+      '<div class="bar-bg"><div class="bar-fg" style="width:' + (rareMax ? rareScore/rareMax*100 : 0) + '%"></div></div></div>' +
+      '<div class="mode-stat fit"><span>◎ FIT IN</span><strong>' + fmt(fitScore) + '<small> / '+fmt(fitMax)+'</small></strong>' +
+      '<div class="bar-bg"><div class="bar-fg" style="width:' + (fitMax ? fitScore/fitMax*100 : 0) + '%"></div></div></div></div>',
     unlockedToday.length ? '<div class="card unlocked-today"><span class="eyebrow">NEW ACHIEVEMENT</span>' +
       unlockedToday.map(b=>'<div class="achievement-reveal"><span>' + esc(b.icon) + '</span><div><strong>' + esc(b.title) +
         '</strong><p>' + esc(b.detail) + '</p></div></div>').join("") + '</div>' : '',
-    '<div class="card result-breakdown"><h3>Round by round</h3><p class="small muted">4 Stand Out answers · 3 Fit In predictions</p>',
+    '<div class="card result-breakdown"><h3>Round by round</h3><p class="small muted">'+
+      session.questions.filter(q=>q.type==="rare").length+' Stand Out answers · '+
+      session.questions.filter(q=>q.type==="fit").length+' Fit In predictions</p>',
     breakdown,'</div>',
     daily ? '<div class="stats-strip">' + stat('DAILY GAMES',fmt(totalStats.days)) + stat('LIFETIME AVERAGE',fmt(totalStats.average)) +
       stat('LIFETIME POINTS',fmt(totalStats.total)) + stat('PERSONAL BEST',fmt(totalStats.best)) + '</div>' : '',
-    daily ? '<p class="small muted text-center">A new official game arrives at 00:00 UTC. You can play practice rounds now.</p>' :
+    daily ? '<p class="small muted text-center">NEXT DAILY GAME IN '+nextClock()+' · 00:00 UTC. Practice remains unranked.</p>' :
       '<p class="small muted text-center">Practice scores do not count toward your official daily or lifetime scores.</p>',
     '</div>'
   ].join("");
   window.scrollTo(0,0);
+  if(daily){refreshResetClock();intervalId=setInterval(refreshResetClock,1000);}
 }
 
 function renderLeaderboard() {
@@ -512,6 +599,7 @@ function renderLeaderboard() {
     '<p class="muted small">The prototype has no server or account system yet, so it would be misleading to show a fake worldwide leaderboard.</p></div>',
     '<div class="board-note">Only official daily games count. Unlimited practice never changes these numbers. Scores are stored locally on this device, not synced between devices.</div>',
     '</div>',
+    personalJourneyPanel(),
     renderKnowledgeProfile(),
     badgeCabinet(),
     histories.length ? '<div class="card result-breakdown board-history"><h3>Your recent daily scores</h3>' +
@@ -567,6 +655,8 @@ document.addEventListener("click", event => {
     case "daily": newSession("daily"); break;
     case "practice": ONLINE_ENABLED ? showOnline() : renderPracticeSelect(); break;
     case "start-practice": newSession("practice", control.dataset.group||"surprise"); break;
+    case "practice-format": practiceFormat = control.dataset.format||"classic"; renderPracticeSelect(); break;
+    case "retry-practice": newSession("practice",session?.practiceGroup||"surprise"); break;
     case "online": showOnline(); break;
     case "result": newSession("daily"); break;
     case "fit-answer": submitAnswer(control.dataset.answer); break;

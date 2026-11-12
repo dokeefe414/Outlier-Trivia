@@ -70,8 +70,12 @@ jobs:
           done
       - name: Apply weekly mixed-category daily schedule
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261112000500_daily_content_schedule.sql
+      - name: Apply friend leagues, historical insights and review migration
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261112000600_friends_reviews.sql
       - name: Verify secure attempts, timers, purchase gating, and ranks
         run: psql -v ON_ERROR_STOP=1 -f test/database-smoke.sql
+      - name: Verify secure friend leagues and historical crowd data
+        run: psql -v ON_ERROR_STOP=1 -f test/competition-smoke.sql
 
   browser-e2e:
     name: Desktop and mobile browser smoke

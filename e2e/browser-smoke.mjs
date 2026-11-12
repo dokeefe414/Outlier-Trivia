@@ -43,6 +43,8 @@ async function runDaily() {
   assert.equal(score.trim(),"0");
   await page.locator('button[data-action="leaderboard"]').last().click();
   await page.locator(".badge-section").waitFor();
+  await page.locator(".history-chart").waitFor();
+  assert.match(await page.locator(".history-chart").innerText(),/28-DAY JOURNEY/);
   await page.locator(".knowledge-card").waitFor();
   assert.match(await page.locator(".badge-section").innerText(),/First Spark/);
   await page.reload();
@@ -60,12 +62,33 @@ async function runMobile() {
   await page.locator('button[data-action="practice"]').first().click();
   await page.locator(".practice-grid").waitFor();
   assert.ok((await page.locator(".practice-option").count())>=10,"practice should have category options");
+  assert.equal(await page.locator(".arcade-format").count(),3);
+  await page.locator('[data-action="practice-format"][data-format="quick"]').click();
   await page.locator('button[data-action="start-practice"][data-group="music"]').click();
   await page.locator(".question-card").waitFor();
   assert.match(await page.locator(".session-pill").innerText(),/MUSIC/);
+  for(let i=1;i<=3;i++){
+    assert.match(await page.locator(".game-head h2").innerText(),new RegExp("Question\\s*"+i));
+    await page.locator('button[data-action="skip"]').click();
+    await page.locator(".feedback-card").waitFor();
+    await page.locator('button[data-action="next"]').click();
+  }
+  await page.locator(".result-scorecard").waitFor();
+  assert.match(await page.locator(".result-max").innerText(),/3,000/);
+  await page.locator('button[data-action="practice"]').first().click();
+  await page.locator('[data-action="practice-format"][data-format="rare-rush"]').click();
+  await page.locator('button[data-action="start-practice"][data-group="sports"]').click();
+  for(let i=1;i<=10;i++){
+    await page.locator(".question-card.rare").waitFor();
+    await page.locator('button[data-action="skip"]').click();
+    await page.locator(".feedback-card").waitFor();
+    await page.locator('button[data-action="next"]').click();
+  }
+  await page.locator(".result-scorecard").waitFor();
+  assert.match(await page.locator(".result-max").innerText(),/10,000/);
   const widths2=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,viewport:window.innerWidth}));
   assert.ok(widths2.scroll<=widths2.viewport+2,"mobile game overflow: "+JSON.stringify(widths2));
-  console.log("PASS mobile friend challenge, practice game and viewport fit");
+  console.log("PASS mobile practice arcade Quick Hit (3 rounds), Rare Rush (10 rounds), score caps and viewport fit");
 }
 
 try {

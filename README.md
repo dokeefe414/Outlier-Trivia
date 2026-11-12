@@ -2,7 +2,7 @@
 
 **A playable, mobile-friendly daily general-knowledge game.** Seven questions, two mindsets: find a rare correct answer in **Stand Out**, then predict the most popular answer in **Fit In**.
 
-> **Prototype v0.5 (full knowledge arcade; online backend optional).** This is a static front-end prototype, not yet a production competitive service. No payments, accounts, or worldwide leaderboards are active.
+> **Prototype v0.6 (arcade and progression update; community backend optional).** This is a static front-end prototype, not yet a production competitive service. No payments, accounts, or worldwide leaderboards are active.
 
 ## Play
 
@@ -117,6 +117,31 @@ recognition or real-world crowd percentages.** Read the
 [full content notes](docs/CONTENT_ATLAS.md) for sources,
 historical-data boundaries, scoring caveats, and QA.
 
+## OUTLIER v0.6 — Replay, friendships and real progression
+
+The free game now includes three unranked practice formats. **Classic** is the
+familiar 7-question 45-second challenge (7,000 max). **Quick Hit** is three
+questions at 35 seconds each (3,000 max). **Rare Rush** is ten rare-answer
+questions at 30 seconds each (10,000 max), with a selected topic and a broader
+mix if that topic has fewer than ten distinct prompts. Each practice category
+and format keeps its own best score **locally only**.
+
+New personal motivation includes a **weekly mission**, a **28-day daily-score
+chart**, a countdown to the 00:00 UTC daily reset, the next play milestone
+and comparisons with previous official daily results. Official dailies
+remain seven questions with the original 7,000-point maximum, and
+practice never changes official daily/lifetime statistics.
+
+The optional hosted code also now includes verified **friend leagues**,
+a weekly worldwide board, account-score history, a controlled answer
+review inbox, and historical player-response distributions after at least
+30 previous-day responses. These are **not live** until the owner configures
+and deploys Supabase; the historical frequencies do not change today's
+editorially scored points.
+
+See [Competitive Update](docs/COMPETITIVE_UPDATE.md) for features,
+database requirements, security and fair-scoring limitations.
+
 ## Gameplay
 
 - One **official daily game** per UTC calendar day, with identical questions and presentation order for all visitors.
@@ -168,6 +193,10 @@ Daily generation is deterministically seeded by a UTC date, so every visitor wit
     src/hiphop-facts.js       XXL Freshman historic artist reference
     src/content-packs.js      66 additional curated answer-rich questions
     src/fit-expansion.js      30 additional example Fit In crowd boards
+    src/journey.js            Weekly missions, recent scores, personal bests
+    test/arcade.test.js       Three arcade format scoring and topic tests
+    test/journey.test.js      Daily reset and personal progress tests
+    test/competition-smoke.sql Verified leagues, reviews and response sample tests
     src/game.js               Pure deterministic daily/weekly rules, scoring, utilities
     src/progression.js        Activity, streaks and official-day badges
     src/online-config.js      Public (blank by default) backend configuration
@@ -196,8 +225,9 @@ The app has no run-time JavaScript dependencies. CI checks JavaScript and Deno s
 5. **One-time premium:** checkout/webhook implementation present; not active until an owner-configured Stripe account is connected. secure $4.99 unlimited unlock, durable entitlements, pricing and operating cost review.
 6. **Hosted v0.3 (source implemented):** verified ranked attempts, Deno Edge API, email login, lifetime payment webhooks; needs third-party deployment and end-to-end validation.
 7. **Expanded v0.4:** large verified answer pools, per-category question rotation, an answer explorer and a missing-answer review workflow.
-8. **Knowledge Arcade v0.5 (current):** 66 new topical Stand Out questions, 30 more Fit In boards, and 13 selectable practice categories.
-9. **Public launch:** moderation/reporting, accessibility audit, anti-cheat, privacy policy, operations monitoring, content pipeline.
+8. **Knowledge Arcade v0.5:** 66 new topical Stand Out questions, 30 more Fit In boards, and 13 selectable practice categories.
+9. **Arcade & Competition v0.6 (current):** three replay formats, weekly journey, optional friend leagues and server-reviewed answers.
+10. **Public launch:** moderation/reporting, accessibility audit, anti-cheat, privacy policy, operations monitoring, content pipeline.
 
 ## Philosophy
 

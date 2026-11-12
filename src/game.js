@@ -162,6 +162,44 @@ export function buildRound(day = utcDay(), practice = false, practiceGroup = "su
   }));
 }
 
+
+// Standalone practice formats. Official daily gameplay always remains seven
+// questions and is deliberately NOT influenced by these settings.
+export const arcadeFormats = Object.freeze([
+  {value:"classic",title:"CLASSIC",icon:"✦",rounds:7,seconds:45,description:"The original 4 rare + 3 crowd challenge"},
+  {value:"quick",title:"QUICK HIT",icon:"⚡",rounds:3,seconds:35,description:"Two rare picks and one crowd prediction"},
+  {value:"rare-rush",title:"RARE RUSH",icon:"💎",rounds:10,seconds:30,description:"Ten rare-answer challenges. No crowd questions."},
+]);
+
+export function buildArcadeRound(day=utcDay(), group="surprise", format="classic", random=Math.random) {
+  if (format === "classic") return buildRound(day,true,group);
+  if (!["quick","rare-rush"].includes(format)) throw new Error("Unknown practice format");
+  const category = practiceCategoryOptions.some(c=>c.value===group) ? group : "surprise";
+  const all = rareQuestions.filter(q=>q.bigPool);
+  const categoryPool = category === "surprise" ? all : groupQuestions(category);
+  if (!categoryPool.length) throw new Error("No prompts available");
+  if (format === "quick") {
+    const rare = shuffled(categoryPool,random).slice(0,2);
+    const fit=shuffled(fitQuestions,random).slice(0,1);
+    if (rare.length!==2 || fit.length!==1) throw new Error("Insufficient quick-play content");
+    return [{...rare[0],type:"rare",index:0},{...fit[0],type:"fit",index:1},{...rare[1],type:"rare",index:2}];
+  }
+  // Mix the selected topic with additional categories so every Rare Rush
+  // can offer ten distinct prompts even if a topic has only 4-6 questions.
+  const focus=shuffled(categoryPool,random).slice(0,Math.min(6,categoryPool.length));
+  const used=new Set(focus.map(x=>x.id));
+  const remaining=shuffled(all.filter(x=>!used.has(x.id)),random);
+  const chosen=[...focus,...remaining.slice(0,10-focus.length)];
+  if (chosen.length!==10 || new Set(chosen.map(x=>x.id)).size!==10)
+    throw new Error("Insufficient Rare Rush prompts");
+  return shuffled(chosen,random).map((q,index)=>({...q,type:"rare",index}));
+}
+
+export function arcadeMaximum(questions) {
+  return questions.length*1000;
+}
+
+
 export function editDistance(a, b) {
   const previous = Array.from({ length: b.length + 1 }, (_, index) => index);
   for (let i = 1; i <= a.length; i++) {

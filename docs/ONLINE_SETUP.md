@@ -129,3 +129,16 @@ not research or collusion.
 
 GitHub Pages remains the free frontend host. Supabase and Stripe are separate
 services and may have ongoing costs, including for lifetime purchasers.
+
+## v0.6: friend leagues and answer-review service
+
+After linking a Supabase project and applying the original migrations,
+run supabase db push to install the 20261112000600_friends_reviews.sql
+migration, then redeploy the outlier Edge Function. The server now supports
+member-only invite-code leagues (50 players maximum each), verified weekly
+ranking, signed-in game history, moderated answer-review tickets and
+prior-day response-frequency summaries (hidden until 30 samples).
+
+The optional hosted features **remain inactive** with blank public config,
+and historical frequencies are observational, not an automatic revision
+of today's official editorial point values. See docs/COMPETITIVE_UPDATE.md.

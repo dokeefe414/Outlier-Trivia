@@ -61,6 +61,14 @@ function parseError(message: string): ApiError {
   if (message.includes("game_already_finished")) return new ApiError(409,"game_already_finished");
   if (message.includes("incorrect_question_index")) return new ApiError(409,"incorrect_question_index");
   if (message.includes("game_not_found")) return new ApiError(404,"game_not_found");
+  if (message.includes("not_a_league_member")) return new ApiError(403,"not_a_league_member");
+  if (message.includes("league_is_full") || message.includes("league_limit_reached") ||
+      message.includes("league_membership_limit") || message.includes("review_already_processed"))
+    return new ApiError(409,message.slice(0,70));
+  if (message.includes("review_rate_limit")) return new ApiError(429,"review_rate_limit");
+  if (message.includes("invalid_league_name") || message.includes("invalid_invite_code") ||
+      message.includes("invalid_period") || message.includes("review_reason_too_short") ||
+      message.includes("review_requires_invalid_answer")) return new ApiError(400,message.slice(0,70));
   if (message.includes("invalid_game_mode") || message.includes("invalid_question_index")) return new ApiError(400,"invalid_request");
   return new ApiError(500,"server_error");
 }
@@ -113,13 +121,14 @@ async function entitlement(userId: string): Promise<boolean> {
   return Array.isArray(rows) && rows[0]?.unlimited === true;
 }
 async function profile(user: User) {
-  const [stats,people,paid] = await Promise.all([
+  const [stats,people,paid,history] = await Promise.all([
     rpc("outlier_player_stats",{p_user:user.id}),
     database("/profiles?user_id=eq." + encodeURIComponent(user.id) + "&select=display_name&limit=1"),
-    entitlement(user.id)
+    entitlement(user.id),
+    rpc("outlier_player_history",{p_user:user.id,p_limit:35})
   ]);
   return {userId:user.id,email:user.email,name:Array.isArray(people) ? people[0]?.display_name : "",
-    stats,unlimited:paid};
+    stats,history,unlimited:paid};
 }
 async function stripeCheckout(user: User): Promise<string> {
   if (!stripeKey || !siteUrl) throw new ApiError(503,"checkout_not_configured");
@@ -197,8 +206,10 @@ async function handle(req: Request): Promise<Response> {
     if (action === "webhook" && req.method === "POST") return json(await processWebhook(req),200,origin);
     if (action === "leaderboard" && req.method === "GET") {
       const board = url.searchParams.get("board") ?? "daily";
-      if (!["daily","average","total"].includes(board)) throw new ApiError(400,"invalid_board");
-      const list = await rpc("outlier_leaderboard",{p_board:board,p_limit:50});
+      if (!["daily","week","average","total"].includes(board)) throw new ApiError(400,"invalid_board");
+      const list = board==="week"
+        ? await rpc("outlier_weekly_leaderboard",{p_limit:50})
+        : await rpc("outlier_leaderboard",{p_board:board,p_limit:50});
       return json({board,players:list},200,origin);
     }
     const user = await currentUser(req);
@@ -211,6 +222,41 @@ async function handle(req: Request): Promise<Response> {
       if (name.length<2 || name.length>24 || !/^[\p{L}\p{N} ._-]+$/u.test(name)) throw new ApiError(400,"invalid_display_name");
       await database("/profiles?user_id=eq." + encodeURIComponent(user.id),"PATCH",{display_name:name});
       return json({name},200,origin);
+    }
+    if (action === "leagues" && req.method === "GET") {
+      const leagues = await rpc("outlier_league_list",{p_user:user.id});
+      return json({leagues},200,origin);
+    }
+    if (action === "league-create" && req.method === "POST") {
+      const input=await bodyJson(req);
+      const league=await rpc("outlier_league_create",{
+        p_user:user.id,p_title:safeStr(input.title,80)
+      });
+      return json({league},200,origin);
+    }
+    if (action === "league-join" && req.method === "POST") {
+      const input=await bodyJson(req);
+      const league=await rpc("outlier_league_join",{
+        p_user:user.id,p_code:safeStr(input.code,24)
+      });
+      return json({league},200,origin);
+    }
+    if (action === "league-standings" && req.method === "GET") {
+      const leagueId=ensureUuid(url.searchParams.get("league"));
+      const period=url.searchParams.get("period")??"week";
+      if(!["today","week","all"].includes(period)) throw new ApiError(400,"invalid_period");
+      const players=await rpc("outlier_league_standings",{
+        p_user:user.id,p_league:leagueId,p_period:period
+      });
+      return json({players,period,leagueId},200,origin);
+    }
+    if (action === "review" && req.method === "POST") {
+      const input=await bodyJson(req);
+      const ticket=await rpc("outlier_review_submit",{
+        p_user:user.id,p_attempt:ensureUuid(input.game),
+        p_question:safeStr(input.questionId,100),p_reason:safeStr(input.reason,500)
+      });
+      return json({ticket},200,origin);
     }
     if (action === "start" && req.method === "POST") {
       const input = await bodyJson(req);
@@ -238,7 +284,16 @@ async function handle(req: Request): Promise<Response> {
       const result = await rpc("outlier_answer",{
         p_user:user.id,p_game:gameId,p_index:index,p_response:response
       });
-      return json(result,200,origin);
+      const payload=result as Json;
+      const feedback=payload?.feedback as Json | undefined;
+      // Historical frequency data is only returned after the user submits.
+      // Prior-day responses are suppressed until 30 completed samples exist.
+      if (feedback?.type==="rare" && typeof feedback.questionId==="string") {
+        payload.history=await rpc("outlier_past_answer_rarity",{
+          p_question:feedback.questionId
+        });
+      }
+      return json(payload,200,origin);
     }
     if (action === "checkout" && req.method === "POST") {
       return json({url:await stripeCheckout(user)},200,origin);
