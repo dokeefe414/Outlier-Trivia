@@ -2,9 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { rareQuestions, fitQuestions, DAILY_PATTERN } from "../src/data.js";
 import {
-  buildRound, normalizeAnswer, matchRare, evaluate, scoreOf, lifetimeStats,
+  buildRound, buildLegacyRound, weekStart, normalizeAnswer, matchRare, evaluate, scoreOf, lifetimeStats,
   seedFromString, randomFromSeed, getTier, shareText
 } from "../src/game.js";
+import { activityWeek, currentStreak, longestStreak, earnedBadges } from "../src/progression.js";
 
 test("every official daily game contains four rare and three fit rounds", () => {
   const today = buildRound("2026-11-12");
@@ -79,4 +80,59 @@ test("Result summaries and sharing have stable, non-spoiling outputs", () => {
   assert.ok(!shared.includes("Micronesia"));
   const seeded = randomFromSeed(seedFromString("check"));
   assert.ok(seeded()>=0 && seeded()<=1);
+});
+
+
+test("seven-day schedules do not repeat prompts and remain deterministic", () => {
+  const week = ["2026-11-09","2026-11-10","2026-11-11","2026-11-12","2026-11-13","2026-11-14","2026-11-15"];
+  const rounds = week.map(day=>buildRound(day));
+  const ids = rounds.flatMap(qs=>qs.map(q=>q.id));
+  assert.equal(new Set(ids).size, 49, "each prompt should appear only once per week");
+  assert.deepEqual(buildRound("2026-11-12"), rounds[3]);
+  assert.equal(weekStart("2026-11-12"),"2026-11-09");
+  assert.equal(weekStart("2026-11-15"),"2026-11-09");
+  assert.equal(weekStart("2026-11-16"),"2026-11-16");
+  assert.notDeepEqual(buildRound("2026-11-09").map(q=>q.id),buildLegacyRound("2026-11-09").map(q=>q.id));
+  assert.equal(buildLegacyRound("2026-11-12").length,7);
+});
+
+test("streaks allow a missed today until UTC midnight", () => {
+  const date = "2026-11-12";
+  const answers = Array.from({length:7},()=>({type:"rare",valid:true,points:500}));
+  const days = {
+    "2026-11-09": {complete:true,answers},
+    "2026-11-10": {complete:true,answers},
+    "2026-11-11": {complete:true,answers},
+  };
+  assert.equal(currentStreak(days,date),3);
+  assert.equal(longestStreak(days),3);
+  assert.equal(activityWeek(days,date).length,7);
+  assert.equal(activityWeek(days,date).filter(x=>x.complete).length,3);
+  days[date]={complete:true,answers};
+  assert.equal(currentStreak(days,date),4);
+  assert.equal(currentStreak(days,"2026-11-13"),4);
+  assert.equal(currentStreak(days,"2026-11-14"),0);
+});
+
+test("achievements are earned only through completed daily results", () => {
+  const complete = answers=>({complete:true,answers});
+  const strong = [
+    {type:"rare",valid:true,points:980},
+    {type:"fit",valid:true,points:1000},
+    {type:"rare",valid:true,points:950},
+    {type:"fit",valid:true,points:1000},
+    {type:"rare",valid:true,points:900},
+    {type:"fit",valid:true,points:1000},
+    {type:"rare",valid:true,points:800}
+  ];
+  const days = {
+    "2026-11-10":complete(strong),
+    "2026-11-11":complete(strong),
+    "2026-11-12":complete(strong)
+  };
+  const badges = earnedBadges(days).filter(b=>b.earned).map(b=>b.id);
+  for (const id of ["first","three","fivek","perfect","diamond","mindreader"]) assert.ok(badges.includes(id),id);
+  assert.ok(!badges.includes("seven"));
+  assert.ok(!badges.includes("twenty"));
+  assert.equal(earnedBadges({"2026-11-12":{complete:false,answers:strong}}).filter(b=>b.earned).length,0);
 });

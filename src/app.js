@@ -1,4 +1,6 @@
-import { buildRound, utcDay, evaluate, scoreOf, getTier, lifetimeStats, shareText, shuffled, randomFromSeed, seedFromString, QUESTION_SECONDS, MAX_SCORE } from "./game.js";
+import { buildRound, buildLegacyRound, utcDay, evaluate, scoreOf, getTier, lifetimeStats, shareText, shuffled, randomFromSeed, seedFromString, QUESTION_SECONDS, MAX_SCORE } from "./game.js";
+import { rareQuestions, fitQuestions } from "./data.js";
+import { activityWeek, currentStreak, longestStreak, earnedBadges } from "./progression.js";
 
 const STORAGE_KEY = "outlier-prototype-v1";
 const app = document.getElementById("app");
@@ -30,6 +32,7 @@ function saveDaily() {
   if (!session || session.mode !== "daily") return;
   storage.days[session.day] = {
     answers: session.answers,
+    questionIds: session.questions.map(question => question.id),
     complete: session.answers.length === 7,
     deadline: session.deadline,
     startedAt: storage.days[session.day]?.startedAt || Date.now()
@@ -48,6 +51,46 @@ function friendlyDay(day) {
 function homeButton(label, action, style = "btn-primary") {
   return '<button type="button" class="btn ' + style + '" data-action="' + action + '">' + label + '</button>';
 }
+
+function renderWeekBars() {
+  const days = activityWeek(storage.days, today());
+  return '<div class="week-bars" aria-label="Completed official games over the past seven UTC days">' +
+    days.map(item => {
+      const dayName = new Date(item.day + "T12:00:00Z").toLocaleDateString("en-US", { weekday:"short", timeZone:"UTC" }).slice(0,1);
+      return '<div class="week-day" title="' + esc(item.day) + ': ' + (item.complete ? fmt(item.score) + ' points' : 'not completed') + '">' +
+        '<div class="week-block ' + (item.complete ? 'played' : 'unplayed') + (item.day === today() ? ' is-today' : '') + '">' +
+        (item.complete ? '✦' : '·') + '</div><span>' + dayName + '</span></div>';
+    }).join("") + '</div>';
+}
+function progressPanel() {
+  const streak = currentStreak(storage.days, today());
+  const badges = earnedBadges(storage.days);
+  const earned = badges.filter(b=>b.earned);
+  const next = badges.find(b=>!b.earned);
+  return '<section class="progress-zone"><div class="card progress-card">' +
+    '<div class="progress-top"><div><div class="eyebrow">THE LONG GAME</div><h3>Make every day count.</h3>' +
+    '<p class="muted small">Build your record with one official game a day. Practice never changes it.</p></div>' +
+    '<div class="streak-pill"><span class="streak-flame">🔥</span><b>' + streak + '</b><small>DAY STREAK</small></div></div>' +
+    renderWeekBars() +
+    '<div class="progress-bottom"><div><span class="small muted">BADGES EARNED</span><div class="progress-badge-line">' +
+    (earned.length ? earned.slice(-4).map(b=>'<span class="mini-badge" title="' + esc(b.title) + '">' + esc(b.icon) + '</span>').join("") :
+      '<span class="small muted">Your first badge is one daily game away.</span>') +
+    '</div></div><div class="next-badge">' + (next ? '<small>UP NEXT</small><b>' + esc(next.icon) + ' ' + esc(next.title) + '</b>' :
+      '<small>COLLECTION</small><b>All badges unlocked!</b>') + '</div>' +
+    '<button class="btn btn-outline" data-action="leaderboard" type="button">MY PROGRESS →</button></div></div></section>';
+}
+function badgeCabinet() {
+  const badges = earnedBadges(storage.days);
+  return '<div class="card badge-section"><div class="section-heading"><div><h3>Your badge cabinet</h3>' +
+    '<p class="muted small" style="margin:0">Little victories, earned from official daily results.</p></div>' +
+    '<span class="pill pill-purple">' + badges.filter(b=>b.earned).length + ' / 8 UNLOCKED</span></div>' +
+    '<div class="badge-grid">' + badges.map(b =>
+      '<div class="achievement ' + (b.earned ? 'unlocked' : 'locked') + '">' +
+      '<div class="achievement-art">' + esc(b.icon) + '</div><strong>' + esc(b.title) + '</strong>' +
+      '<p>' + esc(b.detail) + '</p><small>' + (b.earned ? '✓ UNLOCKED' : 'LOCKED') + '</small></div>').join("") +
+    '</div></div>';
+}
+
 function stat(label, value) {
   return '<div class="stat"><div class="stat-label">' + label + '</div><div class="stat-value">' + value + '</div></div>';
 }
@@ -111,11 +154,11 @@ function renderHome() {
     '<div class="card feature-card"><span class="feature-tail">↗</span><span class="feature-icon">🏆</span><span class="pill pill-yellow">CLIMB THE RANKS</span><h3>PLAY THE LONG GAME</h3><p>Build a daily streak and chase your lifetime average and total. Global boards come next.</p></div>',
     '</div>',
     '<div class="stats-strip">',
-    stat("DAILY GAMES", fmt(stats.days)),
+    stat("CURRENT STREAK", currentStreak(storage.days,today()) + " 🔥"),
     stat("LIFETIME AVERAGE", fmt(stats.average)),
     stat("LIFETIME POINTS", fmt(stats.total)),
     stat("PERSONAL BEST", fmt(stats.best)),
-    '</div></section>',
+    '</div>' + progressPanel() + '</section>',
     '<section class="promo"><div><span class="pill pill-purple" style="margin-bottom:13px">COMING AFTER THE PROTOTYPE</span>',
     '<h3>More trivia. No more waiting.</h3><p>Unlimited rounds, different categories, and extra game modes — yours for a one-time unlock.</p></div>',
     '<div class="promo-price">$4.99<small>ONE TIME · NOT ACTIVE YET</small></div></section>'
@@ -130,7 +173,15 @@ function newSession(mode) {
     const day = today();
     const existing = storage.days[day];
     session = {
-      mode, day, questions: buildRound(day),
+      mode, day, questions: (() => {
+        if (Array.isArray(existing?.questionIds) && existing.questionIds.length === 7) {
+          const bank = [...rareQuestions, ...fitQuestions];
+          const matched = existing.questionIds.map(id => bank.find(q => q.id === id));
+          if (matched.every(Boolean)) return matched.map((q,index)=>({...q,type:q.choices?"fit":"rare",index}));
+        }
+        // Restore original set for daily games started before v0.2.
+        return existing?.startedAt ? buildLegacyRound(day) : buildRound(day);
+      })(),
       answers: Array.isArray(existing?.answers) ? existing.answers.slice(0, 7) : [],
       index: Array.isArray(existing?.answers) ? Math.min(existing.answers.length, 7) : 0,
       deadline: existing?.deadline ?? null
@@ -165,7 +216,7 @@ function renderGame() {
     '<div class="answer-label">WHICH ANSWER WOULD WIN THE CROWD?</div><div class="fit-options">' +
     shuffled(q.choices, session.mode === "daily" ? randomFromSeed(seedFromString(session.day + q.id + "-order")) : Math.random)
       .map(([name],i) => '<button class="fit-option" data-action="fit-answer" data-answer="' + esc(name) + '"><span>' + esc(name) + '</span><span>' + String.fromCharCode(65+i) + '</span></button>').join("") +
-    '</div>'
+    '</div><p class="keyboard-hint">QUICK PICK: PRESS A–F OR 1–6</p>'
   :
     '<form id="rare-form" autocomplete="off"><label class="answer-label" for="rare-answer">YOUR MOST UNEXPECTED CORRECT ANSWER</label>' +
     '<div class="answer-row"><input id="rare-answer" class="answer-input" name="answer" type="text" maxlength="80" placeholder="Type your answer..." required spellcheck="false" autocapitalize="words">' +
@@ -180,6 +231,7 @@ function renderGame() {
     roundDots(),'<article class="card question-card ' + q.type + '">',
     '<div class="question-head"><span class="pill ' + (fit ? "pill-teal" : "pill-purple") + '">' + (fit ? "◎ FIT IN — MATCH THE CROWD" : "✦ STAND OUT — BE THE EXCEPTION") + '</span>',
     '<div id="timer" class="timer" aria-label="Time remaining">0:45</div></div>',
+    '<div class="time-track" role="presentation"><div id="timebar" class="time-fill"></div></div>',
     '<div class="question-category">' + esc(q.category) + ' · ROUND ' + (session.index+1) + '</div>',
     '<h2 class="question-prompt">' + esc(q.prompt) + '</h2>',
     '<p class="question-detail">' + esc(fit ? "Six options. Only one is the crowd favorite. Pick the answer you think most people would choose." : q.detail) + '</p>',
@@ -201,6 +253,11 @@ function tickTimer() {
   if (timer) {
     timer.textContent = '0:' + String(remaining).padStart(2,'0');
     timer.classList.toggle("urgent",remaining <= 10);
+  }
+  const bar = document.getElementById("timebar");
+  if (bar) {
+    bar.style.width = Math.max(0,Math.min(100,((session.deadline - Date.now()) / (QUESTION_SECONDS * 1000))*100)) + "%";
+    bar.classList.toggle("urgent",remaining <= 10);
   }
   if (remaining === 0) submitAnswer(null);
 }
@@ -287,6 +344,12 @@ function renderResult() {
   const tier = getTier(score);
   const daily = session.mode === "daily";
   const totalStats = lifetimeStats(storage.days);
+  const rareScore = scoreOf(session.answers.filter(a => a.type === "rare"));
+  const fitScore = scoreOf(session.answers.filter(a => a.type === "fit"));
+  const previousOfficial = {...storage.days};
+  if (daily) delete previousOfficial[session.day];
+  const formerBadges = new Set(earnedBadges(previousOfficial).filter(b=>b.earned).map(b=>b.id));
+  const unlockedToday = daily ? earnedBadges(storage.days).filter(b=>b.earned && !formerBadges.has(b.id)) : [];
   const breakdown = session.answers.map((answer,i) =>
     '<div class="breakdown-line"><div class="breakdown-name"><span class="mini-icon">' + (answer.type==="rare"?"💎":"◎") +
     '</span><span>Q' + (i+1) + ' · ' + esc(answer.category) + ' · ' + esc(answer.accepted || "No valid answer") +
@@ -305,7 +368,15 @@ function renderResult() {
     '<div class="result-actions">',
     daily ? homeButton('COPY & CHALLENGE ↗','share','btn-primary') : homeButton('PLAY ANOTHER ROUND ↻','practice','btn-primary'),
     homeButton('MY STATS →','leaderboard','btn-ghost'),
+    daily ? homeButton('PRACTICE AGAIN ↻','practice','btn-ghost') : '',
     '</div></div>',
+    '<div class="card result-modes"><div class="mode-stat rare"><span>💎 STAND OUT</span><strong>' + fmt(rareScore) + '<small> / 4,000</small></strong>' +
+      '<div class="bar-bg"><div class="bar-fg" style="width:' + (rareScore/40) + '%"></div></div></div>' +
+      '<div class="mode-stat fit"><span>◎ FIT IN</span><strong>' + fmt(fitScore) + '<small> / 3,000</small></strong>' +
+      '<div class="bar-bg"><div class="bar-fg" style="width:' + (fitScore/30) + '%"></div></div></div></div>',
+    unlockedToday.length ? '<div class="card unlocked-today"><span class="eyebrow">NEW ACHIEVEMENT</span>' +
+      unlockedToday.map(b=>'<div class="achievement-reveal"><span>' + esc(b.icon) + '</span><div><strong>' + esc(b.title) +
+        '</strong><p>' + esc(b.detail) + '</p></div></div>').join("") + '</div>' : '',
     '<div class="card result-breakdown"><h3>Round by round</h3><p class="small muted">4 Stand Out answers · 3 Fit In predictions</p>',
     breakdown,'</div>',
     daily ? '<div class="stats-strip">' + stat('DAILY GAMES',fmt(totalStats.days)) + stat('LIFETIME AVERAGE',fmt(totalStats.average)) +
@@ -339,7 +410,7 @@ function renderLeaderboard() {
     stat('BEST SCORE',fmt(stats.best)),
     stat('LIFETIME AVG',fmt(stats.average)),
     stat('TOTAL POINTS',fmt(stats.total)),
-    '</div><div class="board-tabs">',
+    '</div>' + progressPanel() + '<div class="board-tabs">',
     ...[['daily','DAILY SCORE'],['average','LIFETIME AVERAGE'],['total','LIFETIME TOTAL']].map(([id,label])=>
       '<button type="button" class="board-tab ' + (id===boardTab?'active':'') +
       '" data-action="board" data-board="' + id + '">' + label + '</button>'),
@@ -353,6 +424,7 @@ function renderLeaderboard() {
     '<p class="muted small">The prototype has no server or account system yet, so it would be misleading to show a fake worldwide leaderboard.</p></div>',
     '<div class="board-note">Only official daily games count. Unlimited practice never changes these numbers. Scores are stored locally on this device, not synced between devices.</div>',
     '</div>',
+    badgeCabinet(),
     histories.length ? '<div class="card result-breakdown board-history"><h3>Your recent daily scores</h3>' +
       histories.map(([day,run])=>'<div class="history-row"><span>' + esc(friendlyDay(day)) +
         '</span><b>' + fmt(scoreOf(run.answers)) + ' pts</b></div>').join("") + '</div>' : '',
@@ -363,18 +435,19 @@ function renderLeaderboard() {
 
 function openRules() {
   modalRoot.innerHTML = [
-    '<div class="rules-modal-backdrop" data-action="close-rules"><div class="card rules-modal" role="dialog" aria-modal="true" aria-label="How to play" id="rules-dialog">',
+    '<div class="rules-modal-backdrop" data-action="close-rules"><div class="card rules-modal" role="dialog" aria-modal="true" aria-label="How to play" id="rules-dialog" tabindex="-1">',
     '<button type="button" class="modal-close" data-action="close-rules" aria-label="Close rules">×</button>',
     '<div class="eyebrow">HOW TO PLAY</div><h2 style="margin:15px 0 16px">Two ways to think.</h2>',
     '<div class="rule"><div class="rule-icon">💎</div><div><strong>Stand Out — 4 rounds</strong><p>Type a valid answer that other people might miss. The rarer the editorial ranking, the more points you earn.</p></div></div>',
     '<div class="rule"><div class="rule-icon">◎</div><div><strong>Fit In — 3 rounds</strong><p>Choose the option you think would be most popular. The top crowd choice earns 1,000 points.</p></div></div>',
-    '<div class="rule"><div class="rule-icon">⏱</div><div><strong>45 seconds per question</strong><p>Lock an answer in before time runs out. Time does not change the points you earn.</p></div></div>',
+    '<div class="rule"><div class="rule-icon">⏱</div><div><strong>45 seconds per question</strong><p>Lock an answer in before time runs out. Time does not change the points you earn. On Fit In rounds you can use A–F or 1–6 on a keyboard.</p></div></div>',
+    '<div class="rule"><div class="rule-icon">🏅</div><div><strong>Daily milestones</strong><p>Earn personal badges and keep a streak going. Only official daily scores affect your lifetime statistics.</p></div></div>',
     '<div class="rule"><div class="rule-icon">🏆</div><div><strong>One official daily attempt</strong><p>All players receive the same seven questions each UTC day. Practice can be replayed but never counts toward official stats.</p></div></div>',
     '<p class="insight">Prototype disclaimer: Stand Out rarity scores and Fit In crowd percentages are fixed example data. This version has no live votes, global leaderboard, payment processing, or cross-device accounts.</p>',
     homeButton('GOT IT — LET ME PLAY', 'close-rules', 'btn-primary btn-wide'),
     '</div></div>'
   ].join("");
-  modalRoot.querySelector(".rules-modal-backdrop")?.focus();
+  modalRoot.querySelector("#rules-dialog")?.focus();
 }
 function closeRules() { modalRoot.replaceChildren(); }
 
@@ -426,7 +499,20 @@ document.addEventListener("submit", event => {
   if (text) submitAnswer(text);
 });
 document.addEventListener("keydown", event => {
-  if (event.key === "Escape") closeRules();
+  if (event.key === "Escape") {
+    if (modalRoot.firstElementChild) { closeRules(); return; }
+  }
+  if (modalRoot.firstElementChild || screen !== "game" || currentQuestion()?.type !== "fit") return;
+  if (event.altKey || event.ctrlKey || event.metaKey || event.repeat) return;
+  if (event.target instanceof Element && event.target.closest("input,textarea,select,[contenteditable]")) return;
+  const key = event.key.toUpperCase();
+  const index = "ABCDEF".indexOf(key);
+  const numberIndex = "123456".indexOf(key);
+  const chosen = index >= 0 ? index : numberIndex;
+  if (chosen >= 0) {
+    const option = document.querySelectorAll('.fit-option')[chosen];
+    if (option) { event.preventDefault(); option.click(); }
+  }
 });
 
 renderHome();

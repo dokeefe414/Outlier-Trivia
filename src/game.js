@@ -41,13 +41,41 @@ export function shuffled(items, random) {
   return copy;
 }
 
-export function buildRound(day = utcDay(), practice = false) {
-  const random = practice ? Math.random : randomFromSeed(seedFromString("outlier-v1:" + day));
-  const rare = shuffled(rareQuestions, random).slice(0, 4);
-  const fit = shuffled(fitQuestions, random).slice(0, 3);
+export function buildLegacyRound(day = utcDay()) {
+  // Compatibility for daily attempts started under prototype v0.1.
+  const random = randomFromSeed(seedFromString("outlier-v1:" + day));
+  const rare = shuffled(rareQuestions.slice(0, 16), random).slice(0, 4);
+  const fit = shuffled(fitQuestions.slice(0, 14), random).slice(0, 3);
   return DAILY_PATTERN.map((type, index) => ({
-    ...((type === "rare") ? rare.shift() : fit.shift()),
-    type, index,
+    ...((type === "rare") ? rare.shift() : fit.shift()), type, index
+  }));
+}
+
+export function weekStart(day = utcDay()) {
+  const date = new Date(day + "T00:00:00Z");
+  const weekday = (date.getUTCDay() + 6) % 7; // Monday = 0.
+  date.setUTCDate(date.getUTCDate() - weekday);
+  return date.toISOString().slice(0, 10);
+}
+
+export function buildRound(day = utcDay(), practice = false) {
+  if (practice) {
+    const rare = shuffled(rareQuestions, Math.random).slice(0, 4);
+    const fit = shuffled(fitQuestions, Math.random).slice(0, 3);
+    return DAILY_PATTERN.map((type, index) => ({
+      ...((type === "rare") ? rare.shift() : fit.shift()), type, index
+    }));
+  }
+  // All seven days of a UTC Monday-Sunday week draw from the same decks,
+  // but use distinct slices. No prompt repeats within that week.
+  const monday = weekStart(day);
+  const dateIndex = Math.round((Date.parse(day + "T00:00:00Z") - Date.parse(monday + "T00:00:00Z")) / 86400000);
+  if (rareQuestions.length < 28 || fitQuestions.length < 21) throw new Error("Daily bank too small for weekly rotation");
+  const random = randomFromSeed(seedFromString("outlier-v2-week:" + monday));
+  const rare = shuffled(rareQuestions, random).slice(dateIndex * 4, dateIndex * 4 + 4);
+  const fit = shuffled(fitQuestions, random).slice(dateIndex * 3, dateIndex * 3 + 3);
+  return DAILY_PATTERN.map((type, index) => ({
+    ...((type === "rare") ? rare.shift() : fit.shift()), type, index
   }));
 }
 

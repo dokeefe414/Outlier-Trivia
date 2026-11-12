@@ -2,7 +2,7 @@
 
 **A playable, mobile-friendly daily general-knowledge game.** Seven questions, two mindsets: find a rare correct answer in **Stand Out**, then predict the most popular answer in **Fit In**.
 
-> **Prototype v0.1.** This is a static front-end prototype, not yet a production competitive service. No payments, accounts, or worldwide leaderboards are active.
+> **Prototype v0.2.** This is a static front-end prototype, not yet a production competitive service. No payments, accounts, or worldwide leaderboards are active.
 
 ## Play
 
@@ -37,8 +37,16 @@ Pages is **not enabled automatically** by these commits, and the expected URL sh
 - **Fit In (three rounds):** Choose among six plausible responses. Try to select the most popular response on the **pre-set prototype crowd board**. Points scale relative to the highest-ranked response. The top response earns **1,000** points.
 - **45 seconds** per question. The timer does not change points. Skips and timeouts earn zero.
 - Round-by-round result reveals, animations, optional tiny sound effects, shareable spoiler-free score cards, and **0–7,000** total possible points.
+- A **visual timer bar**, keyboard shortcuts (**A–F** or **1–6**) for Fit In questions, and richer score breakdowns by mode.
+- A **seven-day activity calendar**, current streak, personal achievements, and eight unlockable badges. All are derived from **official completed daily records** stored in the current browser.
 - **Practice mode:** Unlimited replays *for testing during the prototype*. Scores are unranked and never affect official statistics.
 - **Local stats:** Completed daily games, lifetime average, lifetime total, and personal best, saved in the current browser's localStorage. Refreshing the page resumes an in-progress daily attempt, and finishing a day locks that browser's official attempt.
+
+## Prototype upgrade notes
+
+The weekly rotation uses 32 Stand Out prompts and 23 Fit In prompts (55 total). All four plus three questions in a daily slate are distinct, and each prompt can appear at most once in any Monday–Sunday UTC week. Returning players who started a daily challenge on v0.1 can resume their original slate (older stored scores are not recalculated). Daily records now save the exact question IDs so future in-progress resumes stay consistent.
+
+Achievements are intentionally **local-only** and are not public competitive claims. Badges include First Spark, On a Roll, Unstoppable, Worldly Mind, High Flyer, Clean Sweep, Deep Cut, and Mind Reader.
 
 ## Data transparency and fairness
 
@@ -46,7 +54,7 @@ Current game uses **editorially assigned rarity points** and **fictional sample 
 
 The Stand Out prompts intentionally restrict answers to well-defined sets, avoiding open-ended trivia questions the prototype cannot reliably validate. Accepted answers, spelling aliases, and scores live in src/data.js. Minor single-character typos are forgiven only when they uniquely identify one accepted answer. **If open-ended questions are added later, the project needs authoritative validation, alternate-answer review, and appeals before public launch.**
 
-Daily generation is deterministically seeded by a UTC date, so every visitor with the same app version receives the same round sequence. The game draws from a limited, fixed question bank; repeat questions are possible across days. Production requires a much larger question calendar, versioned locked daily sets, and reliable editorial review.
+Daily generation is deterministically seeded by a UTC date, so every visitor with the same app version receives the same round sequence. The v0.2 question bank is large enough to ensure **no prompt repeats within a Monday–Sunday UTC week**, using a seeded, deterministic shuffle per week. Prompts may still return in later weeks. Production requires a much larger question calendar, versioned locked daily sets, and reliable editorial review.
 
 ### Limitations to address before a real launch
 
@@ -64,7 +72,8 @@ Daily generation is deterministically seeded by a UTC date, so every visitor wit
     styles.css                Responsive game design and animations
     favicon.svg               Original OUTLIER icon
     src/data.js               Curated question pools and prototype crowd boards
-    src/game.js               Pure deterministic rules, scoring, utilities
+    src/game.js               Pure deterministic daily/weekly rules, scoring, utilities
+    src/progression.js        Activity, streaks and official-day badges
     src/app.js                Screens, local storage, timer, interactions, sounds
     test/game.test.js         Pure logic unit tests
     .github/workflows/ci.yml  GitHub Actions syntax and test checks
@@ -78,11 +87,12 @@ The app has no run-time JavaScript dependencies. CI checks syntax and question/s
 
 ## Roadmap
 
-1. **Prototype v0.1 (this version):** daily 4+3 gameplay, practice, score reveals, locally stored records, share card.
-2. **Closed beta:** real question quality testing, crowd baseline experiments, larger content bank, usability feedback, browser smoke tests.
-3. **Accounts + leaderboard service:** server-enforced attempts, profiles, worldwide Daily / Lifetime Average / Lifetime Total rankings, friend groups.
-4. **One-time premium:** secure $4.99 unlimited unlock, durable entitlements, pricing and operating cost review.
-5. **Public launch:** moderation/reporting, accessibility audit, anti-cheat, privacy policy, operations monitoring, content pipeline.
+1. **Prototype v0.1:** daily 4+3 gameplay, practice, score reveals, locally stored records, share card.
+2. **Prototype v0.2 (current):** 7-day no-repeat question rotation, bigger pools, achievements, streaks, weekly calendar, enhanced timers/results, keyboard controls, daily-slate persistence.
+3. **Closed beta:** real question quality testing, crowd baseline experiments, larger content bank, usability feedback, browser smoke tests.
+4. **Accounts + leaderboard service:** server-enforced attempts, profiles, worldwide Daily / Lifetime Average / Lifetime Total rankings, friend groups.
+5. **One-time premium:** secure $4.99 unlimited unlock, durable entitlements, pricing and operating cost review.
+6. **Public launch:** moderation/reporting, accessibility audit, anti-cheat, privacy policy, operations monitoring, content pipeline.
 
 ## Philosophy
 
