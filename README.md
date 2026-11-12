@@ -2,7 +2,7 @@
 
 **A playable, mobile-friendly daily general-knowledge game.** Seven questions, two mindsets: find a rare correct answer in **Stand Out**, then predict the most popular answer in **Fit In**.
 
-> **Prototype v0.8 (retry invalid answers without losing the round).** This is a static front-end prototype, not yet a production competitive service. No payments, accounts, or worldwide leaderboards are active.
+> **Prototype v0.9 (Answer Intelligence, rarity insight and beta review tooling).** This is a static front-end prototype, not yet a production competitive service. No payments, accounts, or worldwide leaderboards are active.
 
 ## Play
 
@@ -91,8 +91,8 @@ accepted-name rules, scoring transparency, and known limitations.
 **This release adds 66 new large-pool Stand Out prompts and 30 new Fit In
 questions.** The game now holds **137 Stand Out prompts** (105 broad + 32
 historical) and **53 Fit In prompts**. The broad question variations
-contain **23,617 approved answer slots** between them; many entries can
-be accepted across multiple questions, so this is not a claim of 23,617
+contain **23,619 approved answer slots** between them; many entries can
+be accepted across multiple questions, so this is not a claim of 23,619
 unique entities.
 
 The major new topic collections cover films, television, performers,
@@ -187,6 +187,36 @@ See `test/retry-invalid-smoke.sql` for server tests and the desktop/mobile
 browser tests for guest behavior. Note: actual online mode still requires
 owner-controlled Supabase deployment and private ranked questions.
 
+## OUTLIER v0.9 — Every legitimate answer deserves a fair chance
+
+The answer engine now recognizes curated nicknames such as **Steph Curry →
+Stephen Curry**, alternate film titles and team abbreviations, improved Unicode
+spellings, and safe single-character typos. **Ambiguous or invented answers
+remain invalid**, and players can continue guessing until their original
+timer expires. Two separate Pokémon species (Nidoran♀ and Nidoran♂) are
+now correctly distinguishable; the historic NBA MVP name Bob Pettit is fixed.
+
+After a correct Stand Out answer, the reveal can explain whether it matched
+exactly, through an approved alias, or through a typo. It also shows the
+answer's **score rank within the accepted library**, not a fabricated crowd
+rarity percentile. Familiar MVP winners such as Stephen Curry now have
+more sensible editorial points; no published ranked results are recalculated.
+
+We've added an **owner-only Review Studio** (`admin.html`) and a
+service-protected review queue with an audit trail. It requires your own
+Supabase deployment and `OUTLIER_ADMIN_TOKEN`; it is not accessible on
+the default unconfigured site. Player reports can be marked for future
+editorial changes, but cannot silently rewrite old scores.
+
+Use `npm run audit:content` to validate the 105 broad question sets,
+**23,619 broad accepted answer slots**, alias collisions and score ranges.
+A new owner-local `scripts/validate-private-bank.mjs` tool verifies
+privately prepared ranked content without uploading answer keys to GitHub.
+
+See [v0.9 technical notes](docs/V09_ANSWER_INTELLIGENCE.md),
+[answer-review workflow](docs/ANSWER_REVIEW_GUIDE.md) and
+[multiplayer beta activation checklist](docs/BETA_READINESS.md).
+
 ## Gameplay
 
 - One **official daily game** per UTC calendar day, with identical questions and presentation order for all visitors.
@@ -240,6 +270,12 @@ Daily generation is deterministically seeded by a UTC date, so every visitor wit
     src/fit-expansion.js      30 additional example Fit In crowd boards
     src/journey.js            Weekly missions, recent scores, personal bests
     src/beta.js               Tutorial, weekly cosmetic seasons, beta checklist
+    src/answer-intelligence.js Safe normalized answer matching and collision checks
+    src/approved-aliases.js   Curated category-specific alternative names
+    src/rarity-insights.js    Transparent editorial rarity explanations
+    admin.html                Owner-only review interface (requires backend)
+    scripts/audit-content.mjs Automated public answer-bank auditing
+    scripts/validate-private-bank.mjs Offline, owner-local ranked bank validation
     docs/RELEASE_V07.md       Security, monetization and beta launch plan
     docs/PRIVATE_RANKED_CONTENT.md Private answer curation and quality controls
     test/arcade.test.js       Three arcade format scoring and topic tests
@@ -276,8 +312,9 @@ The app has no run-time JavaScript dependencies. CI checks JavaScript and Deno s
 8. **Knowledge Arcade v0.5:** 66 new topical Stand Out questions, 30 more Fit In boards, and 13 selectable practice categories.
 9. **Arcade & Competition v0.6:** three replay formats, weekly journey, optional friend leagues and server-reviewed answers.
 10. **Public Beta Readiness v0.7:** tutorial, weekly cosmetic seasons, themes, private ranked-content isolation, hardened purchase lifecycle and aggregate retention reporting.
-11. **Fair Answer Retries v0.8 (current):** Invalid guesses can be retried until accepted, skipped, or timed out, in guest and hosted play.
-12. **Public launch:** moderation/reporting, accessibility audit, anti-cheat, privacy policy, operations monitoring, content pipeline.
+11. **Fair Answer Retries v0.8:** Invalid guesses can be retried until accepted, skipped, or timed out, in guest and hosted play.
+12. **Answer Intelligence v0.9 (current):** vetted nicknames and scoring calibration, faster safe matching, better rarity reveals, audited review administration and private-beta validation scripts.
+13. **Public launch:** moderation/reporting, accessibility audit, anti-cheat, privacy policy, operations monitoring, content pipeline.
 
 ## Philosophy
 

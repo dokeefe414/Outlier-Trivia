@@ -188,3 +188,30 @@ deletion, monitoring and live-browser tests have been reviewed.
 The public \`?action=capabilities\` route exposes a coarse ready/not-ready
 flag but not question keys. The optional online page uses it to avoid
 offering unusable ranked or payment buttons.
+
+## v0.9 answer review and protected editor workspace
+
+After applying `20261112001000_retry_unrecognized.sql`, apply all
+`202611120011*.sql` guest/prototype alias migrations in order, followed
+by `20261112001200_review_admin.sql`. The private ranked bank remains
+empty until you supply privately curated content.
+
+For the **owner-only** review queue, set a 32+ character
+`OUTLIER_ADMIN_TOKEN` Edge Function secret and deploy the latest
+`supabase/functions/outlier/index.ts`. The public `admin.html` holds
+the token only in memory and sends it as an authenticated header.
+The dashboard cannot display tickets while Supabase is unconfigured.
+Its new endpoints are `GET ?action=admin-review-queue&status=pending`
+and `POST ?action=admin-review-decision`. Decision statuses are
+audited. Approved requests are **not** automatically added to
+published questions; see `docs/ANSWER_REVIEW_GUIDE.md`.
+
+New account profiles can show a player's own review statuses. The
+public free guest game continues accepting verified aliases without
+requiring Supabase, and never changes live score tables from admin
+review submissions.
+
+Run `npm run audit:content` for guest answers. To prepare **private**
+ranked questions, use `node scripts/validate-private-bank.mjs --new-id`
+and the process in `docs/BETA_READINESS.md`. Never commit your
+`private/` folder.

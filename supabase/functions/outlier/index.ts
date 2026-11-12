@@ -41,7 +41,7 @@ function isAllowedOrigin(origin: string | null): boolean {
 function corsHeaders(origin: string | null): HeadersInit {
   return {
     ...(origin && isAllowedOrigin(origin) ? {"Access-Control-Allow-Origin": origin} : {}),
-    "Access-Control-Allow-Headers": "authorization, apikey, content-type",
+    "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-outlier-admin-token",
     "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
     "Access-Control-Max-Age": "600",
     "Vary": "Origin"
@@ -69,6 +69,8 @@ function parseError(message: string): ApiError {
       message.includes("league_membership_limit") || message.includes("review_already_processed"))
     return new ApiError(409,message.slice(0,70));
   if (message.includes("review_rate_limit")) return new ApiError(429,"review_rate_limit");
+  if (message.includes("invalid_review_filter") || message.includes("invalid_review_decision")) return new ApiError(400,"invalid_review_request");
+  if (message.includes("review_not_found")) return new ApiError(404,"review_not_found");
   if (message.includes("invalid_league_name") || message.includes("invalid_invite_code") ||
       message.includes("invalid_period") || message.includes("review_reason_too_short") ||
       message.includes("review_requires_invalid_answer")) return new ApiError(400,message.slice(0,70));
@@ -146,8 +148,9 @@ async function profile(user: User) {
     entitlement(user.id),
     rpc("outlier_player_history",{p_user:user.id,p_limit:35})
   ]);
+  const reviews=await rpc("outlier_review_my_tickets",{p_user:user.id,p_limit:20});
   return {userId:user.id,email:user.email,name:Array.isArray(people) ? people[0]?.display_name : "",
-    stats,history,unlimited:paid};
+    stats,history,reviews,unlimited:paid};
 }
 async function stripeCheckout(user: User): Promise<string> {
   if (!stripeKey || !siteUrl) throw new ApiError(503,"checkout_not_configured");
@@ -267,10 +270,36 @@ async function handle(req: Request): Promise<Response> {
     }
     if (action === "admin-metrics" && req.method === "GET") {
       if(!adminAuthorized(req))throw new ApiError(403,"admin_authorization_required");
-      const metrics=await rpc("outlier_beta_metrics",{});
-      const readiness=await rpc("outlier_launch_readiness",{});
-      return json({metrics,readiness,paymentConfigured:Boolean(stripeKey && stripeWebhookSecret)},
-        200,origin);
+      const [metrics,readiness,reviews]=await Promise.all([
+        rpc("outlier_beta_metrics",{}),rpc("outlier_launch_readiness",{}),
+        rpc("outlier_admin_review_counts",{})
+      ]);
+      return json({metrics,readiness,reviews,
+        paymentConfigured:Boolean(stripeKey && stripeWebhookSecret)},200,origin);
+    }
+    if (action === "admin-review-queue" && req.method === "GET") {
+      if(!adminAuthorized(req))throw new ApiError(403,"admin_authorization_required");
+      const filter=url.searchParams.get("status")??"pending";
+      if(!["pending","needs_more_info","approved","rejected","all"].includes(filter))
+        throw new ApiError(400,"invalid_review_filter");
+      const [reviews,counts]=await Promise.all([
+        rpc("outlier_admin_review_queue",{p_status:filter,p_limit:50}),
+        rpc("outlier_admin_review_counts",{})
+      ]);
+      return json({reviews,counts},200,origin);
+    }
+    if (action === "admin-review-decision" && req.method === "POST") {
+      if(!adminAuthorized(req))throw new ApiError(403,"admin_authorization_required");
+      const input=await bodyJson(req);
+      const reviewId=ensureUuid(input.reviewId);
+      const status=safeStr(input.status,32);
+      const note=safeStr(input.note,750).trim();
+      if(!["approved","rejected","needs_more_info"].includes(status)||note.length<12)
+        throw new ApiError(400,"invalid_review_decision");
+      const decision=await rpc("outlier_admin_review_decide",{
+        p_review:reviewId,p_status:status,p_note:note
+      });
+      return json({decision},200,origin);
     }
     if (action === "leaderboard" && req.method === "GET") {
       const board = url.searchParams.get("board") ?? "daily";

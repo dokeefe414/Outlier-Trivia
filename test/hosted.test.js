@@ -8,6 +8,9 @@ const legacySeed=readFileSync(new URL("../supabase/migrations/20261112000200_que
 const atlasSeed=readFileSync(new URL("../supabase/migrations/20261112000300_answer_atlas.sql",import.meta.url),"utf8");
 const newFitSeed=readFileSync(new URL("../supabase/migrations/20261112000490_fit_expansion.sql",import.meta.url),"utf8");
 const packSeeds=Object.fromEntries(["movies","tv","music","sports","animals","food","games","history","people"].map((group,i)=>[group,readFileSync(new URL("../supabase/migrations/202611120004"+String(i).padStart(2,"0")+"_"+group+"_content.sql",import.meta.url),"utf8")]));
+const latestPacks=Object.fromEntries(["movies","tv","music","sports","animals","food","games","history","people"].map((group,i)=>[
+  group,readFileSync(new URL("../supabase/migrations/2026111200110"+i+"_"+group+"_aliases.sql",import.meta.url),"utf8")
+]));
 const quote = value => "'" + String(value).replaceAll("'","''") + "'";
 
 test("every curated question and its scoring keys have been seeded server-side",()=>{
@@ -20,7 +23,7 @@ test("every curated question and its scoring keys have been seeded server-side",
       quote(JSON.stringify(q.answers??[]))+"::jsonb",
       quote(JSON.stringify(q.choices??[]))+"::jsonb"
     ].join(",") + ")";
-    const seed = q.id.startsWith("pack-") ? packSeeds[q.poolGroup] :
+    const seed = q.id.startsWith("pack-") ? latestPacks[q.poolGroup] :
       q.id.startsWith("atlas-") ? atlasSeed :
       q.id.startsWith("fit-v05-") ? newFitSeed : legacySeed;
     assert.ok(seed.includes(row),"Missing/outdated hosted question: "+q.id);

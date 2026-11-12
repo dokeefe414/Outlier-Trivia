@@ -679,3 +679,31 @@ p{line-height:1.6}
   border-radius:9px;color:#f5efff;font-family:inherit;padding:12px;max-width:100%;resize:vertical}
 .retry-report button{align-self:flex-start}
 .answer-review-ok{font-size:12px;font-weight:700;color:#a1f2ce}
+
+
+/* v0.9 Answer Intelligence: clear validation, thoughtful reveals & mobile */
+.retry-counter{margin:9px 0 0;color:#fbd8a3;font-size:11px;font-weight:800;letter-spacing:.1px;min-height:12px}
+.answer-validation.retry-bounce{animation:validation-pulse .32s ease-out}
+@keyframes validation-pulse{0%{transform:translateY(6px);opacity:.2}100%{transform:translateY(0);opacity:1}}
+.feedback-card .high-rarity{animation:rare-glow .65s cubic-bezier(.22,.8,.3,1) both}
+@keyframes rare-glow{0%{transform:scale(.7);filter:brightness(1.4);opacity:0}65%{transform:scale(1.08);filter:brightness(1.45)}100%{transform:scale(1);filter:brightness(1);opacity:1}}
+.scoring-insight{max-width:560px;margin:20px auto 0;padding:15px;border:1px solid rgba(177,154,255,.28);
+  border-radius:13px;background:linear-gradient(120deg,rgba(134,101,199,.13),rgba(70,162,157,.1));display:flex;
+  flex-wrap:wrap;align-items:center;justify-content:center;gap:9px}
+.scoring-insight strong{font-size:12px;color:#e1d8fb}
+.scoring-insight p{font-size:11px;line-height:1.55;color:#b9cce0;width:100%;margin:0;text-align:center}
+.rarity-pill{display:inline-flex;align-items:center;background:rgba(242,204,135,.13);border:1px solid rgba(242,204,135,.3);
+  color:#f7d9aa;font-size:10px;font-weight:900;letter-spacing:.7px;padding:7px 10px;border-radius:20px}
+.reviews-status-panel{margin-top:22px;padding:23px}
+.reviews-status-panel h3{font-size:22px;margin:9px 0}
+.review-status-item{padding:13px 0;border-top:1px solid rgba(173,190,236,.14);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.review-status-item strong{flex:1;font-size:12px;overflow-wrap:anywhere}
+.review-status-item p{width:100%;font-size:11px;color:#cbd1e9;margin:0}
+@media(max-width:560px){
+  .scoring-insight{padding:12px;gap:7px}
+  .scoring-insight strong{font-size:11px}
+  .answer-validation:not([hidden]){font-size:12px}
+  .retry-counter{font-size:10px}
+  .rarity-pill{font-size:9px}
+}
+@media(prefers-reduced-motion:reduce){.answer-validation.retry-bounce,.feedback-card .high-rarity{animation:none}}

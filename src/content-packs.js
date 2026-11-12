@@ -1,3 +1,5 @@
+import { approvedAliases } from "./approved-aliases.js";
+import { normalizeAnswer } from "./answer-intelligence.js";
 // OUTLIER Content Atlas v0.5: curated from CC0 Corpora snapshots.
 // Lists are finite and named as such; unfamiliar names are not proof of measured rarity.
 import { mediaFacts } from "./media-facts.js";
@@ -5,7 +7,7 @@ import { natureFacts } from "./nature-facts.js";
 import { sportsFacts } from "./sports-facts.js";
 import { hipHopArtists } from "./hiphop-facts.js";
 
-const norm = s => String(s ?? "").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"");
+const norm = normalizeAnswer;
 const unique = array => {
   const map = new Map();
   for (const value of array) {
@@ -29,8 +31,29 @@ const favorite = {
 };
 const favorites = Object.fromEntries(Object.entries(favorite).map(([k,values])=>[k,new Set(values.map(norm))]));
 
+// v0.9 editorial calibration for especially familiar and less-obvious
+// historical NBA MVP answers. Not player-frequency measurements.
+const curatedMvpScores = Object.freeze({
+  "Michael Jordan":120,"LeBron James":150,"Stephen Curry":180,
+  "Kobe Bryant":190,"Shaquille O'Neal":220,"Kevin Durant":230,
+  "Magic Johnson":270,"Larry Bird":290,"Kareem Abdul-Jabbar":310,
+  "Tim Duncan":380,"Russell Westbrook":420,"Dirk Nowitzki":420,
+  "Allen Iverson":450,"Charles Barkley":460,"Steve Nash":460,
+  "Giannis Antetokounmpo":300,
+  "Hakeem Olajuwon":530,"Oscar Robertson":590,"Wilt Chamberlain":560,
+  "Bill Russell":520,"Moses Malone":660,"David Robinson":630,
+  "Karl Malone":660,"Derrick Rose":610,"Julius Erving":630,
+  "Kevin Garnett":570,"Bob Cousy":800,"Bill Walton":810,
+  "Bob Pettit":870,"Wes Unseld":920,"Dave Cowens":930,
+  "Bob McAdoo":890,"Willis Reed":870,"Lew Alcindor":920
+});
+
 function score(name,group,index,ordered = false) {
   const n = norm(name);
+  // Explicit editorial ratings beat crude label-length heuristics.
+  // These do not claim that 180 points means an 18% pick rate.
+  if(group==="sports" && Object.hasOwn(curatedMvpScores,name))
+    return curatedMvpScores[name];
   if (favorites[group]?.has(n)) return 170;
   // Popular films in this source are intentionally given in broad notability
   // order. All other lists are alphabetical, so do NOT use array order as rarity.
@@ -84,7 +107,7 @@ function add(group,name,category,prompt,items,which=()=>true,note="",ordered=fal
     const key=norm(label);
     if(normSeen.has(key))continue;
     normSeen.add(key);
-    const candidates=[...(item.aliases||[])];
+    const candidates=[...(item.aliases||[]),...(approvedAliases[group]?.[label]||[])];
     // Let people omit common leading articles in movie, TV and band names.
     if (["movies","tv","music"].includes(group) && /^The\s+/i.test(label)) {
       candidates.push(label.replace(/^The\s+/i,""));

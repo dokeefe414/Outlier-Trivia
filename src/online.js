@@ -1,3 +1,4 @@
+import {rarityTier} from "./answer-intelligence.js";
 import { ONLINE_ENABLED, SUPABASE_URL, SUPABASE_ANON_KEY } from "./online-config.js";
 
 const escape = value => String(value ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -118,6 +119,17 @@ function profilePanel() {
      '<button class="btn btn-ghost" type="submit">SAVE NAME</button></div></form></div>';
 }
 
+function myReviewsPanel() {
+  const tickets=Array.isArray(state.profile?.reviews)?state.profile.reviews:[];
+  if(!tickets.length)return "";
+  return '<section class="card reviews-status-panel"><div class="eyebrow">YOUR ANSWER REPORTS</div>'+
+    '<h3>Making the library better, together.</h3>'+
+    '<p class="small muted">Decisions do not retroactively change published daily scores.</p>'+
+    tickets.slice(0,6).map(row=>'<div class="review-status-item">'+
+      '<strong>'+escape(row.answer||"Unknown answer")+'</strong>'+
+      '<span class="pill">'+escape((row.status||"pending").replaceAll("_"," ").toUpperCase())+'</span>'+
+      (row.note?'<p>'+escape(row.note)+'</p>':'')+'</div>').join('')+'</section>';
+}
 function onlineJourney() {
   const entries=Array.isArray(state.profile?.history)?state.profile.history:[];
   if(!entries.length)return "";
@@ -201,7 +213,7 @@ function showMenu() {
   setView(heading + (state.error ? notice(state.error,"warning") : "")+
     (state.message ? notice(state.message,"ok") : "")+
     (!rankedReady?notice("Online beta setup is incomplete: verified ranked games are not open yet. The guest daily game is still free.","warning"):"")+
-    buttons + profilePanel() + onlineJourney() + leaguesPanel() + boardUI());
+    buttons + profilePanel() + onlineJourney() + myReviewsPanel() + leaguesPanel() + boardUI());
 }
 function formatTime(deadline) {
   if (!deadline) return 45;
@@ -269,6 +281,7 @@ function showFeedback() {
   if (!f) return showGame();
   const isFit=f.type==="fit";
   const title=f.valid?(f.points>=850?"AMAZING PICK!":f.points>=500?"NICE WORK!":"POINTS ON THE BOARD!"):"NO POINTS THIS TIME";
+  const rarity=!isFit && f.valid ? rarityTier(f.points) : null;
   const examples=reveal.map(entry=> {
     const percent=isFit?entry.share:Math.round(entry.points/10);
     return '<div class="bar-row '+(entry.name===f.accepted?"selected":"")+'"><div class="bar-label"><span>'+
@@ -279,7 +292,9 @@ function showFeedback() {
   setView('<div class="card feedback-card '+f.type+'"><div class="text-center"><div class="feedback-graphic">'+
     (isFit?"◎":"💎")+'</div><div class="eyebrow">SERVER VERIFIED</div><h2 class="feedback-title">'+title+'</h2>'+
     '<div class="feedback-points gradient-text">+'+number(f.points)+'</div><p class="muted">'+
-    escape(f.accepted||"No accepted answer")+'</p><span class="pill pill-yellow">TOTAL '+number(state.game.score)+' PTS</span></div>'+
+    escape(f.accepted||"No accepted answer")+'</p>'+
+    (rarity?'<span class="rarity-pill">✦ '+escape(rarity.label)+' · EDITORIAL TIER</span>':'')+
+    '<span class="pill pill-yellow">TOTAL '+number(state.game.score)+' PTS</span></div>'+
     '<div class="feedback-divider"></div><h3>'+(isFit?"Crowd response board":"Some of the highest-scoring answers")+
     '</h3>'+examples+
     (state.feedback?.history?.available && !isFit ?

@@ -14,7 +14,7 @@ test("all 66 topical prompts have substantial valid sets and stable unique alias
   assert.equal(rareQuestions.length,137);
   assert.ok(contentPackQuestions.every(x=>x.bigPool));
   assert.ok(contentPackQuestions.every(x=>x.answers.length>=28));
-  assert.equal(contentPackQuestions.reduce((total,x)=>total+x.answers.length,0),19821);
+  assert.equal(contentPackQuestions.reduce((total,x)=>total+x.answers.length,0),19823);
   assert.ok(Math.max(...contentPackQuestions.map(x=>x.answers.length))>=990);
   assert.ok(contentPackCatalogCounts.tv>900);
   assert.ok(contentPackCatalogCounts.birds>900);

@@ -93,3 +93,8 @@ Wikipedia matching. "Name any athlete/movie/animal" needs separate
 reviewed authoritative data and eligibility rules. The next content
 expansion should target those fun domains without accepting invented
 or incorrect names. Exact data-derived rarity also remains future work.
+
+
+v0.9 also includes a Unicode-aware collision audit and explicit
+nickname overrides for some topical question packs; see
+[the v0.9 notes](V09_ANSWER_INTELLIGENCE.md).

@@ -6,10 +6,10 @@ The game now has **137 Stand Out question types** (39 broad atlas prompts,
 66 new entertainment/sports/nature topics, and 32 original legacy prompts)
 and **53 Fit In prompts** (23 originals + 30 new).
 
-The 66 new topical prompts collectively have **19,821 accepted answer
+The 66 new topical prompts collectively have **19,823 accepted answer
 slots**. Combined with the 39 broad atlas prompts' 3,796, that makes
-**23,617 broad-question answer slots**, often with hundreds of valid
-responses for a single question. This is NOT 23,617 distinct real-world
+**23,619 broad-question answer slots**, often with hundreds of valid
+responses for a single question. This is NOT 23,619 distinct real-world
 people or things: the same answer can be valid in several variations.
 
 ### New areas
@@ -22,7 +22,7 @@ people or things: the same answer can be valid in several variations.
 - Animals: 134 common animals, 992 bird names on an archived North
   American checklist, and 453 dog breeds, 12 variations.
 - Food: 80 fruits, 120 vegetables, and combined produce, 6 variations.
-- Games: 648 distinct Pokémon names from an archival Pokédex and 212
+- Games: 650 distinct Pokémon names from an archival Pokédex and 212
   board game names, 7 variations.
 - History: 328 scientists/inventors and 31 names from Greek mythology,
   5 variations.
@@ -135,3 +135,13 @@ reference APIs or continuously maintained knowledge graphs, alternate
 entity disambiguation, reviewed user suggestions, and audited global
 crowd-frequency scoring. Today's larger data is a meaningful step,
 not an unbounded knowledge engine.
+
+## v0.9 editorial answer updates
+
+The updated finite archive now distinguishes Nidoran♀ / Nidoran♂,
+corrects Bob Pettit's spelling, and adds checked category-scoped
+aliases for historic MVPs, film titles, dog breeds and other entities.
+Popular MVP names use a reviewed editorial score adjustment; the
+values remain estimated tiers rather than measured frequency.
+Use `npm run audit:content` to audit accepted names, score ranges and
+collisions. Existing sealed private ranked keys remain immutable.

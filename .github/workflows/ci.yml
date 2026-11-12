@@ -13,6 +13,8 @@ jobs:
           node-version: "22"
       - name: JavaScript syntax and unit tests
         run: npm run check
+      - name: Audit every accepted answer, alias and score range
+        run: npm run audit:content
 
   edge-function:
     name: Hosted API type checks
@@ -77,6 +79,11 @@ jobs:
       - name: Verify secure friend leagues and historical crowd data
         run: psql -v ON_ERROR_STOP=1 -f test/competition-smoke.sql
 
+      - name: Apply vetted v0.9 answer aliases to historical prototype bank
+        run: |
+          for f in supabase/migrations/202611120011*.sql; do
+            psql -v ON_ERROR_STOP=1 -f "$f"
+          done
       - name: Apply private ranked scoring security migration
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261112000700_private_ranked_content.sql
       - name: Apply replay-safe Stripe billing lifecycle
@@ -95,6 +102,10 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261112001000_retry_unrecognized.sql
       - name: Verify invalid retry, accepted answer, manual skip and timeout
         run: psql -v ON_ERROR_STOP=1 -f test/retry-invalid-smoke.sql
+      - name: Apply v0.9 owner review queue and audit trail
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261112001200_review_admin.sql
+      - name: Verify owner-only review decisions and score immutability
+        run: psql -v ON_ERROR_STOP=1 -f test/review-admin-smoke.sql
 
   browser-e2e:
     name: Desktop and mobile browser smoke

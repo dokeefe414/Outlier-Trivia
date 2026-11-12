@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en"><head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="theme-color" content="#111729">
+  <meta http-equiv="Referrer-Policy" content="no-referrer">
+  <title>OUTLIER • Review Studio</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./admin.css">
+</head><body>
+  <header class="top"><div class="brand"><span class="mark">✦</span><span>OUTLIER <small>REVIEW STUDIO</small></span></div><a href="./">← RETURN TO GAME</a></header>
+  <main>
+    <section class="intro"><span class="eyebrow">OWNER-ONLY OPERATIONS</span>
+      <h1>Make every answer count.</h1>
+      <p>Review rejected answers, track beta readiness, and document editorial decisions. Approvals do not change a published day's answers or scores.</p>
+    </section>
+    <section class="panel" id="connection">
+      <h2>Connect your private review workspace</h2>
+      <p class="muted" id="configuration">Checking hosted configuration…</p>
+      <form id="admin-login" autocomplete="off">
+        <label for="owner-token">Owner admin token</label>
+        <div class="inline"><input id="owner-token" type="password" name="ownerToken" minlength="32" placeholder="Enter OUTLIER_ADMIN_TOKEN" autocomplete="off" spellcheck="false" required>
+          <button type="submit" id="connect-button">CONNECT SECURELY</button></div>
+        <p class="help">The token is sent only to your configured Supabase Edge Function. It is held in memory, not saved in browser storage or added to URLs.</p>
+      </form>
+    </section>
+    <section class="workspace" id="workspace" hidden>
+      <div class="metrics" id="metrics" aria-label="Beta metrics"></div>
+      <section class="panel">
+        <div class="section-top"><div><span class="eyebrow">EDITORIAL INBOX</span><h2>Answer-review queue</h2></div>
+          <div class="controls"><label for="review-status">Show</label>
+            <select id="review-status"><option value="pending">Pending</option><option value="needs_more_info">Needs info</option>
+              <option value="approved">Approved</option><option value="rejected">Rejected</option><option value="all">All</option></select>
+            <button type="button" id="refresh-reviews">REFRESH</button></div></div>
+        <p class="help">Review each suggestion against a reliable source. “Approved” records an editorial decision; a separate, versioned content update is still required.</p>
+        <div id="reviews" class="reviews" aria-live="polite"></div>
+      </section>
+    </section>
+    <p id="admin-status" class="status" role="status" aria-live="polite"></p>
+  </main>
+  <footer>OUTLIER beta operations • No raw user emails or payment data are shown here.</footer>
+  <script type="module" src="./src/admin.js"></script>
+</body></html>

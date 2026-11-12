@@ -1,3 +1,4 @@
+import { normalizeAnswer as normalized, inspectRareGuess, rarityTier } from "./answer-intelligence.js";
 import { rareQuestions, fitQuestions, DAILY_PATTERN } from "./data.js";
 
 export const QUESTION_SECONDS = 45;
@@ -7,12 +8,7 @@ export function utcDay(date = new Date()) {
   return date.toISOString().slice(0, 10);
 }
 
-export function normalizeAnswer(value) {
-  return String(value ?? "")
-    .normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase().replace(/&/g, " and ")
-    .replace(/[^a-z0-9]/g, "");
-}
+export function normalizeAnswer(value) { return normalized(value); }
 
 export function seedFromString(value) {
   let h = 2166136261;
@@ -219,22 +215,9 @@ export function editDistance(a, b) {
 }
 
 export function matchRare(question, rawAnswer) {
-  const query = normalizeAnswer(rawAnswer);
-  if (!query) return null;
-  const possibilities = question.answers.flatMap(([label, points, aliases = []]) =>
-    [label, ...aliases].map(text => ({ key: normalizeAnswer(text), label, points }))
-  );
-  const exact = possibilities.find(item => item.key === query);
-  if (exact) return exact;
-
-  // Forgive one missing, extra or wrong character in long answers,
-  // but only if it clearly maps to ONE canonical answer.
-  if (query.length < 5) return null;
-  const candidates = possibilities
-    .filter(item => Math.abs(item.key.length - query.length) <= 1 && editDistance(item.key, query) === 1);
-  const unique = [...new Set(candidates.map(item => item.label))];
-  return unique.length === 1 ? candidates[0] : null;
+  return inspectRareGuess(question, rawAnswer).match;
 }
+export { inspectRareGuess, rarityTier };
 
 export function evaluate(question, response) {
   if (question.type === "rare") {
@@ -245,6 +228,7 @@ export function evaluate(question, response) {
       category: question.category,
       response: String(response ?? "").slice(0, 80),
       accepted: found?.label ?? null,
+      matchKind: found?.matchKind ?? null,
       points: found?.points ?? 0,
       valid: Boolean(found),
     };

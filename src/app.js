@@ -1,4 +1,5 @@
-import { buildRound, buildLegacyRound, utcDay, normalizeAnswer, evaluate, scoreOf, getTier, lifetimeStats, shareText, shuffled, randomFromSeed, seedFromString, practiceCategoryOptions, buildArcadeRound, arcadeFormats, arcadeMaximum, QUESTION_SECONDS, MAX_SCORE } from "./game.js";
+import { scoreExplanation } from "./rarity-insights.js";
+import { buildRound, buildLegacyRound, utcDay, normalizeAnswer, evaluate, scoreOf, getTier, lifetimeStats, shareText, shuffled, randomFromSeed, seedFromString, inspectRareGuess, practiceCategoryOptions, buildArcadeRound, arcadeFormats, arcadeMaximum, QUESTION_SECONDS, MAX_SCORE } from "./game.js";
 import { rareQuestions, fitQuestions } from "./data.js";
 import { activityWeek, currentStreak, longestStreak, earnedBadges } from "./progression.js";
 import { ONLINE_ENABLED } from "./online-config.js";
@@ -428,6 +429,11 @@ function renderGame() {
   if (!q) return renderResult();
   screen = "game";
   clearInterval(intervalId);
+  if (session.retryQuestionIndex !== session.index) {
+    session.retryQuestionIndex=session.index;
+    session.retryAttempts=0;
+    session.lastInvalid=null;
+  }
   if (!session.deadline) session.deadline = Date.now() + (session.timerSeconds||QUESTION_SECONDS) * 1000;
   saveDaily();
   const fit = q.type === "fit";
@@ -440,8 +446,9 @@ function renderGame() {
     '<form id="rare-form" autocomplete="off"><label class="answer-label" for="rare-answer">YOUR MOST UNEXPECTED CORRECT ANSWER</label>' +
     '<div class="answer-row"><input id="rare-answer" class="answer-input" name="answer" type="text" maxlength="80" placeholder="Type your answer..." required spellcheck="false" autocapitalize="words" aria-describedby="answer-validation">' +
     '<button class="btn btn-primary" type="submit">LOCK IT IN →</button></div>' +
-    '<p id="answer-validation" class="answer-validation" role="alert" aria-live="assertive" hidden></p>' +
-    '<p class="retry-hint">Not recognized? Keep trying — incorrect guesses do not use up this round.</p></form>';
+    '<p id="answer-validation" class="answer-validation" role="status" aria-live="polite" hidden></p>' +
+    '<p id="retry-counter" class="retry-counter" aria-live="off"></p>' +
+    '<p class="retry-hint">Keep guessing until an approved answer is found. Rejected guesses never restart the timer.</p></form>';
   app.innerHTML = [
     '<div class="game-wrap"><div class="topbar"><button class="back-link" data-action="home" type="button">← BACK TO HOME</button>',
     '<span class="session-pill">' + (session.mode === "daily" ? 'DAILY · ' + esc(session.day) : "PRACTICE · " + esc((session.practiceGroup||"surprise").toUpperCase())) + '</span></div>',
@@ -492,14 +499,24 @@ function submitAnswer(value) {
   const submitted = value === null || expired ? null : value;
   const result = evaluate(q, submitted);
   if (submitted !== null && !result.valid) {
-    const field = document.getElementById("rare-answer");
-    const warning = document.getElementById("answer-validation");
+    session.retryAttempts=(session.retryAttempts||0)+1;
+    session.lastInvalid=String(submitted).slice(0,80);
+    const diagnostic=inspectRareGuess(q,submitted);
+    const field=document.getElementById("rare-answer");
+    const warning=document.getElementById("answer-validation");
+    const counter=document.getElementById("retry-counter");
     if (warning) {
-      warning.textContent = "That answer isn't in our accepted library. Try another answer before time runs out!";
-      warning.hidden = false;
+      warning.textContent=diagnostic.status==="ambiguous"
+        ? "This spelling could refer to multiple approved answers. Try a more specific name."
+        : "Not in our approved answer library yet. Try a different name or spelling!";
+      warning.hidden=false;
+      warning.classList.remove("retry-bounce");
+      void warning.offsetWidth;
+      warning.classList.add("retry-bounce");
     }
-    if (field) {
-      field.value = "";
+    if(counter)counter.textContent=session.retryAttempts+" "+(session.retryAttempts===1?"guess":"guesses")+" not accepted • No points lost";
+    if(field) {
+      field.value="";
       field.setAttribute("aria-invalid","true");
       field.focus({preventScroll:true});
     }
@@ -507,7 +524,8 @@ function submitAnswer(value) {
     return;
   }
   clearInterval(intervalId);
-  feedback = {question:q,result,number:session.index+1};
+  feedback={question:q,result,number:session.index+1,
+    rejectedGuess:!result.valid ? session.lastInvalid : null};
   session.answers.push(result);
   session.deadline = null;
   saveDaily();
@@ -522,7 +540,7 @@ function feedbackHeading(result) {
     if (result.points >= 500) return { title:"YOU KNOW THE CROWD!", icon:"◉", description:"A strong prediction — you were thinking with the majority." };
     return { title:"DIFFERENT WAVELENGTH!", icon:"◌", description:"Sometimes your instincts are more unusual than the crowd." };
   }
-  if (result.points >= 850) return { title:"ABSOLUTE OUTLIER!", icon:"💎", description:"That is a seriously deep cut. Very few would think of that." };
+  if (result.points >= 850) return { title:"ABSOLUTE OUTLIER!", icon:"💎", description:"An especially obscure choice in our curated scoring tiers." };
   if (result.points >= 600) return { title:"RARE FIND!", icon:"✦", description:"You went beyond the obvious. Nice thinking." };
   if (result.points >= 350) return { title:"SOLID ANSWER!", icon:"✳", description:"Correct, and a little unexpected." };
   return { title:"CORRECT, BUT COMMON!", icon:"✓", description:"You got it right. Go for a deeper cut next time." };
@@ -553,8 +571,11 @@ function renderFeedback() {
   clearInterval(intervalId);
   const q = feedback.question;
   const result = feedback.result;
-  const info = feedbackHeading(result);
-  const fit = q.type === "fit";
+  const info=feedbackHeading(result);
+  const fit=q.type==="fit";
+  const insight=scoreExplanation(result,q);
+  const tier=insight?'<div class="scoring-insight"><span class="rarity-pill">✦ '+esc(insight.band)+'</span>'+
+    '<strong>'+esc(insight.match)+'</strong><p>'+esc(insight.detail)+'</p></div>':"";
   const topScore = q.type === "rare"
     ? [...q.answers].sort((a,b) => b[1]-a[1]).slice(0,4)
       .map(([name,points]) => '<span class="answer-chip">' + esc(name) + ' · ' + fmt(points) + '</span>').join("")
@@ -570,15 +591,15 @@ function renderFeedback() {
     '<div class="text-center"><div class="feedback-graphic" aria-hidden="true">' + info.icon + '</div>',
     '<div class="eyebrow" style="justify-content:center;margin-bottom:15px">ANSWER LOCKED</div>',
     '<div class="feedback-title">' + info.title + '</div>',
-    '<div class="feedback-points gradient-text">+' + fmt(result.points) + '</div>',
+    '<div class="feedback-points gradient-text '+(!fit && result.points>=850?'high-rarity':'')+'">+' + fmt(result.points) + '</div>',
     '<div class="feedback-name">' + esc(result.accepted || (result.response ? '"' + result.response + '" — not in the approved answer set' : 'No answer submitted')) + '</div>',
     '<p class="small">' + info.description + '</p>',
-    '<span class="pill pill-yellow">TOTAL ' + fmt(scoreOf(session.answers)) + ' PTS</span></div>',
+    '<span class="pill pill-yellow">TOTAL ' + fmt(scoreOf(session.answers)) + ' PTS</span>'+tier+'</div>',
     '<div class="feedback-divider"></div>',
     '<div class="feedback-subhead">' + (fit ? 'THE PROTOTYPE CROWD BOARD' : 'SOME OF THE RAREST ACCEPTED ANSWERS') + '</div>',
     fit ? topScore : '<div class="answer-chips">' + topScore + '</div>',
     answerExplorer(q),
-    (!result.valid && !fit && result.response) ?
+    (!result.valid && !fit && feedback.rejectedGuess) ?
       '<div class="answer-report"><span>Think your answer should count?</span>'+
       homeButton('REQUEST AN ANSWER REVIEW ↗','report-answer','btn-outline')+'</div>' : '',
     '<p class="insight">' + (fit ?
@@ -776,11 +797,12 @@ document.addEventListener("click", event => {
     case "skip": submitAnswer(null); break;
     case "next": nextRound(); break;
     case "report-answer": {
-      if(screen==="feedback" && feedback?.question && feedback?.result?.response) {
+      if(screen==="feedback" && feedback?.question && feedback?.rejectedGuess) {
         const params = new URLSearchParams({
           title:"Answer review: "+feedback.question.id,
-          body:"Question: "+feedback.question.prompt+"\nSuggested answer: "+feedback.result.response+
-            "\n\nWhy it should count (please include a reliable source):\n\n"
+          body:"Question: "+feedback.question.prompt+"\nSuggested answer: "+feedback.rejectedGuess+
+            "\n\nWhy it should count (please include a reliable source):\n\n"+
+            "Do not include private or payment information.\n"
         });
         window.open("https://github.com/dokeefe414/Outlier-Trivia/issues/new?"+params.toString(),"_blank","noopener,noreferrer");
       }

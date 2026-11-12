@@ -37,6 +37,10 @@ async function runDaily() {
       await page.locator("#rare-answer").fill("this-answer-is-not-in-the-library-98765");
       await page.locator("#rare-form button[type=submit]").click();
       await page.locator("#answer-validation:not([hidden])").waitFor();
+      assert.match(await page.locator("#retry-counter").innerText(),/1 guess/);
+      await page.locator("#rare-answer").fill("another-impossible-name-8765");
+      await page.locator("#rare-form button[type=submit]").click();
+      assert.match(await page.locator("#retry-counter").innerText(),/2 guesses/);
       assert.match(await page.locator(".game-head h2").innerText(),/Question\s*1/);
       assert.equal(await page.locator(".feedback-card").count(),0,"rejected guess must not reveal the round");
       assert.equal(await page.locator(".game-score strong").innerText(),"0");
@@ -104,6 +108,8 @@ async function runMobile() {
       await page.locator("#rare-answer").fill(question.answers[0][0]);
       await page.locator("#rare-form button[type=submit]").click();
       await page.locator(".feedback-card").waitFor();
+      await page.locator(".scoring-insight").waitFor();
+      assert.match(await page.locator(".scoring-insight").innerText(),/APPROVED ANSWER SCORES/);
       assert.ok(Number((await page.locator(".feedback-points").innerText()).replace(/[^0-9]/g,""))>0,
         "valid library answer must finish the same question with points");
     }else{
@@ -130,9 +136,20 @@ async function runMobile() {
   console.log("PASS mobile practice arcade Quick Hit (3 rounds), Rare Rush (10 rounds), score caps and viewport fit");
 }
 
+async function runAdminSafety() {
+  await page.goto(new URL("admin.html",url).toString());
+  await page.locator("#connection").waitFor();
+  assert.equal(await page.locator("#workspace").isHidden(),true,"admin queue must remain locked");
+  assert.match(await page.locator("#configuration").innerText(),/Supabase.*not.*configured/i);
+  assert.equal(await page.locator("#connect-button").isDisabled(),true);
+  const input=await page.locator("#owner-token").inputValue();
+  assert.equal(input,"","no owner secret should ever be embedded in the static page");
+  console.log("PASS owner review studio blocks unconfigured public deployment");
+}
 try {
   await runDaily();
   await runMobile();
+  await runAdminSafety();
 } finally {
   await browser.close();
 }
