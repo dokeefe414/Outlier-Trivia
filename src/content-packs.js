@@ -77,16 +77,47 @@ function add(group,name,category,prompt,items,which=()=>true,note="",ordered=fal
   const rows=items.filter(which);
   if(rows.length<28) throw new Error("Not enough accepted answers for "+name+" ("+rows.length+")");
   const normSeen=new Set();
-  const answers=[];
+  const entries=[];
   for (let i=0;i<rows.length;i++) {
     const item=rows[i];
     const label=String(item.name || item).trim();
     const key=norm(label);
     if(normSeen.has(key))continue;
     normSeen.add(key);
-    const aliases=(item.aliases||[]).filter(alias=>norm(alias)!==key);
-    answers.push([label,score(label,group,i,ordered),aliases]);
+    const candidates=[...(item.aliases||[])];
+    // Let people omit common leading articles in movie, TV and band names.
+    if (["movies","tv","music"].includes(group) && /^The\s+/i.test(label)) {
+      candidates.push(label.replace(/^The\s+/i,""));
+    }
+    // Most fans type "Lakers" rather than "Los Angeles Lakers".
+    // Keep nicknames only when they unambiguously identify one team.
+    if (group==="sports") {
+      const suffixes=["Red Sox","White Sox","Blue Jays","Maple Leafs","Red Wings","Blue Jackets","Trail Blazers"];
+      const special=suffixes.find(suffix=>label.endsWith(" "+suffix));
+      candidates.push(special || label.split(" ").at(-1));
+    }
+    entries.push({label,key,points:score(label,group,i,ordered),candidates});
   }
+  const canonical=new Set(entries.map(e=>e.key));
+  const owners=new Map();
+  for(const entry of entries){
+    for(const alias of entry.candidates){
+      const key=norm(alias);
+      if(!key || key===entry.key)continue;
+      if(!owners.has(key))owners.set(key,new Set());
+      owners.get(key).add(entry.key);
+    }
+  }
+  const answers=entries.map(({label,key,points,candidates})=>{
+    const used=new Set(),aliases=[];
+    for(const alias of candidates){
+      const candidate=norm(alias);
+      if(!candidate || candidate===key || canonical.has(candidate) ||
+         owners.get(candidate)?.size!==1 || used.has(candidate))continue;
+      used.add(candidate);aliases.push(alias);
+    }
+    return [label,points,aliases];
+  });
   if(answers.length<28)throw new Error("Too few distinct answers "+name);
   templates.push({
     id:"pack-"+group+"-"+name, poolGroup:group, bigPool:true,

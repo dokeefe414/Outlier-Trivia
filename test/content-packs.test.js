@@ -39,6 +39,10 @@ test("new topic packs cover the requested entertainment, nature, sports and food
   assert.equal(group("history").length,5);
   assert.equal(group("people").length,4);
   assert.equal(has(q("movies-all"),"The Godfather")?.label,"The Godfather");
+  assert.equal(has(q("movies-all"),"Godfather")?.label,"The Godfather");
+  assert.equal(has(q("sports-all"),"Lakers")?.label,"Los Angeles Lakers");
+  assert.equal(has(q("sports-all"),"Giants"),null,"nickname is ambiguous across NFL and MLB");
+  assert.equal(has(q("sports-football"),"Giants")?.label,"New York Giants");
   assert.ok(has(q("tv-all"),"Breaking Bad") || has(q("tv-all"),"Friends"));
   assert.ok(has(q("music-artists"),"Nirvana"));
   assert.equal(has(q("sports-football"),"Dallas Cowboys")?.label,"Dallas Cowboys");
