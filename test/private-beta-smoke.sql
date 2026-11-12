@@ -29,6 +29,10 @@ begin
  if total_count<>49 then raise exception 'ranked 7-day schedule repeats prompts: %',total_count; end if;
 
  g:=public.outlier_start(u,'daily');
+ if (select count(*) from private.official_daily_slates where
+   game_day between date_trunc('week',clock_timestamp() at time zone 'UTC')::date
+     and date_trunc('week',clock_timestamp() at time zone 'UTC')::date+6)<>7 then
+     raise exception 'the entire ranked week was not sealed at first game'; end if;
  if public.outlier_start(u,'daily')<>g then raise exception 'duplicate ranked daily'; end if;
  st:=public.outlier_state(u,g);
  if st->'question' ? 'answers' or st->'question' ? 'scoring' then
@@ -94,6 +98,10 @@ begin
  perform public.outlier_apply_billing_event('evt_olddispute','disputed',null,null,'pi_test_good01',499,'usd');
  if not (select unlimited from public.entitlements where user_id=u) then
    raise exception 'old payment dispute revoked a different valid purchase';end if;
+ perform public.outlier_apply_billing_event('evt_verylateoldpaid','paid',u,
+   'cs_test_good01','pi_test_good01',499,'usd');
+ if not (select unlimited from public.entitlements where user_id=u) then
+   raise exception 'old delayed checkout overrode newer valid payment';end if;
  perform public.outlier_apply_billing_event('evt_newdispute','disputed',null,null,'pi_test_good02',499,'usd');
  if (select unlimited from public.entitlements where user_id=u) then
    raise exception 'current purchase dispute did not revoke access';end if;

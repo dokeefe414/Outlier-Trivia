@@ -48,6 +48,13 @@ begin
     on conflict do nothing returning event_id into v_recorded;
   if v_recorded is null then return jsonb_build_object('duplicate',true); end if;
   if p_kind='paid' then
+    -- An old delayed paid event must not replace a DIFFERENT currently
+    -- active payment on the same user (e.g., after an earlier refund).
+    if exists(select 1 from public.entitlements where user_id=p_user
+       and unlimited=true and stripe_payment_intent_id is distinct from p_intent)
+    then
+      return jsonb_build_object('duplicate',false,'kind','paid','superseded',true);
+    end if;
     select exists(select 1 from private.stripe_billing_events
       where stripe_payment_intent_id=p_intent
       and (kind='disputed' or (kind='refunded' and amount>=499)))

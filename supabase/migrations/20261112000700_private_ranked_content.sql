@@ -111,18 +111,31 @@ declare
   v_ids text[];
   v_game uuid;
   v_entitled boolean;
+  v_offset integer;
+  v_publish_day date;
+  v_publish_ids text[];
 begin
   if p_mode not in ('daily','practice') then raise exception 'invalid_game_mode'; end if;
   if p_mode='daily' then
     select id into v_game from public.game_attempts
       where user_id=p_user and mode='daily' and game_day=v_day limit 1;
     if found then return v_game; end if;
+    -- Seal ALL seven UTC days together under a week lock, so adding
+    -- content midweek cannot change a future day or repeat an earlier prompt.
+    perform pg_advisory_xact_lock(hashtext('outlier-week:'||
+      (v_day-(extract(isodow from v_day)::int-1))::text));
     select question_ids into v_ids from private.official_daily_slates
       where game_day=v_day;
     if not found then
-      v_ids:=private.outlier_preview_daily_ids(v_day);
-      insert into private.official_daily_slates(game_day,question_ids)
-        values(v_day,v_ids) on conflict do nothing;
+      for v_offset in 0..6 loop
+        v_publish_day:=v_day-(extract(isodow from v_day)::int-1)+v_offset;
+        if not exists(select 1 from private.official_daily_slates
+            where game_day=v_publish_day) then
+          v_publish_ids:=private.outlier_preview_daily_ids(v_publish_day);
+          insert into private.official_daily_slates(game_day,question_ids)
+            values(v_publish_day,v_publish_ids) on conflict do nothing;
+        end if;
+      end loop;
       select question_ids into v_ids from private.official_daily_slates
         where game_day=v_day;
     end if;
