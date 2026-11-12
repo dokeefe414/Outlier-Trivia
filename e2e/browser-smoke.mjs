@@ -45,23 +45,8 @@ async function runDaily() {
       assert.ok(Number(afterTimer.split(":")[1])<=Number(initialTimer.split(":")[1]),
         "rejected answer must not reset timer");
     }
-    if(i===1){
-      const prompt=await page.locator(".question-prompt").innerText();
-      const question=rareQuestions.find(q=>q.prompt===prompt);
-      assert.ok(question,"practice prompt should exist in approved library");
-      await page.locator("#rare-answer").fill("clearly-not-a-real-trivia-answer");
-      await page.locator("#rare-form button[type=submit]").click();
-      await page.locator("#answer-validation:not([hidden])").waitFor();
-      assert.match(await page.locator(".game-head h2").innerText(),/Question\s*1/);
-      await page.locator("#rare-answer").fill(question.answers[0][0]);
-      await page.locator("#rare-form button[type=submit]").click();
-      await page.locator(".feedback-card").waitFor();
-      assert.ok(Number((await page.locator(".feedback-points").innerText()).replace(/[^0-9]/g,""))>0,
-        "valid library answer must finish the same question with points");
-    }else{
-      await page.locator('button[data-action="skip"]').click();
-      await page.locator(".feedback-card").waitFor();
-    }
+    await page.locator('button[data-action="skip"]').click();
+    await page.locator(".feedback-card").waitFor();
     if (round===1) {
       const explorer = page.locator(".answer-explorer");
       await explorer.waitFor();
@@ -108,8 +93,23 @@ async function runMobile() {
   assert.match(await page.locator(".session-pill").innerText(),/MUSIC/);
   for(let i=1;i<=3;i++){
     assert.match(await page.locator(".game-head h2").innerText(),new RegExp("Question\\s*"+i));
-    await page.locator('button[data-action="skip"]').click();
-    await page.locator(".feedback-card").waitFor();
+    if(i===1){
+      const prompt=await page.locator(".question-prompt").innerText();
+      const question=rareQuestions.find(q=>q.prompt===prompt);
+      assert.ok(question,"practice prompt should exist in approved library");
+      await page.locator("#rare-answer").fill("clearly-not-a-real-trivia-answer");
+      await page.locator("#rare-form button[type=submit]").click();
+      await page.locator("#answer-validation:not([hidden])").waitFor();
+      assert.match(await page.locator(".game-head h2").innerText(),/Question\s*1/);
+      await page.locator("#rare-answer").fill(question.answers[0][0]);
+      await page.locator("#rare-form button[type=submit]").click();
+      await page.locator(".feedback-card").waitFor();
+      assert.ok(Number((await page.locator(".feedback-points").innerText()).replace(/[^0-9]/g,""))>0,
+        "valid library answer must finish the same question with points");
+    }else{
+      await page.locator('button[data-action="skip"]').click();
+      await page.locator(".feedback-card").waitFor();
+    }
     await page.locator('button[data-action="next"]').click();
   }
   await page.locator(".result-scorecard").waitFor();

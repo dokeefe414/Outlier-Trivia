@@ -116,7 +116,7 @@ begin
       'state',public.outlier_state(p_user,p_game));
   end if;
   v_correct := v_label is not null;
-  v_result := jsonb_build_object('questionId',v_q.id,'type',v_q.kind,'category',
+  v_result := jsonb_build_object('questionId',v_q.id,'type',v_q.kind,'category',v_q.category,
     'accepted',v_label,'response',v_text,'points',v_points,'share',v_share,'valid',v_correct);
   if v_q.kind='fit' then
     select jsonb_agg(jsonb_build_object('name',value->>0,'share',(value->>1)::int)
