@@ -1,0 +1,14 @@
+{
+  "name": "outlier-trivia",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "OUTLIER, the browser-based daily game of rare answers and crowd predictions",
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check src/app.js && node --check src/data.js && node --check src/game.js && node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
