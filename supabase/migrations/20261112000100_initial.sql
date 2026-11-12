@@ -254,7 +254,7 @@ end $$;
 create or replace function public.outlier_advance(
   p_user uuid, p_game uuid, p_index integer
 ) returns jsonb language plpgsql security definer
-set search_path = public, private, pg_temp as $
+set search_path = public, private, pg_temp as $$
 declare v_game public.game_attempts%rowtype;
 begin
   select * into v_game from public.game_attempts where id=p_game and user_id=p_user for update;
@@ -265,7 +265,7 @@ begin
     update public.game_attempts set question_started_at=clock_timestamp() where id=p_game;
   end if;
   return public.outlier_state(p_user,p_game);
-end $;
+end $$;
 
 create or replace function public.outlier_leaderboard(
   p_board text default 'daily', p_limit integer default 50

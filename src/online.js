@@ -147,7 +147,7 @@ function showGame() {
   const options=isFit ?
     '<div class="fit-options">'+(q.choices||[]).map((choice,index)=>
       '<button class="fit-option" data-online="pick" data-answer="'+escape(choice)+'"><span>'+escape(choice)+'</span><span>'+
-      String.fromCharCode(65+index)+'</span></button>').join("")+'</div>'+
+      String.fromCharCode(65+index)+'</span></button>').join("")+'</div>' :
     '<form data-form="answer"><label class="answer-label" for="online-answer">YOUR MOST UNEXPECTED CORRECT ANSWER</label>'+
     '<div class="answer-row"><input class="answer-input" maxlength="100" id="online-answer" required autocomplete="off" placeholder="Type your answer...">'+
     '<button type="submit" class="btn btn-primary">LOCK IT IN →</button></div></form>';
