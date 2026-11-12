@@ -225,7 +225,7 @@ function showMenu() {
     (state.sent ? notice("Check your email for your sign-in link.","ok") : "")+'</div>';
   const inviteBanner=state.pendingInvite?
     '<div class="card invited-banner"><span class="eyebrow">YOU HAVE BEEN INVITED</span>'+
-    '<h3>You've got friends waiting in OUTLIER.</h3>'+
+    '<h3>Your friends are waiting in OUTLIER.</h3>'+
     '<p class="small muted">Join a private league to compare verified daily scores. A link never joins you automatically.</p>'+
     (signedIn?act("join-invite","JOIN FRIENDS LEAGUE →","btn-teal")+
       act("dismiss-invite","NOT NOW","btn-ghost"):

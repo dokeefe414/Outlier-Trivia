@@ -48,17 +48,17 @@ grant execute on function public.outlier_league_standings(uuid,uuid,text)
 create or replace function public.outlier_beta_quality_metrics()
 returns jsonb language sql stable security definer
 set search_path=public,private,pg_temp as $$
-  with window as (
+  with week_window as (
     select date_trunc('week',clock_timestamp() at time zone 'UTC') as starts_at
   ), rejected as (
     select count(*)::int as affected_question_rounds,
       coalesce(sum(g.guess_count),0)::bigint as rejected_guesses,
       count(distinct g.attempt_id)::int as affected_attempts
-    from private.outlier_rejected_guesses g cross join window w
+    from private.outlier_rejected_guesses g cross join week_window w
     where g.updated_at >= w.starts_at
   ), attempts as (
     select count(*)::int as completed_this_week
-    from public.game_attempts a cross join window w
+    from public.game_attempts a cross join week_window w
     where a.mode='daily' and a.completed_at >= w.starts_at
   ), moderation as (
     select count(*) filter(where status='pending')::int as pending,
@@ -67,7 +67,7 @@ set search_path=public,private,pg_temp as $$
     from public.answer_reviews
   )
   select jsonb_build_object(
-    'weekStart',(select starts_at::date from window),
+    'weekStart',(select starts_at::date from week_window),
     'rejectedQuestionRounds',r.affected_question_rounds,
     'rejectedGuesses',r.rejected_guesses,
     'gamesWithRejectedGuesses',r.affected_attempts,
