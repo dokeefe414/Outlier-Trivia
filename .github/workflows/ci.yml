@@ -106,6 +106,10 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261112001200_review_admin.sql
       - name: Verify owner-only review decisions and score immutability
         run: psql -v ON_ERROR_STOP=1 -f test/review-admin-smoke.sql
+      - name: Align hosted Unicode and alias normalization with guest game
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261112001300_unicode_normalization.sql
+      - name: Verify accented names, ligatures and ambiguous symbols
+        run: psql -v ON_ERROR_STOP=1 -f test/unicode-normalization-smoke.sql
 
   browser-e2e:
     name: Desktop and mobile browser smoke

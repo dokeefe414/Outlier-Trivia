@@ -215,3 +215,10 @@ Run `npm run audit:content` for guest answers. To prepare **private**
 ranked questions, use `node scripts/validate-private-bank.mjs --new-id`
 and the process in `docs/BETA_READINESS.md`. Never commit your
 `private/` folder.
+
+### v0.9 Unicode matching parity
+
+Apply `supabase/migrations/20261112001300_unicode_normalization.sql`
+after the review-admin migration. It aligns hosted approved-name normalization
+with the browser for accents, ligatures, ampersands and Pokémon sex symbols.
+It does not add missing official ranked answers or alter published scores.

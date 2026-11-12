@@ -124,3 +124,12 @@ Additional explicit alias curation includes:
 Some names and eligibility criteria still need human review. This
 release deliberately does not claim encyclopedic, unconstrained
 AI answer validation or true population-based rarity.
+
+## Hosted spelling parity
+
+Migration `20261112001300_unicode_normalization.sql` updates the server's
+private canonical text normalizer to match the browser for Unicode accents,
+ligatures, ampersands and Pokémon sex symbols. Database smoke tests compare
+representative expected keys. Approved aliases still have to exist in the
+private ranked content rows; this migration is not a license to accept
+unverified names. Apply it after the review-admin migration.
