@@ -51,6 +51,19 @@ unconfigured GitHub Pages website. See [Online setup](docs/ONLINE_SETUP.md).
 leaderboards; only authenticated server-validated games are ranked. Hosted
 practice requests are checked against verified lifetime entitlements.
 
+## Friend challenges and knowledge DNA
+
+Even before hosted accounts are connected, a daily result now includes a **Beat My Score** URL.
+Friends opening a same-day link see the score to beat and get a clear comparison
+on their results screen. Links include only the target score and UTC day, so they
+don't spoil any of the seven answers. Shared targets are friendly invitations,
+**not independently verified ranks**. They expire for fair same-question play
+at the next UTC day change.
+
+The local My Stats page now includes a **Knowledge DNA** category breakdown.
+It shows your own average points per question by category based only on
+completed official guest dailies; practice never affects it.
+
 ## Gameplay
 
 - One **official daily game** per UTC calendar day, with identical questions and presentation order for all visitors.
@@ -98,6 +111,7 @@ Daily generation is deterministically seeded by a UTC date, so every visitor wit
     src/progression.js        Activity, streaks and official-day badges
     src/online-config.js      Public (blank by default) backend configuration
     src/online.js             Optional account, online gameplay and global board UI
+    src/social.js             Friend challenge links and personal category insights
     supabase/migrations/      Secured Postgres tables, SQL scoring and question seed
     supabase/functions/       Verified user API, Stripe checkout and webhook
     docs/ONLINE_SETUP.md      External hosting/payment setup and security notes

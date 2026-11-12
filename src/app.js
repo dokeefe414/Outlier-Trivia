@@ -2,6 +2,7 @@ import { buildRound, buildLegacyRound, utcDay, evaluate, scoreOf, getTier, lifet
 import { rareQuestions, fitQuestions } from "./data.js";
 import { activityWeek, currentStreak, longestStreak, earnedBadges } from "./progression.js";
 import { ONLINE_ENABLED } from "./online-config.js";
+import { readFriendChallenge, challengeLink, challengeOutcome, categoryInsights } from "./social.js";
 
 const STORAGE_KEY = "outlier-prototype-v1";
 const app = document.getElementById("app");
@@ -21,6 +22,7 @@ let screen = "home";
 let session = null;
 let feedback = null;
 let boardTab = "daily";
+const friendChallenge = readFriendChallenge(window.location.search, utcDay());
 let intervalId = null;
 let toastTimeout = null;
 let soundContext = null;
@@ -80,6 +82,19 @@ function progressPanel() {
       '<small>COLLECTION</small><b>All badges unlocked!</b>') + '</div>' +
     '<button class="btn btn-outline" data-action="leaderboard" type="button">MY PROGRESS →</button></div></div></section>';
 }
+
+function renderKnowledgeProfile() {
+  const categories = categoryInsights(storage.days).slice(0,6);
+  if (!categories.length) return '<div class="card knowledge-card"><div class="eyebrow">KNOWLEDGE DNA</div>'+
+    '<h3>Find your strongest topics.</h3><p class="muted small">Complete an official daily game to start building your category profile.</p></div>';
+  return '<div class="card knowledge-card"><div class="eyebrow">YOUR KNOWLEDGE DNA</div>' +
+    '<h3>Where your brain shines.</h3><p class="small muted">Average points per question in each category you have played.</p>' +
+    '<div class="knowledge-list">' + categories.map(cat =>
+      '<div class="knowledge-row"><div class="knowledge-row-label"><span>' + esc(cat.name) + ' <small>(' + cat.attempts + ')</small></span><b>' + fmt(cat.average) + ' / 1,000</b></div>' +
+      '<div class="bar-bg"><div class="bar-fg" style="width:' + (cat.average/10) + '%"></div></div></div>'
+    ).join("")+'</div><p class="tiny muted">These are your own records, not comparisons with other players.</p></div>';
+}
+
 function badgeCabinet() {
   const badges = earnedBadges(storage.days);
   return '<div class="card badge-section"><div class="section-heading"><div><h3>Your badge cabinet</h3>' +
@@ -156,7 +171,11 @@ function renderHome() {
     homeButton(actionLabel, action), ONLINE_ENABLED ?
       homeButton("PLAY FREE AS GUEST", "daily", "btn-ghost") :
       homeButton("TRY PRACTICE MODE", "practice", "btn-ghost"),
-    '</div><div class="play-info"><span>✦ <b>Free</b> daily game</span><span>◷ About <b>3 minutes</b></span><span>◇ <b>4 rare + 3 crowd</b> picks</span></div>',
+    '</div>' + (friendChallenge && friendChallenge.current ?
+      '<div class="friend-challenge"><div class="friend-burst">⚔</div><div><strong>A FRIEND CHALLENGED YOU!</strong><p>Beat their ' + fmt(friendChallenge.score) +
+      '-point score on today\'s seven questions.</p></div></div>' :
+      friendChallenge ? '<div class="friend-challenge expired"><div class="friend-burst">◷</div><div><strong>THIS CHALLENGE HAS EXPIRED</strong><p>That shared score was from a different day. Play today\'s new questions instead.</p></div></div>' : '') +
+    '<div class="play-info"><span>✦ <b>Free</b> daily game</span><span>◷ About <b>3 minutes</b></span><span>◇ <b>4 rare + 3 crowd</b> picks</span></div>',
     '</div><div class="orbit-scene" aria-hidden="true">',
     '<div class="orbit-ring"></div><div class="orbit-ring two"></div><div class="orbit-ball"></div>',
     '<div class="orbit-card top"><span class="card-symbol">💎</span><strong>+980 PTS</strong><small>STAND OUT · DEEP CUT</small></div>',
@@ -364,6 +383,7 @@ function renderResult() {
   saveDaily();
   const score = scoreOf(session.answers);
   const tier = getTier(score);
+  const rival = session.mode==="daily" ? challengeOutcome(friendChallenge,session.day,score) : null;
   const daily = session.mode === "daily";
   const totalStats = lifetimeStats(storage.days);
   const rareScore = scoreOf(session.answers.filter(a => a.type === "rare"));
@@ -387,6 +407,8 @@ function renderResult() {
     '<div class="result-number gradient-text">' + fmt(score) + '</div><div class="result-max">OUT OF ' + fmt(MAX_SCORE) + ' POINTS</div>',
     '<h2 class="result-title">' + esc(tier.title) + '</h2><p class="result-description">' + esc(tier.description) + '</p>',
     '<div class="score-tiles" aria-label="Seven round result tiles">' + tiles + '</div>',
+    rival ? '<div class="rival-outcome ' + (rival.won?'rival-win':rival.tied?'rival-tie':'rival-loss') + '">' +
+      '<strong>⚔ ' + rival.label + '</strong><span>' + esc(rival.message) + '</span></div>' : '',
     '<div class="result-actions">',
     daily ? homeButton('COPY & CHALLENGE ↗','share','btn-primary') : homeButton('PLAY ANOTHER ROUND ↻','practice','btn-primary'),
     homeButton('MY STATS →','leaderboard','btn-ghost'),
@@ -446,6 +468,7 @@ function renderLeaderboard() {
     '<p class="muted small">The prototype has no server or account system yet, so it would be misleading to show a fake worldwide leaderboard.</p></div>',
     '<div class="board-note">Only official daily games count. Unlimited practice never changes these numbers. Scores are stored locally on this device, not synced between devices.</div>',
     '</div>',
+    renderKnowledgeProfile(),
     badgeCabinet(),
     histories.length ? '<div class="card result-breakdown board-history"><h3>Your recent daily scores</h3>' +
       histories.map(([day,run])=>'<div class="history-row"><span>' + esc(friendlyDay(day)) +
@@ -474,7 +497,8 @@ function openRules() {
 function closeRules() { modalRoot.replaceChildren(); }
 
 function shareResult() {
-  const value = shareText(session.day, session.answers) + "\n" + location.href.split("#")[0];
+  const link = challengeLink(window.location.href,session.day,scoreOf(session.answers));
+  const value = shareText(session.day, session.answers) + "\nBEAT MY SCORE: " + link;
   if (navigator.clipboard?.writeText) {
     navigator.clipboard.writeText(value).then(() => toast("Results copied! Challenge a friend."), () => copyFallback(value));
   } else copyFallback(value);
