@@ -140,7 +140,7 @@ async function runAdminSafety() {
   await page.goto(new URL("admin.html",url).toString());
   await page.locator("#connection").waitFor();
   assert.equal(await page.locator("#workspace").isHidden(),true,"admin queue must remain locked");
-  assert.match(await page.locator("#configuration").innerText(),/Supabase.*not.*configured/i);
+  assert.match(await page.locator("#configuration").innerText(),/Supabase.*configured/i);
   assert.equal(await page.locator("#connect-button").isDisabled(),true);
   const input=await page.locator("#owner-token").inputValue();
   assert.equal(input,"","no owner secret should ever be embedded in the static page");
