@@ -63,3 +63,24 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261112000200_question_bank.sql
       - name: Verify secure attempts, timers, purchase gating, and ranks
         run: psql -v ON_ERROR_STOP=1 -f test/database-smoke.sql
+
+  browser-e2e:
+    name: Desktop and mobile browser smoke
+    needs: browser-code
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install browser test runner
+        run: |
+          npm install --no-save playwright@1.52.0
+          npx playwright install --with-deps chromium
+      - name: Start static site
+        run: |
+          python3 -m http.server 8000 --bind 127.0.0.1 > /tmp/outlier-server.log 2>&1 &
+          sleep 2
+      - name: Test seven questions, stats, guest persistence, and mobile view
+        run: npm run test:browser

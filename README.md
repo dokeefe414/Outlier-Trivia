@@ -124,7 +124,7 @@ Daily generation is deterministically seeded by a UTC date, so every visitor wit
     npm test
     npm run check
 
-The app has no run-time JavaScript dependencies. CI checks syntax and question/scoring logic on pushes and pull requests.
+The app has no run-time JavaScript dependencies. CI checks JavaScript and Deno syntax, question/scoring logic, PostgreSQL security and answer processing, plus a headless Chromium desktop/mobile smoke test of the real game flow.
 
 ## Roadmap
 
