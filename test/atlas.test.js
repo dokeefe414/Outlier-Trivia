@@ -56,7 +56,8 @@ test("country aliases and accepted obscure entities work without blanket guessin
 
 test("scientific elements accept spelling alternatives and obscure entries",()=>{
   const q=byId("atlas-science-elements");
-  assert.equal(matchRare(q,"Aluminum")?.label,"Aluminium");
+  assert.equal(matchRare(q,"Aluminum")?.label,"Aluminum");
+  assert.equal(matchRare(q,"Aluminium")?.label,"Aluminum");
   assert.equal(matchRare(q,"Sulphur")?.label,"Sulfur");
   assert.equal(matchRare(q,"Oganesson")?.label,"Oganesson");
   assert.equal(matchRare(q,"Oganessonn")?.label,"Oganesson");
@@ -64,7 +65,8 @@ test("scientific elements accept spelling alternatives and obscure entries",()=>
 });
 
 test("language, state, state-capital and national-park answers have broad coverage",()=>{
-  assert.equal(matchRare(byId("atlas-wild-languages"),"Farsi")?.label,"Persian");
+  assert.equal(matchRare(byId("atlas-wild-languages"),"Farsi")?.label,"Persian (Farsi)");
+  assert.equal(matchRare(byId("atlas-wild-languages"),"Persian")?.label,"Persian (Farsi)");
   assert.equal(matchRare(byId("atlas-wild-languages"),"Zulu")?.label,"Zulu");
   assert.equal(matchRare(byId("atlas-wild-states"),"Vermont")?.label,"Vermont");
   assert.equal(matchRare(byId("atlas-wild-capitals"),"Montpelier")?.label,"Montpelier");
