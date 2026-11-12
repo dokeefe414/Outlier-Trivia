@@ -64,7 +64,7 @@ export const rareQuestions = [
   {
     id:"grand-slams",category:"SPORTS",prompt:"Name one of tennis's four Grand Slam tournaments.",
     detail:"The four annual major tournaments count.",
-    answers:[["Wimbledon",130,["The Championships Wimbledon"]],["US Open",320,["United States Open","U.S. Open"]],["French Open",550,["Roland Garros"]],["Australian Open",900]]
+    answers:[["Wimbledon",130,["The Championships Wimbledon"]],["US Open",320,["United States Open"]],["French Open",550,["Roland Garros"]],["Australian Open",900]]
   },
   {
     id:"elements-one-letter",category:"SCIENCE",prompt:"Name a chemical element whose symbol is exactly one letter.",
