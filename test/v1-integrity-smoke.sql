@@ -7,6 +7,13 @@ declare
 begin
   v_before:=public.outlier_launch_readiness();
   if v_before->>'ready'<>'true' then
+    raise notice 'Invalid disposable fixture rows: %',(
+      select jsonb_agg(jsonb_build_object('id',id,'kind',kind,
+        'answerCount',jsonb_array_length(answers),
+        'choiceCount',jsonb_array_length(choices)))
+      from private.ranked_question_bank
+      where not private.outlier_ranked_row_valid(kind,answers,choices)
+    );
     raise exception 'fixture should pass validated private readiness: %',v_before;
   end if;
   if not private.outlier_ranked_row_valid('rare',
