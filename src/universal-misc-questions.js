@@ -62,6 +62,20 @@ const common=new Map(Object.entries({
   "doctor":220,"teacher":200,"programmer":290
 }));
 const rank=name=>common.get(normalizeAnswer(name))||800;
+const nouns={
+  actors:"a British actor",wealth:"a person",rock:"a performer",xxl:"an XXL Freshman artist",
+  mtv:"an artist",mtvSongs:"a song",milb:"a Minor League Baseball team",
+  sports:"a sport or athletic activity",books:"a bestselling book",
+  rpg:"a tabletop role-playing game",guitarists:"a classical guitarist",
+  apples:"an apple variety",sandwiches:"a sandwich type",plants:"a plant",
+  rivers:"a river",horses:"a horse breed or type",england:"an English town or city",
+  airports:"an airport-served city and state",teas:"a tea name",
+  herbs:"an herb or spice",menu:"a menu item",programming:"a programming language",
+  minorPlanets:"a numbered minor planet",colors:"a named color",
+  weather:"a meteorological term",cats:"a cat breed",egyptian:"an Egyptian deity",
+  occupations:"an occupation",subjects:"an academic subject",
+  authors:"an author surname",rpgDesigners:"a tabletop RPG designer"
+};
 const questions=[];
 const am=x=>/^[a-m]/i.test(x);
 const nz=x=>/^[n-z]/i.test(x);
@@ -73,8 +87,8 @@ function add(key,name,filter=()=>true,label="") {
   const source="CC0 Corpora archived "+subject+" list (https://github.com/dariusk/corpora/blob/master/data/"+path+")";
   questions.push(makeSourceQuestion({
     id:"v16-cc0-"+key+"-"+name,group,category,source,
-    prompt:"Name "+(key==="authors"?"an author surname":"an entry")+
-      " from OUTLIER's archived "+description+" reference list.",
+    prompt:"Name "+nouns[key]+" from OUTLIER's archived "+
+      description+" reference list.",
     records:lists[key],name:x=>x,score:rank,alias:()=>[],filter
   }));
 }
