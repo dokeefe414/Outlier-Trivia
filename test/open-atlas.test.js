@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {openAtlasQuestions,openAtlasCatalog} from "../src/open-atlas-questions.js";
 import {rareQuestions} from "../src/data.js";
 import {inspectRareGuess,auditQuestionAliases} from "../src/answer-intelligence.js";
-import {buildRound,buildArcadeRound,buildAtlasRound} from "../src/game.js";
+import {buildRound,buildArcadeRound,buildAtlasRound,buildOpenAtlasRound} from "../src/game.js";
 import {buildPartyGames} from "../src/party-duel.js";
 
 const find=id=>openAtlasQuestions.find(q=>q.id===id);
@@ -75,4 +75,13 @@ test("new broad prompts are available in practice and party, never leak into off
     if(party[0].questions.some(q=>q.arcadeOnly))foundParty=true;
   }
   assert.ok(foundParty,"new content should appear in customized party duels");
+});
+
+test("The Big List is seven fully open-source-backed rare-answer questions",()=>{
+  const round=buildOpenAtlasRound();
+  assert.equal(round.length,7);
+  assert.equal(new Set(round.map(q=>q.id)).size,7);
+  assert.ok(round.every(q=>q.arcadeOnly&&q.type==="rare"));
+  assert.ok(round.every(q=>q.answers.length>=28));
+  assert.equal(round.length*1000,7000);
 });
