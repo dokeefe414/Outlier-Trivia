@@ -85,3 +85,49 @@ begin
 end $$;
 revoke all on function public.outlier_crowd_pulse(uuid,text) from public,anon,authenticated;
 grant execute on function public.outlier_crowd_pulse(uuid,text) to service_role;
+
+-- Align the older Stand Out history endpoint with the SAME new consent gate.
+-- Previous implementation sampled all completed games without explicit consent.
+create or replace function public.outlier_past_answer_rarity(p_question text)
+returns jsonb language plpgsql stable security definer
+set search_path=public,private,pg_temp as $$
+declare v_total integer;v_response jsonb;
+begin
+  with responses as (
+    select a.value->>'accepted' as answer
+    from public.game_attempts g
+    join public.profiles p on p.user_id=g.user_id
+    cross join lateral jsonb_array_elements(g.answers) a(value)
+    where g.mode='daily' and g.completed_at is not null
+      and g.game_day < (clock_timestamp() at time zone 'UTC')::date
+      and p.crowd_opted_at is not null
+      and g.completed_at >= p.crowd_opted_at
+      and a.value->>'questionId'=p_question
+      and a.value->>'type'='rare'
+  ) select count(*)::integer into v_total from responses;
+  if v_total<30 then
+    return jsonb_build_object('available',false,'minimum',30);
+  end if;
+  with responses as (
+    select a.value->>'accepted' as answer
+    from public.game_attempts g
+    join public.profiles p on p.user_id=g.user_id
+    cross join lateral jsonb_array_elements(g.answers) a(value)
+    where g.mode='daily' and g.completed_at is not null
+      and g.game_day < (clock_timestamp() at time zone 'UTC')::date
+      and p.crowd_opted_at is not null
+      and g.completed_at >= p.crowd_opted_at
+      and a.value->>'questionId'=p_question
+      and a.value->>'type'='rare'
+  ), counts as (
+    select answer,count(*)::integer as picks
+    from responses where answer is not null group by answer
+  )
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'name',answer,'picks',picks,
+    'percent',round((picks::numeric/v_total)*100,1)
+  ) order by picks desc,answer),'[]'::jsonb) into v_response from counts;
+  return jsonb_build_object('available',true,'sampleSize',v_total,'answers',v_response);
+end $$;
+revoke all on function public.outlier_past_answer_rarity(text) from public,anon,authenticated;
+grant execute on function public.outlier_past_answer_rarity(text) to service_role;
