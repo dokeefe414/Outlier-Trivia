@@ -182,6 +182,7 @@ declare
   v_members jsonb;
   v_scoreboard jsonb:=null;
   v_answers jsonb:=null;
+  v_history jsonb:=null;
   v_choices jsonb:=null;
 begin
   if not exists(select 1 from public.outlier_party_members
@@ -217,6 +218,11 @@ begin
       from jsonb_array_elements(v_question.choices);
     end if;
   elsif v_phase='finished' then
+    select jsonb_agg(jsonb_build_object('index',c.index-1,
+      'prompt',q.prompt,'type',q.kind,'category',q.category)
+      order by c.index) into v_history
+    from unnest(v_room.question_ids) with ordinality c(id,index)
+    join private.outlier_party_question_bank q on q.id=c.id;
     select jsonb_agg(jsonb_build_object('id',s.user_id,'name',s.display_name,
       'score',s.score) order by s.score desc,s.display_name) into v_scoreboard
     from (
@@ -242,7 +248,7 @@ begin
       'prompt',v_question.prompt,'detail',v_question.detail,'choices',v_choices,
       'deadline',v_room.starts_at+make_interval(secs=>(v_index+1)*45),
       'submitted',v_has) else null end,
-    'scores',v_scoreboard,'answers',v_answers
+    'scores',v_scoreboard,'answers',v_answers,'questions',v_history
   );
 end $$;
 
