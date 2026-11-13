@@ -1,5 +1,8 @@
 import { extraFitQuestions } from "./fit-expansion.js";
 import {openAtlasQuestions} from "./open-atlas-questions.js";
+import {universalMediaQuestions} from "./universal-media-questions.js";
+import {universalBaseballQuestions} from "./universal-baseball-questions.js";
+import {universalMiscQuestions} from "./universal-misc-questions.js";
 import { contentPackQuestions } from "./content-packs.js";
 import { broadQuestions } from "./atlas-questions.js";
 // OUTLIER prototype question bank.
@@ -208,6 +211,9 @@ rareQuestions.push(...contentPackQuestions);
 // v1.5 CC0 source-backed broad answer sets. Arcade/party only: the existing
 // official daily and prior immutable UTC question slates remain unchanged.
 rareQuestions.push(...openAtlasQuestions);
+// v1.6: archive-backed broad answers across all 12 practice topics.
+// Arcade-only labels prevent historical official daily/hosted score changes.
+rareQuestions.push(...universalMediaQuestions,...universalBaseballQuestions,...universalMiscQuestions);
 
 // v0.5 varied crowd prediction questions (illustrative fixed distributions).
 fitQuestions.push(...extraFitQuestions);
