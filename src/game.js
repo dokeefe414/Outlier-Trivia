@@ -55,7 +55,7 @@ export function weekStart(day = utcDay()) {
 }
 
 export function buildAtlasRound(day = utcDay(), practice = false) {
-  const broad = rareQuestions.filter(question => question.bigPool);
+  const broad = rareQuestions.filter(question => question.bigPool && (practice || !question.arcadeOnly));
   const geoPool = broad.filter(question => question.poolGroup === "geo");
   const sciencePool = broad.filter(question => question.poolGroup === "science");
   const wildPool = broad.filter(question => question.poolGroup === "wild");
@@ -115,8 +115,9 @@ export const practiceCategoryOptions = Object.freeze([
   {value:"people",label:"PEOPLE",icon:"🎤",detail:"Famous entertainers"},
   {value:"wild",label:"CLASSIC TRIVIA",icon:"🧠",detail:"Languages, national parks, USA"}
 ]);
-function groupQuestions(group) {
-  return rareQuestions.filter(q => q.bigPool && q.poolGroup === group);
+function groupQuestions(group,forOfficial=false) {
+  return rareQuestions.filter(q => q.bigPool && q.poolGroup === group &&
+    (!forOfficial || !q.arcadeOnly));
 }
 export function buildRound(day = utcDay(), practice = false, practiceGroup = "surprise") {
   if (!practice && day <= "2026-11-12") return buildAtlasRound(day,false);
@@ -145,7 +146,7 @@ export function buildRound(day = utcDay(), practice = false, practiceGroup = "su
   const groups=dailyCategorySchedule[dayIndex];
   const rare=groups.map((group)=>{
     const occurrence=dailyCategorySchedule.slice(0,dayIndex).flat().filter(x=>x===group).length;
-    const pool=shuffled(groupQuestions(group),randomFromSeed(seedFromString("outlier-v05-week:"+monday+"|"+group)));
+    const pool=shuffled(groupQuestions(group,true),randomFromSeed(seedFromString("outlier-v05-week:"+monday+"|"+group)));
     const selected=pool[occurrence];
     if(!selected)throw new Error("Not enough "+group+" questions for a full week");
     return selected;
