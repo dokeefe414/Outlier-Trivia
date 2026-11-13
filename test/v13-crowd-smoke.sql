@@ -37,6 +37,7 @@ begin
       if v_result->>'available'<>'false' then
         raise exception '29 rare responses were disclosed';
       end if;
+    end if;
   end loop;
   v_result:=public.outlier_crowd_pulse(v_reader,'fit-v13-ci');
   if v_result->>'available'<>'true' or (v_result->>'sampleSize')::int<>30
