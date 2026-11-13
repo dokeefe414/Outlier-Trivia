@@ -2,6 +2,8 @@
 
 **A playable, mobile-friendly daily general-knowledge game.** Seven questions, two mindsets: find a rare correct answer in **Stand Out**, then predict the most popular answer in **Fit In**.
 
+> **v1.3 competition and discovery — weekly spotlight, Daily Debrief, league cup displays, opt-in crowd research and editorial QA.** The v1.2 editorial design remains intact. The hosted features still require Supabase, private ranked content and real player validation.
+
 > **v1.2 editorial redesign — an original OUTLIER visual identity, new printed-ticket game screens, and no generic glowing-orb dashboard.** The repository now contains production-oriented account, private-content, social league, editorial-review and Stripe test-mode infrastructure. Supabase/Stripe credentials, privately authored ranked answers and real-user validation are still required. No live payments or worldwide leaderboards are active.
 
 ## Play
@@ -28,6 +30,18 @@ The browser must load the site over HTTP, not the file protocol, because the gam
 4. Once GitHub finishes deploying, the expected URL is **https://dokeefe414.github.io/Outlier-Trivia/**.
 
 Pages is **not enabled automatically** by these commits, and the expected URL should not be considered live until deployment succeeds.
+
+## v1.3 — Competition & Discovery
+
+Five new release workstreams improve what happens between daily games.
+
+- **Daily Debrief (playable now):** Genuine session-derived standout pick, strongest crowd call, missed rounds, actual accepted answers, and a category score ledger in guest and hosted results. No fictional player comparisons.
+- **Weekly Spotlight (playable now):** A free, deterministic 10-question themed rare-answer challenge, identical across each UTC week for everyone running the same game version. A 30-second timer, unranked weekly personal best, and optional score sharing make this replayable without touching official results.
+- **Friend League Weekly Cup (hosted source):** Verified weekly points drive provisional head-to-head matchups; previous-week comparisons are retrospective. Pairings are exhibition comparisons, not a locked elimination bracket.
+- **Opt-in Crowd Pulse (hosted source):** Authenticated users explicitly permit completed future official responses to contribute anonymously to observed Fit In comparisons. Counts are visible only to people who completed that question, only after 30 prior-day eligible responses. Withdrawal excludes prior contributions immediately. Frozen editorial scoring remains unchanged.
+- **Editorial QA (owner tool):** `npm run review:answer -- <question-id> <answer>` checks whether a proposal is already accepted and identifies ambiguous or source-needed cases. Human reference checks are required before versioned edits. Existing approved answers are not broadened blindly.
+
+**Status:** Guest features are in the deployed source when v1.3 is merged and Pages redeploys. The optional Supabase backend, private production question bank, opt-in crowd data, and authentic online users are **not** provisioned by this commit. No Stripe checkout was enabled. See [v1.3 implementation and privacy guide](docs/V13_COMPETITION_DISCOVERY.md).
 
 ## v1.2 — OUTLIER Issue 01: Art direction overhaul
 
@@ -358,6 +372,7 @@ Daily generation is deterministically seeded by a UTC date, so every visitor wit
     src/player-atlas.js       Titles, frames, weekly quests and Knowledge Atlas
     src/rare-moments.js       Editorial-score-based discovery celebrations
     docs/V11_GAME_EXPERIENCE.md Design and hosted rivalry deployment notes
+    docs/V13_COMPETITION_DISCOVERY.md v1.3 setup, limits and privacy model
     admin.html                Owner-only review interface (requires backend)
     scripts/audit-content.mjs Automated public answer-bank auditing
     scripts/validate-private-bank.mjs Offline, owner-local ranked bank validation
@@ -401,8 +416,9 @@ The app has no run-time JavaScript dependencies. CI checks JavaScript and Deno s
 12. **Answer Intelligence v0.9:** vetted nicknames and scoring calibration, faster safe matching, better rarity reveals, audited review administration and private-beta validation scripts.
 13. **Competitive Beta v1.0 candidate:** strict private-bank launch gate, consent-based friend invites, previous-week champions, owner-only quality analytics and explicit Stripe live-mode controls.
 14. **Game Experience v1.1:** animated editorial rarity moments, personal titles and frames, Knowledge Atlas, weekly missions, missing-answer suggestions and member-only rivalry comparisons.
-15. **Independent Art Direction v1.2 (current):** bespoke type-led homepage, CSS poster, magazine-like ticket/game/result views, custom mark, editorial mobile design.
-16. **Public launch:** moderation/reporting, accessibility audit, anti-cheat, privacy policy, operations monitoring, content pipeline.
+15. **Independent Art Direction v1.2:** bespoke type-led homepage, CSS poster, magazine-like ticket/game/result views, custom mark, editorial mobile design.
+16. **Competition & Discovery v1.3 (current source):** Weekly Spotlight, debriefs, verified exhibition matchups, crowd opt-in/pulse and evidence-based answer-review CLI.
+17. **Public launch:** moderation/reporting, accessibility audit, anti-cheat, privacy policy, operations monitoring, content pipeline.
 
 ## Philosophy
 
