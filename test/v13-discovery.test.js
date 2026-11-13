@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {dailyDebrief,weeklySpotlight,weeklySpotlightRound,weeklyCup} from "../src/v13-discovery.js";
+import {dailyDebrief,weeklySpotlight,weeklySpotlightRound,weeklyCup,duelSummary} from "../src/v13-discovery.js";
 
 test("debrief reports real accepted answers without invented popularity",()=>{
   const result=dailyDebrief([{id:"a",category:"GEO"},{id:"b",category:"GEO"}],[
@@ -37,4 +37,16 @@ test("weekly exhibition pairs use only verified feed and do not invent a win on 
   assert.equal(cup.matchups[0].winner,null);
   assert.equal(cup.bye.userId,"c");
   assert.equal(cup.final,true);
+});
+
+test("local duel has deterministic scores and does not award ranked points",()=>{
+  const one=[{valid:true,points:950},{valid:false,points:0},{valid:true,points:500}];
+  const two=[{valid:true,points:600},{valid:true,points:600},{valid:true,points:200}];
+  const scores=duelSummary(one,two);
+  assert.equal(scores.oneScore,1450);
+  assert.equal(scores.twoScore,1400);
+  assert.equal(scores.oneAccepted,2);
+  assert.equal(scores.twoAccepted,3);
+  assert.equal(scores.outcome,"one");
+  assert.equal(duelSummary(one,one).outcome,"tie");
 });
