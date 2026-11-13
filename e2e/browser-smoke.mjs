@@ -162,7 +162,9 @@ async function runSyntheticIdentity() {
     questionIds:["test1","test2","test3","test4","test5","test6","test7"]
   }]));
   await seeded.addInitScript(value=>{
-    localStorage.setItem("outlier-prototype-v1",JSON.stringify(value));
+    // Seed only the first load. On reload preserve actual saved player choices.
+    if(!localStorage.getItem("outlier-prototype-v1"))
+      localStorage.setItem("outlier-prototype-v1",JSON.stringify(value));
   },{days,arcade:{},sound:false,beta:{tutorial:true},theme:"nebula",player:{title:"",frame:""}});
   await seeded.goto(url);
   await seeded.locator(".identity-preview").waitFor();
