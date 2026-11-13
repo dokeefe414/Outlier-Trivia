@@ -462,7 +462,7 @@ function renderHome() {
     '<div class="card feature-card feature-keep"><span class="feature-tail">03</span><span class="feature-icon">Ⅲ</span><span class="pill pill-yellow">DAILY RITUAL</span><h3>SHOW UP AGAIN.</h3><p>One official go each day. Collect your odd little wins and build a record worth keeping.</p></div>',
     '</div>',
     spotlightPanel(),
-    '<div class="stats-strip">
+    '<div class="stats-strip">',
     stat("CURRENT STREAK", currentStreak(storage.days,today()) + " 🔥"),
     stat("LIFETIME AVERAGE", fmt(stats.average)),
     stat("LIFETIME POINTS", fmt(stats.total)),
