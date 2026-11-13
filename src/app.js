@@ -8,7 +8,7 @@ import { ONLINE_ENABLED } from "./online-config.js";
 import {THEMES,TOUR_STEPS,completedDailyCount,unlockableThemes,weeklySeason,seasonArchive,betaChecklistState,safeFeedbackUrl} from "./beta.js";
 import {scoreHistory,weekSummary,nextGoal,versusHistory,utcResetRemaining} from "./journey.js";
 import { readFriendChallenge, challengeLink, challengeOutcome, categoryInsights } from "./social.js";
-import {dailyDebrief,weeklySpotlight,weeklySpotlightRound} from "./v13-discovery.js";
+import {dailyDebrief,weeklySpotlight,weeklySpotlightRound,duelSummary} from "./v13-discovery.js";
 
 const STORAGE_KEY = "outlier-prototype-v1";
 const app = document.getElementById("app");
@@ -408,6 +408,13 @@ function debriefPanel(questions,answers) {
     '<details class="v13-category-ledger"><summary>CATEGORY SCORE LEDGER</summary>'+ledger+'</details>'+
     '</section>';
 }
+function duelPanel() {
+  return '<section class="v13-duel-invite"><div><div class="eyebrow">TWO MINDS · ONE DEVICE</div>'+
+    '<h2>PASS & PLAY DUEL.</h2><p>Answer the same seven questions separately. '+
+    'Scores and answers stay hidden until both players finish.</p>'+
+    '<small>FREE · UNRANKED · 45 SECONDS PER QUESTION</small></div>'+
+    homeButton('CHALLENGE A FRIEND ↗','duel','btn-ghost')+'</section>';
+}
 function spotlightPanel() {
   const event=weeklySpotlight(today());
   const record=storage.arcade["spotlight:"+event.id];
@@ -462,6 +469,7 @@ function renderHome() {
     '<div class="card feature-card feature-keep"><span class="feature-tail">03</span><span class="feature-icon">Ⅲ</span><span class="pill pill-yellow">DAILY RITUAL</span><h3>SHOW UP AGAIN.</h3><p>One official go each day. Collect your odd little wins and build a record worth keeping.</p></div>',
     '</div>',
     spotlightPanel(),
+    duelPanel(),
     '<div class="stats-strip">',
     stat("CURRENT STREAK", currentStreak(storage.days,today()) + " 🔥"),
     stat("LIFETIME AVERAGE", fmt(stats.average)),
@@ -487,7 +495,7 @@ function renderPracticeSelect() {
   screen="practice-select";
   clearInterval(intervalId);
   const total=rareQuestions.filter(q=>q.bigPool).length;
-  app.innerHTML='<section class="practice-select">' + spotlightPanel() +
+  app.innerHTML='<section class="practice-select">' + spotlightPanel() + duelPanel() +
     '<button type="button" class="back-link" data-action="home">← BACK TO HOME</button>' +
     '<div class="practice-heading"><span class="eyebrow">THE KNOWLEDGE ARCADE</span>' +
     '<h1>PICK YOUR <span class="gradient-text">PLAYGROUND.</span></h1>' +
@@ -529,6 +537,10 @@ function newSession(mode,practiceGroup = 'surprise') {
       deadline: existing?.deadline ?? null
     };
     if (existing?.complete || session.index >= 7) { renderResult(); return; }
+  } else if (mode === "duel") {
+    session={mode:"duel",day:today(),questions:buildRound(today(),true,"surprise"),
+      timerSeconds:45,answers:[],index:0,deadline:null,
+      duel:{playerIndex:0,players:[{name:"PLAYER 1",answers:null},{name:"PLAYER 2",answers:null}]}};
   } else if (mode === "spotlight") {
     const event=weeklySpotlight(today());
     session={mode:"practice",day:today(),practiceGroup:event.category,practiceFormat:"weekly-spotlight",
@@ -581,10 +593,10 @@ function renderGame() {
     '<p class="retry-hint">Keep guessing until an approved answer is found. Rejected guesses never restart the timer.</p></form>';
   app.innerHTML = [
     '<div class="game-wrap"><div class="topbar"><button class="back-link" data-action="home" type="button">← BACK TO HOME</button>',
-    '<span class="session-pill">' + (session.mode === "daily" ? 'DAILY · ' + esc(session.day) : (session.weeklyEvent ? "WEEKLY SPOTLIGHT · " : "PRACTICE · ") + esc((session.practiceGroup||"surprise").toUpperCase())) + '</span></div>',
+    '<span class="session-pill">' + (session.mode === "daily" ? 'DAILY · ' + esc(session.day) : (session.duel ? "LOCAL DUEL · "+session.duel.players[session.duel.playerIndex].name : (session.weeklyEvent ? "WEEKLY SPOTLIGHT · " : "PRACTICE · ") + esc((session.practiceGroup||"surprise").toUpperCase()))) + '</span></div>',
     '<div class="game-head"><div><div class="eyebrow" style="margin-bottom:10px">TODAY\'S FIELD TEST</div>',
     '<h2>Question ' + (session.index + 1) + ' <span class="muted">/ ' +session.questions.length+'</span></h2><p>Think sideways. Trust the weird stuff you know.</p></div>',
-    '<div class="game-score" aria-label="Current game score"><div class="tiny muted">YOUR SCORE</div><strong>' + fmt(scoreOf(session.answers)) + '</strong></div></div>',
+    session.duel ? '<div class="game-score"><div class="tiny muted">SEALED UNTIL FINISH</div><strong>•••</strong></div></div>' : '<div class="game-score" aria-label="Current game score"><div class="tiny muted">YOUR SCORE</div><strong>' + fmt(scoreOf(session.answers)) + '</strong></div></div>',
     '<div class="progress-track"><div class="progress-fill" style="width:' + (session.index/session.questions.length*100) + '%"></div></div>',
     roundDots(),'<article class="card question-card ' + q.type + '">',
     '<div class="question-head"><span class="pill ' + (fit ? "pill-teal" : "pill-purple") + '">' + (fit ? "◎ FIT IN — MATCH THE CROWD" : "✦ STAND OUT — BE THE EXCEPTION") + '</span>',
@@ -660,7 +672,7 @@ function submitAnswer(value) {
   session.deadline = null;
   saveDaily();
   sound(result.points > 0 ? 580 : 220, .14);
-  renderFeedback();
+  if(session.duel)renderDuelLock(); else renderFeedback();
 }
 
 function feedbackHeading(result) {
@@ -755,16 +767,67 @@ function renderFeedback() {
   app.querySelector(".feedback-next")?.focus({preventScroll:true});
 }
 
+
+function renderDuelLock() {
+  screen="feedback";clearInterval(intervalId);
+  app.innerHTML='<div class="v13-duel-screen"><div class="v13-duel-stamp">✦</div>'+
+    '<div class="eyebrow">PLAYER '+(session.duel.playerIndex+1)+' / ROUND '+(session.index+1)+'</div>'+
+    '<h1>ANSWER SEALED.</h1><p>The answer and points will be revealed after both players finish.</p>'+
+    '<div class="v13-duel-secret">🔒 '+(session.index+1)+' / '+session.questions.length+' SAVED</div>'+
+    homeButton('NEXT SECRET QUESTION ↗','next','btn-primary')+'</div>';
+  window.scrollTo(0,0);
+}
+function renderDuelHandoff() {
+  screen="duel-handoff";clearInterval(intervalId);
+  app.innerHTML='<div class="v13-duel-screen"><div class="v13-duel-stamp">↗</div>'+
+    '<div class="eyebrow">PLAYER 1 COMPLETE</div><h1>PASS THE DEVICE.</h1>'+
+    '<p>Player 2 gets the exact same seven questions. Do not share previous guesses.</p>'+
+    homeButton('START PLAYER TWO ↗','duel-handoff','btn-primary')+'</div>';
+  window.scrollTo(0,0);
+}
+function renderDuelResult() {
+  if(!session?.duel)return renderHome();
+  screen="duel-results";clearInterval(intervalId);
+  const [one,two]=session.duel.players;
+  const a=one.answers||[],b=two.answers||[];
+  const score=duelSummary(a,b);
+  const headline=score.outcome==="tie"?"IT’S A DRAW!":score.outcome==="one"?"PLAYER 1 WINS!":"PLAYER 2 WINS!";
+  const rows=session.questions.map((q,i)=>{
+    const x=a[i]||{},y=b[i]||{};
+    return '<div class="v13-duel-round"><small>Q'+(i+1)+' · '+esc(q.category)+'</small>'+
+      '<div><span>'+esc(x.accepted||"No accepted answer")+' <b>'+fmt(x.points||0)+' pts</b></span>'+
+      '<span>'+esc(y.accepted||"No accepted answer")+' <b>'+fmt(y.points||0)+' pts</b></span></div></div>';
+  }).join("");
+  app.innerHTML='<div class="v13-duel-results"><div class="eyebrow">UNRANKED LOCAL DUEL</div>'+
+    '<h1>'+headline+'</h1><p>Same questions. Separate attempts. No scores revealed early.</p>'+
+    '<div class="v13-duel-final-grid"><div><small>PLAYER 1</small><strong>'+fmt(score.oneScore)+'</strong>'+
+      '<span>'+score.oneAccepted+' accepted</span></div>'+
+      '<div><small>PLAYER 2</small><strong>'+fmt(score.twoScore)+'</strong>'+
+      '<span>'+score.twoAccepted+' accepted</span></div></div>'+
+    '<div class="result-actions">'+homeButton('COPY DUEL RESULT ↗','share','btn-primary')+
+      homeButton('REMATCH ↻','duel','btn-ghost')+homeButton('BACK HOME','home','btn-ghost')+'</div>'+
+    '<div class="card v13-duel-ledger"><h2>THE SEVEN-ROUND RECEIPT.</h2>'+
+      '<p class="small muted">PLAYER 1 LEFT · PLAYER 2 RIGHT</p>'+rows+'</div></div>';
+  window.scrollTo(0,0);
+}
+
 function nextRound() {
   if (screen !== "feedback" || !session) return;
   session.index += 1;
   feedback = null;
-  if (session.index >= session.questions.length) return renderResult();
+  if (session.index >= session.questions.length) {
+    if(session.duel){
+      session.duel.players[session.duel.playerIndex].answers=session.answers.slice();
+      return session.duel.playerIndex===0?renderDuelHandoff():renderDuelResult();
+    }
+    return renderResult();
+  }
   renderGame();
 }
 
 function renderResult() {
   if (!session) return renderHome();
+  if (session.duel) return renderDuelResult();
   screen = "result";
   clearInterval(intervalId);
   session.deadline = null;
@@ -912,6 +975,16 @@ function closeRules() { modalRoot.replaceChildren(); }
 
 function shareResult() {
   storage.beta.shared=true; saveStore();
+  if(session?.duel){
+    const score=duelSummary(session.duel.players[0].answers,session.duel.players[1].answers);
+    const value="OUTLIER LOCAL DUEL (UNRANKED)\\nPLAYER 1: "+fmt(score.oneScore)+
+      " pts\\nPLAYER 2: "+fmt(score.twoScore)+" pts\\n"+
+      window.location.origin+window.location.pathname;
+    if(navigator.clipboard?.writeText)
+      navigator.clipboard.writeText(value).then(()=>toast("Duel result copied!"),()=>copyFallback(value));
+    else copyFallback(value);
+    return;
+  }
   const link = challengeLink(window.location.href,session.day,scoreOf(session.answers));
   const value = session.weeklyEvent
     ? "OUTLIER WEEKLY SPOTLIGHT / "+session.weeklyEvent+"\n"+
@@ -945,6 +1018,12 @@ document.addEventListener("click", event => {
     case "practice-format": practiceFormat = control.dataset.format||"classic"; renderPracticeSelect(); break;
     case "retry-practice": newSession(session?.weeklyEvent?"spotlight":"practice",session?.practiceGroup||"surprise"); break;
     case "weekly-event": newSession("spotlight"); break;
+    case "duel": newSession("duel"); break;
+    case "duel-handoff": {
+      if(screen!=="duel-handoff"||!session?.duel||session.duel.playerIndex!==0)return;
+      session.duel.playerIndex=1;session.answers=[];session.index=0;session.deadline=null;
+      session.retryQuestionIndex=-1;feedback=null;renderGame();break;
+    }
     case "online": showOnline(); break;
     case "result": newSession("daily"); break;
     case "fit-answer": submitAnswer(control.dataset.answer); break;
