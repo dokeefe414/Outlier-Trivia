@@ -1,7 +1,7 @@
 import { scoreExplanation } from "./rarity-insights.js";
 import { describeRareMoment } from "./rare-moments.js";
 import {PLAYER_TITLES,PLAYER_FRAMES,identityProgress,atlasProfile,weeklyMissions} from "./player-atlas.js";
-import { buildRound, buildLegacyRound, utcDay, normalizeAnswer, evaluate, scoreOf, getTier, lifetimeStats, shareText, shuffled, randomFromSeed, seedFromString, inspectRareGuess, practiceCategoryOptions, buildArcadeRound, arcadeFormats, arcadeMaximum, QUESTION_SECONDS, MAX_SCORE } from "./game.js";
+import { buildRound, buildLegacyRound, utcDay, normalizeAnswer, evaluate, scoreOf, getTier, lifetimeStats, shareText, shuffled, randomFromSeed, seedFromString, inspectRareGuess, practiceCategoryOptions, buildArcadeRound, arcadeFormats, arcadeMaximum, buildOpenAtlasRound, QUESTION_SECONDS, MAX_SCORE } from "./game.js";
 import { rareQuestions, fitQuestions } from "./data.js";
 import { activityWeek, currentStreak, longestStreak, earnedBadges } from "./progression.js";
 import { ONLINE_ENABLED } from "./online-config.js";
@@ -9,6 +9,7 @@ import {THEMES,TOUR_STEPS,completedDailyCount,unlockableThemes,weeklySeason,seas
 import {scoreHistory,weekSummary,nextGoal,versusHistory,utcResetRemaining} from "./journey.js";
 import { readFriendChallenge, challengeLink, challengeOutcome, categoryInsights } from "./social.js";
 import {dailyDebrief,weeklySpotlight,weeklySpotlightRound} from "./v13-discovery.js";
+import {openAtlasCatalog} from "./open-atlas-questions.js";
 import {PARTY_LIMITS,PARTY_TOPICS,normalizePartyConfig,buildPartyGames,partyGameScores,partyStandings,partyRevealRound} from "./party-duel.js";
 
 const STORAGE_KEY = "outlier-prototype-v1";
@@ -410,6 +411,15 @@ function debriefPanel(questions,answers) {
     '<details class="v13-category-ledger"><summary>CATEGORY SCORE LEDGER</summary>'+ledger+'</details>'+
     '</section>';
 }
+function openAtlasPanel() {
+  return '<section class="open-atlas-panel" aria-labelledby="open-atlas-title">'+
+    '<div><div class="eyebrow">NEW / THE BIG LIST</div>'+
+    '<h2 id="open-atlas-title">THOUSANDS OF ANSWERS. SEVEN SHOTS.</h2>'+
+    '<p>A new seven-question Stand Out challenge drawn from '+fmt(openAtlasCatalog.sourceEntries)+
+      ' archived city, county and dinosaur names. Find the unexpected correct pick.</p>'+
+    '<small>ALL STAND OUT · 45 SECONDS EACH · FREE & UNRANKED</small></div>'+
+    homeButton('PLAY THE BIG LIST ↗','open-atlas','btn-primary')+'</section>';
+}
 function duelPanel() {
   return '<section class="v13-duel-invite"><div><div class="eyebrow">TWO TO EIGHT MINDS · ONE DEVICE</div>'+
     '<h2>PASS & PLAY SHOWDOWN.</h2><p>Choose the players, how many games, and which topics come up. '+
@@ -521,6 +531,7 @@ function renderHome() {
     '<div class="card feature-card feature-keep"><span class="feature-tail">03</span><span class="feature-icon">Ⅲ</span><span class="pill pill-yellow">DAILY RITUAL</span><h3>SHOW UP AGAIN.</h3><p>One official go each day. Collect your odd little wins and build a record worth keeping.</p></div>',
     '</div>',
     spotlightPanel(),
+    openAtlasPanel(),
     duelPanel(),
     '<div class="stats-strip">',
     stat("CURRENT STREAK", currentStreak(storage.days,today()) + " 🔥"),
@@ -547,7 +558,7 @@ function renderPracticeSelect() {
   screen="practice-select";
   clearInterval(intervalId);
   const total=rareQuestions.filter(q=>q.bigPool).length;
-  app.innerHTML='<section class="practice-select">' + spotlightPanel() + duelPanel() +
+  app.innerHTML='<section class="practice-select">' + spotlightPanel() + openAtlasPanel() + duelPanel() +
     '<button type="button" class="back-link" data-action="home">← BACK TO HOME</button>' +
     '<div class="practice-heading"><span class="eyebrow">THE KNOWLEDGE ARCADE</span>' +
     '<h1>PICK YOUR <span class="gradient-text">PLAYGROUND.</span></h1>' +
@@ -596,6 +607,10 @@ function newSession(mode,practiceGroup = 'surprise') {
       timerSeconds:45,answers:[],index:0,deadline:null,
       duel:{config,games,gameIndex:0,playerIndex:0,revealIndex:-1}};
     return renderPartyReady();
+  } else if (mode === "open-atlas") {
+    session={mode:"practice",day:today(),practiceGroup:"surprise",
+      practiceFormat:"open-atlas",questions:buildOpenAtlasRound(),
+      timerSeconds:45,answers:[],index:0,deadline:null,arcadeRecorded:false};
   } else if (mode === "spotlight") {
     const event=weeklySpotlight(today());
     session={mode:"practice",day:today(),practiceGroup:event.category,practiceFormat:"weekly-spotlight",
@@ -648,7 +663,7 @@ function renderGame() {
     '<p class="retry-hint">Keep guessing until an approved answer is found. Rejected guesses never restart the timer.</p></form>';
   app.innerHTML = [
     '<div class="game-wrap"><div class="topbar"><button class="back-link" data-action="home" type="button">← BACK TO HOME</button>',
-    '<span class="session-pill">' + (session.mode === "daily" ? 'DAILY · ' + esc(session.day) : (session.duel ? "GAME "+(session.duel.gameIndex+1)+"/"+session.duel.config.games+" · "+esc(session.duel.config.names[session.duel.playerIndex]) : (session.weeklyEvent ? "WEEKLY SPOTLIGHT · " : "PRACTICE · ") + esc((session.practiceGroup||"surprise").toUpperCase()))) + '</span></div>',
+    '<span class="session-pill">' + (session.mode === "daily" ? 'DAILY · ' + esc(session.day) : (session.duel ? "GAME "+(session.duel.gameIndex+1)+"/"+session.duel.config.games+" · "+esc(session.duel.config.names[session.duel.playerIndex]) : (session.practiceFormat==="open-atlas" ? "THE BIG LIST · " : session.weeklyEvent ? "WEEKLY SPOTLIGHT · " : "PRACTICE · ") + esc((session.practiceGroup||"surprise").toUpperCase()))) + '</span></div>',
     '<div class="game-head"><div><div class="eyebrow" style="margin-bottom:10px">TODAY\'S FIELD TEST</div>',
     '<h2>Question ' + (session.index + 1) + ' <span class="muted">/ ' +session.questions.length+'</span></h2><p>Think sideways. Trust the weird stuff you know.</p></div>',
     session.duel ? '<div class="game-score"><div class="tiny muted">SEALED UNTIL FINISH</div><strong>•••</strong></div></div>' : '<div class="game-score" aria-label="Current game score"><div class="tiny muted">YOUR SCORE</div><strong>' + fmt(scoreOf(session.answers)) + '</strong></div></div>',
@@ -1195,8 +1210,9 @@ document.addEventListener("click", event => {
     case "practice": ONLINE_ENABLED ? showOnline() : renderPracticeSelect(); break;
     case "start-practice": newSession("practice", control.dataset.group||"surprise"); break;
     case "practice-format": practiceFormat = control.dataset.format||"classic"; renderPracticeSelect(); break;
-    case "retry-practice": newSession(session?.weeklyEvent?"spotlight":"practice",session?.practiceGroup||"surprise"); break;
+    case "retry-practice": newSession(session?.practiceFormat==="open-atlas"?"open-atlas":session?.weeklyEvent?"spotlight":"practice",session?.practiceGroup||"surprise"); break;
     case "weekly-event": newSession("spotlight"); break;
+    case "open-atlas": newSession("open-atlas"); break;
     case "duel": renderPartySetup(); break;
     case "party-topic": {
       if(screen!=="duel-setup")return;
