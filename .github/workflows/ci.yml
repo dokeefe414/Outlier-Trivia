@@ -120,6 +120,10 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261112001600_rivalries.sql
       - name: Verify member-only head-to-head scoring and privacy
         run: psql -v ON_ERROR_STOP=1 -f test/rivalry-smoke.sql
+      - name: Apply v1.3 opt-in crowd research migration
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261112001700_v13_crowd_consent.sql
+      - name: Verify 30-response privacy gate, opt-in and withdrawal
+        run: psql -v ON_ERROR_STOP=1 -f test/v13-crowd-smoke.sql
 
   browser-e2e:
     name: Desktop and mobile browser smoke
