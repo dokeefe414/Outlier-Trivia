@@ -2,6 +2,8 @@
 
 **A playable, mobile-friendly daily general-knowledge game.** Seven questions, two mindsets: find a rare correct answer in **Stand Out**, then predict the most popular answer in **Fit In**.
 
+> **v1.5 Deep Answer Atlas — THE BIG LIST is now playable.** 5,644 additional source-backed city, county and dinosaur records power 18 large open-answer prompts. Search thousands of accepted names with faster indexed typo checks. New content is currently guest practice/party only to preserve established official daily scores. Read the [source, licensing and answer-coverage guide](docs/OPEN_ANSWER_ATLAS.md).
+
 > **v1.4 Custom Party Showdown — choose 2–8 players, 1–7 games, and your own Stand Out categories.** Every player answers the same seven-question slate per game. Results are sealed until a seven-stage dramatic reveal, followed by a game scoreboard and final series champion. This is free, local and unranked.
 
 > **v1.3 competition and discovery — weekly spotlight, Daily Debrief, league cup displays, opt-in crowd research and editorial QA.** The v1.2 editorial design remains intact. The hosted features still require Supabase, private ranked content and real player validation.
@@ -32,6 +34,36 @@ The browser must load the site over HTTP, not the file protocol, because the gam
 4. Once GitHub finishes deploying, the expected URL is **https://dokeefe414.github.io/Outlier-Trivia/**.
 
 Pages is **not enabled automatically** by these commits, and the expected URL should not be considered live until deployment succeeds.
+
+## v1.5 — Deep Answer Atlas / THE BIG LIST
+
+The original Krillion creator explains that huge rare-answer libraries come
+from merging and reviewing datasets—not magically recognizing every plausible
+answer. OUTLIER now expands its local source-backed answer sets with:
+
+- **1,000 U.S. city records** from an archived 2016 ACS list, including
+  unambiguous city-name and state-abbreviation variants.
+- **3,195 U.S. county and county-equivalent records** from a historical FIPS
+  crosswalk, with exact county/state names and safe short aliases.
+- **1,449 dinosaur or dinosaur-group names** from a historical CC0 catalog.
+- **18 additional broad Stand Out prompts**, and a featured **THE BIG LIST**
+  mode containing seven all–Stand Out questions, selected from these sources.
+- **Faster indexing:** Exact matches remain constant-time; an indexed
+  single-character correction checks unique approved names rather than
+  searching every string for every failed guess.
+- **Faster answer explorer:** Initially shows up to 80 approved entries, but
+  searches the full answer set on demand.
+- **A scalable data-review workflow:** `npm run review:catalog --
+  path/to/answers.json` identifies ambiguous aliases and malformed entries
+  without silently approving claims or changing published scores.
+
+All new source questions are available in guest practice and customizable
+Pass & Play. The official daily and private online ranked slates are unchanged
+by this addition. User-facing questions identify their archived source and
+date limits; not every real-world place or taxonomic name is in the snapshot.
+
+See [Deep Answer Atlas documentation](docs/OPEN_ANSWER_ATLAS.md) for sources,
+editorial scoring limitations, dataset import instructions and tests.
 
 ## v1.4 — Custom Party Showdown
 
