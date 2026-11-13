@@ -128,7 +128,7 @@ function profilePanel() {
      '<div class="answer-row"><input class="answer-input" id="online-display" name="name" maxlength="24" required value="'+escape(state.profile.name||"")+'">'+
      '<button class="btn btn-ghost" type="submit">SAVE NAME</button></div></form>'+
      '<div class="v13-crowd-consent"><div class="eyebrow">OPT-IN CROWD RESEARCH</div>'+
-     '<p class="small muted">Let completed official Fit In predictions made AFTER you opt in contribute anonymously to prior-day crowd comparisons. Only groups with 30+ responses appear. Withdrawing excludes all your prior submissions from future crowd results.</p>'+
+     '<p class="small muted">Let your completed official Fit In predictions and Stand Out picks made AFTER you opt in contribute anonymously to historical comparisons. Only groups with 30+ responses appear. Withdrawing excludes all your prior submissions from future crowd results.</p>'+
      '<button class="btn btn-ghost" type="button" data-online="crowd-consent" data-enabled="'+
        (state.profile.crowdOptIn?"false":"true")+'">'+
        (state.profile.crowdOptIn?"WITHDRAW CROWD RESEARCH CONSENT":"OPT IN TO CROWD RESEARCH")+'</button>'+
