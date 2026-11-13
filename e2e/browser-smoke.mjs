@@ -3,6 +3,8 @@
 import {chromium} from "playwright";
 import {rareQuestions} from "../src/data.js";
 import assert from "node:assert/strict";
+import {mkdirSync} from "node:fs";
+mkdirSync("artifacts/editorial", {recursive:true});
 
 const browser = await chromium.launch({headless:true});
 const url = process.env.OUTLIER_TEST_URL || "http://127.0.0.1:8000/";
@@ -13,6 +15,18 @@ page.setDefaultTimeout(12000);
 async function runDaily() {
   await page.goto(url);
   await page.locator(".hero").waitFor();
+  await page.locator(".poster-frame").waitFor();
+  assert.equal(await page.locator(".orbit-scene").count(),0,
+    "obsolete glowing orb illustration must be removed");
+  const editorial=await page.evaluate(()=>({
+    poster:getComputedStyle(document.querySelector(".poster-frame")).backgroundColor,
+    primary:getComputedStyle(document.querySelector(".hero-actions .btn-primary")).backgroundColor,
+    headline:document.querySelector(".hero h1").innerText,
+    hasStyle:Boolean(document.querySelector('link[href="./styles/editorial.css"]'))
+  }));
+  assert.ok(editorial.hasStyle,"editorial art-direction stylesheet must load");
+  assert.equal(editorial.poster,"rgb(217, 239, 105)","poster should be printed lime, not glowing purple");
+  assert.match(editorial.headline,/THINK ODD/i);
   await page.locator("#tour-dialog").waitFor();
   for(let step=1;step<=4;step++){
     assert.match(await page.locator("#tour-dialog .eyebrow").innerText(),new RegExp("0"+step));
@@ -20,6 +34,7 @@ async function runDaily() {
   }
   assert.equal(await page.locator("#tour-dialog").count(),0,"intro should close");
   await page.locator(".season-panel").waitFor();
+  await page.screenshot({path:"artifacts/editorial/home-desktop.png"});
   await page.locator(".missions-panel").waitFor();
   await page.locator(".identity-preview").waitFor();
   await page.locator(".cosmetics-panel").waitFor();
@@ -30,6 +45,11 @@ async function runDaily() {
   await page.locator('button[data-action="daily"]').first().click();
   for(let round=1;round<=7;round++) {
     await page.locator(".question-card").waitFor();
+    if(round===1){
+      const color=await page.locator(".question-card").evaluate(el=>getComputedStyle(el).backgroundColor);
+      assert.equal(color,"rgb(243, 239, 225)","question ticket must use warm paper");
+      await page.screenshot({path:"artifacts/editorial/question-desktop.png"});
+    }
     const text=await page.locator(".game-head h2").innerText();
     assert.match(text,new RegExp("Question\\s*"+round));
     const isFit=round%2===0;
@@ -90,6 +110,8 @@ async function runMobile() {
   await page.setViewportSize({width:390,height:844});
   await page.goto(url+"?beat=3800&day="+new Date().toISOString().slice(0,10));
   await page.locator(".hero").waitFor();
+  await page.locator(".poster-frame").waitFor();
+  await page.screenshot({path:"artifacts/editorial/home-mobile.png"});
   assert.match(await page.locator(".friend-challenge").innerText(),/3,800/);
   const widths=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,viewport:window.innerWidth}));
   assert.ok(widths.scroll <= widths.viewport+2,"mobile horizontal overflow: "+JSON.stringify(widths));
@@ -127,6 +149,7 @@ async function runMobile() {
     await page.locator('button[data-action="next"]').click();
   }
   await page.locator(".result-scorecard").waitFor();
+  await page.screenshot({path:"artifacts/editorial/results-mobile.png"});
   assert.match(await page.locator(".result-max").innerText(),/3,000/);
   await page.locator('button[data-action="practice"]').first().click();
   await page.locator('[data-action="practice-format"][data-format="rare-rush"]').click();

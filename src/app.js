@@ -390,10 +390,10 @@ function renderHome() {
   const actionLabel = ONLINE_ENABLED ? "COMPETE ONLINE TODAY →" : played ? "VIEW TODAY'S RESULTS ↗" : started ? "CONTINUE TODAY'S GAME →" : "PLAY TODAY'S GAME →";
   applyTheme();
   app.innerHTML = [
-    '<section class="hero"><div class="hero-copy">',
-    '<div class="eyebrow">THE DAILY BRAIN BATTLE</div>',
-    '<h1>THINK <span class="gradient-text">OUTSIDE</span><br>THE CROWD.</h1>',
-    '<p class="hero-description">Seven questions. Two ways to win. Think of an answer from a massive knowledge pool, or predict the crowd\'s favorite. How different is your brain?</p>',
+    '<section class="hero hero-editorial"><div class="hero-copy">',
+    '<div class="editorial-overline"><span class="overline-index">/ 001</span><span>THE DAILY GAME FOR WEIRDLY SPECIFIC PEOPLE</span></div>',
+    '<h1>THINK <span class="headline-odd">ODD<span class="headline-period">.</span></span><br><span class="headline-right">BE RIGHT<span class="headline-period">.</span></span></h1>',
+    '<p class="hero-description">Know the kind of random stuff nobody ever asks you about? Good. This is your game. Seven questions. Four deep cuts. Three crowd calls. One shot a day.</p>',
     '<div class="hero-actions">',
     homeButton(actionLabel, action), ONLINE_ENABLED ?
       homeButton("PLAY FREE AS GUEST", "daily", "btn-ghost") :
@@ -402,18 +402,23 @@ function renderHome() {
       '<div class="friend-challenge"><div class="friend-burst">⚔</div><div><strong>A FRIEND CHALLENGED YOU!</strong><p>Beat their ' + fmt(friendChallenge.score) +
       '-point score on today\'s seven questions.</p></div></div>' :
       friendChallenge ? '<div class="friend-challenge expired"><div class="friend-burst">◷</div><div><strong>THIS CHALLENGE HAS EXPIRED</strong><p>That shared score was from a different day. Play today\'s new questions instead.</p></div></div>' : '') +
-    '<div class="play-info"><span>✦ <b>Free</b> daily game</span><span>◷ About <b>3 minutes</b></span><span>◇ <b>4 rare + 3 crowd</b> picks</span></div>',
-    '</div><div class="orbit-scene" aria-hidden="true">',
-    '<div class="orbit-ring"></div><div class="orbit-ring two"></div><div class="orbit-ball"></div>',
-    '<div class="orbit-card top"><span class="card-symbol">💎</span><strong>+980 PTS</strong><small>STAND OUT · DEEP CUT</small></div>',
-    '<div class="orbit-card bottom"><span class="card-symbol">◎</span><strong>42% AGREE</strong><small>FIT IN · CROWD FAVORITE</small></div>',
-    '<div class="orbit-particle one"></div><div class="orbit-particle two"></div></div></section>',
-    '<section class="home-bottom"><div class="section-heading"><div><div class="eyebrow" style="margin-bottom:12px">YOUR DAILY FIX</div><h2>One game. Two mindsets.</h2></div>',
+    '<div class="play-info"><span><b>01</b> FREE DAILY</span><span><b>03</b> MINUTES(ISH)</span><span><b>07</b> QUESTIONS</span></div>',
+    '<div class="hero-signoff"><span class="signoff-arrow" aria-hidden="true">↗</span><span>YOU EITHER KNOW IT OR YOU DON\'T.<br><b>THAT\'S THE FUN PART.</b></span></div>',
+    '</div><div class="poster-scene" aria-hidden="true">',
+    '<div class="poster-frame"><div class="poster-masthead"><span>THE OUTLIER CLUB</span><span>EST. 2026 / ISSUE 001</span></div>',
+    '<div class="poster-main"><div class="poster-big-number">07<span>!</span></div>',
+    '<div class="poster-punchline"><span>ALL THE</span><strong>WRONG<br>ANSWERS.</strong><em>UNTIL YOU\'RE RIGHT.</em></div>',
+    '<div class="poster-arrows"><span>↘</span><span>↗</span></div></div>',
+    '<div class="poster-disc"><span>BE THE<br>OUTLIER</span><b>✳</b></div>',
+    '<div class="poster-lower"><span>04 <b>STAND OUT</b></span><i></i><span>03 <b>FIT IN</b></span></div>',
+    '<div class="poster-bottom"><span>NO CHEAT CODES. JUST CURIOUS MINDS.</span><strong>O / 01</strong></div></div>',
+    '<div class="poster-edge-label">HAND-PICKED FACTS / QUESTIONABLY USEFUL KNOWLEDGE</div></div></section>',
+    '<section class="home-bottom"><div class="section-heading"><div><div class="eyebrow" style="margin-bottom:12px">THE RULES, MORE OR LESS</div><h2>TWO WAYS TO <span class="section-underline">OUTSMART</span> EVERYONE.</h2></div>',
     '<span class="pill pill-yellow">NEW QUESTIONS EVERY DAY</span></div>',
     '<div class="feature-grid">',
-    '<div class="card feature-card"><span class="feature-tail">4</span><span class="feature-icon">💎</span><span class="pill pill-purple">4 QUESTIONS</span><h3>STAND OUT</h3><p>Name a correct answer other people might overlook. The deeper the cut, the bigger your score.</p></div>',
-    '<div class="card feature-card"><span class="feature-tail">3</span><span class="feature-icon">◎</span><span class="pill pill-teal">3 QUESTIONS</span><h3>FIT IN</h3><p>Choose what you think the crowd would pick. Here, the most popular answer wins.</p></div>',
-    '<div class="card feature-card"><span class="feature-tail">↗</span><span class="feature-icon">🏆</span><span class="pill pill-yellow">CLIMB THE RANKS</span><h3>PLAY THE LONG GAME</h3><p>Build a daily streak and chase your lifetime average and total. Global boards come next.</p></div>',
+    '<div class="card feature-card feature-rare"><span class="feature-tail">01</span><span class="feature-icon">↗</span><span class="pill pill-purple">4 / 7 ROUNDS</span><h3>STAND OUT.</h3><p>Know a ridiculous deep cut? Put it down. The less obvious your answer, the better.</p></div>',
+    '<div class="card feature-card feature-fit"><span class="feature-tail">02</span><span class="feature-icon">◎</span><span class="pill pill-teal">3 / 7 ROUNDS</span><h3>FIT IN.</h3><p>Forget your own taste. Guess what everybody else would say. Read the room.</p></div>',
+    '<div class="card feature-card feature-keep"><span class="feature-tail">03</span><span class="feature-icon">Ⅲ</span><span class="pill pill-yellow">DAILY RITUAL</span><h3>SHOW UP AGAIN.</h3><p>One official go each day. Collect your odd little wins and build a record worth keeping.</p></div>',
     '</div>',
     '<div class="stats-strip">',
     stat("CURRENT STREAK", currentStreak(storage.days,today()) + " 🔥"),
@@ -423,7 +428,7 @@ function renderHome() {
     '</div>' + progressPanel() + journeyPreview() + missionBoard() + playerCardPreview() + seasonPanel() + themesPanel() + betaPanel() + '</section>',
     '<section class="promo"><div><span class="pill pill-purple" style="margin-bottom:13px">' +
       (ONLINE_ENABLED ? 'ONLINE LEAGUE' : 'COMING AFTER THE PROTOTYPE') + '</span>',
-    '<h3>More trivia. No more waiting.</h3><p>' + (ONLINE_ENABLED ?
+    '<h3>WANT ANOTHER ROUND?</h3><p>' + (ONLINE_ENABLED ?
       'Compete on global leaderboards. Unlimited ranked-independent practice is a lifetime unlock.' :
       'Unlimited rounds, categories, and verified global competition are planned. Practice is temporarily free for prototype testing.') +
       '</p></div>',
@@ -530,8 +535,8 @@ function renderGame() {
   app.innerHTML = [
     '<div class="game-wrap"><div class="topbar"><button class="back-link" data-action="home" type="button">← BACK TO HOME</button>',
     '<span class="session-pill">' + (session.mode === "daily" ? 'DAILY · ' + esc(session.day) : "PRACTICE · " + esc((session.practiceGroup||"surprise").toUpperCase())) + '</span></div>',
-    '<div class="game-head"><div><div class="eyebrow" style="margin-bottom:10px">THE CHALLENGE</div>',
-    '<h2>Question ' + (session.index + 1) + ' <span class="muted">/ ' +session.questions.length+'</span></h2><p>Every answer counts. Trust your instincts.</p></div>',
+    '<div class="game-head"><div><div class="eyebrow" style="margin-bottom:10px">TODAY\'S FIELD TEST</div>',
+    '<h2>Question ' + (session.index + 1) + ' <span class="muted">/ ' +session.questions.length+'</span></h2><p>Think sideways. Trust the weird stuff you know.</p></div>',
     '<div class="game-score" aria-label="Current game score"><div class="tiny muted">YOUR SCORE</div><strong>' + fmt(scoreOf(session.answers)) + '</strong></div></div>',
     '<div class="progress-track"><div class="progress-fill" style="width:' + (session.index/session.questions.length*100) + '%"></div></div>',
     roundDots(),'<article class="card question-card ' + q.type + '">',

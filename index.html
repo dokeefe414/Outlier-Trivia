@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="referrer" content="no-referrer">
-  <meta name="theme-color" content="#0b1021">
-  <meta name="description" content="OUTLIER — Seven questions. Two ways to think. Can you outthink the crowd?">
+  <meta name="theme-color" content="#131b17">
+  <meta name="description" content="OUTLIER — Oddly specific daily trivia. Seven questions. Four deep cuts. Three crowd calls. One shot a day.">
   <meta property="og:title" content="OUTLIER — Outthink the crowd">
   <meta property="og:description" content="Four rare answers. Three crowd predictions. One daily brain battle.">
   <meta property="og:type" content="website">
@@ -16,16 +16,15 @@
   <title>OUTLIER — Outthink the crowd</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
   <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./styles/editorial.css">
 </head>
 <body>
-  <div class="ambient ambient-one" aria-hidden="true"></div>
-  <div class="ambient ambient-two" aria-hidden="true"></div>
-  <div class="starfield" aria-hidden="true"></div>
+  <div class="paper-grain" aria-hidden="true"></div>
   <div class="shell">
     <header class="site-header">
       <button class="brand" type="button" data-action="home" aria-label="OUTLIER, home">
-        <span class="brand-mark" aria-hidden="true"><span class="brand-spark">✦</span></span>
-        <span class="brand-word">OUTLIER<span class="brand-dot">.</span></span>
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="22" cy="24" r="15" stroke="currentColor" stroke-width="7"/><path d="M30 9L40 4L45 14L35 19" fill="var(--orange)"/><path d="M30 10L41 19" stroke="currentColor" stroke-width="3"/></svg></span>
+        <span class="brand-word">OUTLIER<span class="brand-dot">/</span></span>
       </button>
       <div class="header-actions">
         <button class="nav-link" type="button" data-action="leaderboard">My stats</button>
@@ -37,12 +36,13 @@
         </button>
       </div>
     </header>
+    <div class="edition-bar" aria-label="Edition information"><span class="edition-label">O / 01</span><span>FOR THE USEFULLY USELESS KNOWLEDGE IN YOUR HEAD.</span><span class="edition-date">ONE GAME / EVERY UTC DAY</span></div>
     <main id="app" class="app" aria-live="polite">
-      <div class="loading"><div class="spinner"></div><p>Booting up the brainwaves...</p></div>
+      <div class="loading"><div class="spinner"></div><p>Finding the good questions...</p></div>
     </main>
     <footer class="site-footer">
-      <span>OUTLIER <span class="footer-star">✦</span> THINK DIFFERENT.</span>
-      <span>v0.6 · Built for curious minds · A new game every UTC day</span>
+      <span>OUTLIER <span class="footer-star">✳</span> KNOW SOMETHING WEIRD.</span>
+      <span>ISSUE 01 / 2026 · BUILT FOR THE CURIOUS · NEW ROUND AT 00:00 UTC</span>
     </footer>
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>

@@ -139,5 +139,13 @@ jobs:
         run: |
           python3 -m http.server 8000 --bind 127.0.0.1 > /tmp/outlier-server.log 2>&1 &
           sleep 2
-      - name: Test seven questions, stats, guest persistence, and mobile view
+      - name: Test seven questions, editorial visuals, saved stats, and mobile view
         run: npm run test:browser
+      - name: Publish desktop and mobile visual review shots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: editorial-screenshots
+          path: artifacts/editorial/
+          retention-days: 14
+          if-no-files-found: ignore

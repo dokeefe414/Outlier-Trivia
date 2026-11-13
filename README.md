@@ -2,7 +2,7 @@
 
 **A playable, mobile-friendly daily general-knowledge game.** Seven questions, two mindsets: find a rare correct answer in **Stand Out**, then predict the most popular answer in **Fit In**.
 
-> **v1.1 game experience — the upgraded free daily game is live; hosted competition still requires setup.** The repository now contains production-oriented account, private-content, social league, editorial-review and Stripe test-mode infrastructure. Supabase/Stripe credentials, privately authored ranked answers and real-user validation are still required. No live payments or worldwide leaderboards are active.
+> **v1.2 editorial redesign — an original OUTLIER visual identity, new printed-ticket game screens, and no generic glowing-orb dashboard.** The repository now contains production-oriented account, private-content, social league, editorial-review and Stripe test-mode infrastructure. Supabase/Stripe credentials, privately authored ranked answers and real-user validation are still required. No live payments or worldwide leaderboards are active.
 
 ## Play
 
@@ -28,6 +28,31 @@ The browser must load the site over HTTP, not the file protocol, because the gam
 4. Once GitHub finishes deploying, the expected URL is **https://dokeefe414.github.io/Outlier-Trivia/**.
 
 Pages is **not enabled automatically** by these commits, and the expected URL should not be considered live until deployment succeeds.
+
+## v1.2 — OUTLIER Issue 01: Art direction overhaul
+
+OUTLIER has a distinctive visual voice now: **THINK ODD. BE RIGHT.**
+A creative direction inspired by independent sports zines and printed trivia
+field guides, instead of the generic purple-gradient/glassy-dashboard look.
+
+What changed:
+- Original broken-ring **O** logomark and matching custom SVG favicon.
+- A typographic **seven-question poster** built with actual HTML/CSS
+  (no stock art or generated illustrations).
+- Cream print-paper game tickets, hard-stamped scoring, handmarked accents
+  and two clearly differentiated question types.
+- Three asymmetrical color-blocked rule cards, a scoreboard-like player
+  profile, and cohesive typography for practice, missions and leagues.
+- Intentional mobile layouts and reduced-motion handling.
+
+The **gameplay rules and approved answer libraries were not altered**.
+The one-free-daily limit, retry-until-valid answer handling and all
+existing progression continue to work as before. Online verified
+competition and Stripe still need your own Supabase/merchant setup.
+
+See [v1.2 art direction and responsive QA](docs/V12_ART_DIRECTION.md).
+GitHub Actions uploads **editorial-screenshots** (desktop/mobile views)
+for manual design inspection.
 
 ## v1.1 — Knowledge Atlas, rare-answer celebrations and friend rivalries
 
@@ -375,8 +400,9 @@ The app has no run-time JavaScript dependencies. CI checks JavaScript and Deno s
 11. **Fair Answer Retries v0.8:** Invalid guesses can be retried until accepted, skipped, or timed out, in guest and hosted play.
 12. **Answer Intelligence v0.9:** vetted nicknames and scoring calibration, faster safe matching, better rarity reveals, audited review administration and private-beta validation scripts.
 13. **Competitive Beta v1.0 candidate:** strict private-bank launch gate, consent-based friend invites, previous-week champions, owner-only quality analytics and explicit Stripe live-mode controls.
-14. **Game Experience v1.1 (current):** animated editorial rarity moments, personal titles and frames, Knowledge Atlas, weekly missions, missing-answer suggestions and member-only rivalry comparisons.
-15. **Public launch:** moderation/reporting, accessibility audit, anti-cheat, privacy policy, operations monitoring, content pipeline.
+14. **Game Experience v1.1:** animated editorial rarity moments, personal titles and frames, Knowledge Atlas, weekly missions, missing-answer suggestions and member-only rivalry comparisons.
+15. **Independent Art Direction v1.2 (current):** bespoke type-led homepage, CSS poster, magazine-like ticket/game/result views, custom mark, editorial mobile design.
+16. **Public launch:** moderation/reporting, accessibility audit, anti-cheat, privacy policy, operations monitoring, content pipeline.
 
 ## Philosophy
 
