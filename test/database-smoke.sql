@@ -34,8 +34,8 @@ begin
     raise exception 'broad atlas contains an undersized answer pool';
   end if;
   if (select count(*) from unnest((select question_ids from public.game_attempts where id=g)) q(id)
-      where q.id like 'atlas-%') <> 4 then
-    raise exception 'official daily did not use four broad Stand Out questions';
+      where q.id like 'atlas-%' or q.id like 'pack-%') <> 4 then
+    raise exception 'official daily did not use four vetted broad Stand Out questions';
   end if;
   if s->>'index'<>'0' then raise exception 'unexpected starting index'; end if;
   if s->'question'->>'deadline' is null then raise exception 'first timer not started'; end if;

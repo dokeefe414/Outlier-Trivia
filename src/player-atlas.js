@@ -34,7 +34,8 @@ export function identityProgress(days,selected={}) {
   const bestRare=answers.filter(a=>a.type==="rare"&&a.valid)
     .reduce((best,a)=>Math.max(best,clamp(a.points)),0);
   const perfect=completed.some(([,run])=>run.answers.every(a=>a.valid));
-  const streak=longestStreak(days);
+  // Ignore invalid or non-date keys present in edited localStorage.
+  const streak=longestStreak(Object.fromEntries(completed));
   const xp=totals.reduce((value,score)=>value+50+Math.floor(score/100),0);
   const unlockedTitles=PLAYER_TITLES.map(t=>({...t,unlocked:daysPlayed>=t.days,
     remaining:Math.max(0,t.days-daysPlayed)}));
