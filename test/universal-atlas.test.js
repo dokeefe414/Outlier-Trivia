@@ -92,6 +92,14 @@ test("every Big List game has seven different categories, all new answers stay u
   }
   const arcade=buildArcadeRound("2026-11-16","music","rare-rush");
   assert.ok(arcade.some(q=>q.arcadeOnly));
-  const party=buildPartyGames({players:2,games:1,categories:["sports"]});
-  assert.ok(party[0].questions.some(q=>q.arcadeOnly));
+  // Randomly sampled party slates may legitimately contain four original
+  // sports questions. Verify that the expanded bank is eligible without
+  // requiring every individual random draw to include a new prompt.
+  let newSportsSeen=false;
+  for(let i=0;i<100;i++){
+    const party=buildPartyGames({players:2,games:1,categories:["sports"]});
+    assert.ok(party[0].questions.filter(q=>q.type==="rare").every(q=>q.poolGroup==="sports"));
+    if(party[0].questions.some(q=>q.arcadeOnly)){newSportsSeen=true;break;}
+  }
+  assert.ok(newSportsSeen,"new sports prompts should be reachable in party mode");
 });
