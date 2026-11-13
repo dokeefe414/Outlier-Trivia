@@ -46,7 +46,7 @@ answer. OUTLIER now expands its local source-backed answer sets with:
 - **3,195 U.S. county and county-equivalent records** from a historical FIPS
   crosswalk, with exact county/state names and safe short aliases.
 - **1,449 dinosaur or dinosaur-group names** from a historical CC0 catalog.
-- **18 additional broad Stand Out prompts**, and a featured **THE BIG LIST**
+- **14,186 additional accepted answer slots** (37,805 total in the audit), across 18 large prompts; 36,249 approved alias forms across all rare prompts. These are *per-question slots*, not distinct entities.\n- **18 additional broad Stand Out prompts**, and a featured **THE BIG LIST**
   mode containing seven all–Stand Out questions, selected from these sources.
 - **Faster indexing:** Exact matches remain constant-time; an indexed
   single-character correction checks unique approved names rather than
