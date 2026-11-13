@@ -18,7 +18,7 @@ New migration: `20261112001700_v13_crowd_consent.sql`. Accounts have explicit, i
 
 ### 4. Weekly tournament and special challenge
 
-The guest Knowledge Arcade gains a deterministic **Weekly Spotlight**: ten rare-answer questions and a featured topic, unchanged for all participants across one UTC week. It is free, unranked, and separate from the official daily. Personal bests are stored locally by week. The friend-league Weekly Cup uses server-verified weekly totals for provisional matchups, with the previous week's view locked to that period. No fake global or real-time competitors are rendered.
+The guest Knowledge Arcade gains a deterministic **Weekly Spotlight**: ten rare-answer questions and a featured topic, unchanged for all participants across one UTC week. It is free, unranked, and separate from the official daily. Personal bests are stored locally by week. The friend-league Weekly Cup uses server-verified weekly totals for provisional matchups, with the previous week's view locked to that period. In addition, **Pass & Play Duel** lets two friends use one device to take the same seven questions with hidden answers and scores until both finish. Local duels are strictly unranked. No fake global or real-time competitors are rendered.
 
 ### 5. Better answer QA
 
