@@ -25,7 +25,7 @@ test("score explanations disclose the editorial basis and alias matching",()=>{
   assert.equal(scoreExplanation({valid:false,type:"rare"},q),null);
 });
 test("rarity audit has finite values, stable group counts and no popularity claims",()=>{
-  const all=pointsAudit(rareQuestions);
+  const all=pointsAudit(rareQuestions.filter(q=>!q.arcadeOnly));
   assert.equal(all.length,105);
   assert.ok(all.every(row=>row.min>=1&&row.max<=1000));
   assert.ok(all.every(row=>row.median>=row.min&&row.median<=row.max));

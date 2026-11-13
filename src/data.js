@@ -1,4 +1,5 @@
 import { extraFitQuestions } from "./fit-expansion.js";
+import {openAtlasQuestions} from "./open-atlas-questions.js";
 import { contentPackQuestions } from "./content-packs.js";
 import { broadQuestions } from "./atlas-questions.js";
 // OUTLIER prototype question bank.
@@ -204,6 +205,9 @@ fitQuestions.push(
 rareQuestions.push(...broadQuestions);
 // v0.5 entertainment, nature, sports, games and people catalog expansions.
 rareQuestions.push(...contentPackQuestions);
+// v1.5 CC0 source-backed broad answer sets. Arcade/party only: the existing
+// official daily and prior immutable UTC question slates remain unchanged.
+rareQuestions.push(...openAtlasQuestions);
 
 // v0.5 varied crowd prediction questions (illustrative fixed distributions).
 fitQuestions.push(...extraFitQuestions);

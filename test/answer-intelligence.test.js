@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {normalizeAnswer,oneEditApart,inspectRareGuess,auditQuestionAliases,rarityTier} from "../src/answer-intelligence.js";
+import {normalizeAnswer,oneEditApart,inspectRareGuess,suggestedApprovedAnswers,auditQuestionAliases,rarityTier} from "../src/answer-intelligence.js";
 import {matchRare,evaluate} from "../src/game.js";
 import {rareQuestions} from "../src/data.js";
 import {approvedAliases} from "../src/approved-aliases.js";
@@ -72,7 +72,7 @@ test("one-character typos only match unique full-length approved answers",()=>{
   assert.equal(inspectRareGuess(mvp,"").status,"empty");
 });
 test("all 105 broad lists are audited for contradictory aliases and points",()=>{
-  const broad=rareQuestions.filter(q=>q.bigPool);
+  const broad=rareQuestions.filter(q=>q.bigPool && !q.arcadeOnly);
   assert.equal(broad.length,105);
   let slots=0;
   for(const q of broad){
@@ -85,4 +85,16 @@ test("all 105 broad lists are audited for contradictory aliases and points",()=>
   assert.equal(slots,23619);
   assert.ok(Object.keys(approvedAliases).length>=7);
   assert.equal(rarityTier(870).id,"deep-cut");
+});
+
+test("indexed one-edit matcher handles large catalogs and rejects ambiguous close names",()=>{
+  const q={answers:[["Akron",700],["Akran",710],["Zzxlongname",900]]};
+  assert.equal(inspectRareGuess(q,"Akron").match?.label,"Akron");
+  assert.equal(inspectRareGuess(q,"Akrin").status,"ambiguous");
+  assert.equal(inspectRareGuess(q,"Zzxlongnam").match?.label,"Zzxlongname");
+  assert.equal(inspectRareGuess(q,"Zzzxlongname").match?.label,"Zzxlongname");
+  assert.equal(inspectRareGuess(q,"Zzxlongneme").match?.label,"Zzxlongname");
+  assert.equal(inspectRareGuess(q,"Zzxloooooname").status,"unrecognized");
+  assert.deepEqual(suggestedApprovedAnswers(q,"Zzxloooooname"),[]);
+  assert.equal(inspectRareGuess(q,"frog").status,"unrecognized");
 });

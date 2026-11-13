@@ -1223,3 +1223,28 @@ a{color:var(--lime)}
   .party-reveal-symbol,.party-pick-card,.party-winner-mark{animation:none!important}
   .party-topic{transition:none}
 }
+
+/* OUTLIER v1.5 / source-backed Big List challenge */
+.open-atlas-panel{
+  margin:26px 0 34px;display:flex;align-items:center;
+  justify-content:space-between;gap:20px;flex-wrap:wrap;
+  padding:29px 30px;border:2px solid var(--paper);
+  background:var(--panel2);color:var(--paper);
+  box-shadow:6px 6px 0 var(--orange);border-radius:2px;
+}
+.open-atlas-panel .eyebrow{color:var(--lime)}
+.open-atlas-panel h2{
+  margin:12px 0;font:400 clamp(24px,3.2vw,39px)/1.09
+  'Archivo Black','Arial Black',sans-serif;max-width:590px;letter-spacing:-1px;
+}
+.open-atlas-panel p{font-size:14px;max-width:620px;line-height:1.6}
+.open-atlas-panel small{
+  display:block;color:var(--lime);
+  font:600 10px/1.5 'DM Mono',monospace;letter-spacing:.025em
+}
+.open-atlas-panel .btn{white-space:normal;flex-shrink:0}
+#answer-explorer-count{margin:8px 0 15px}
+@media(max-width:650px){
+  .open-atlas-panel{padding:22px}
+  .open-atlas-panel .btn{width:100%}
+}
