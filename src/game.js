@@ -192,6 +192,13 @@ export function buildArcadeRound(day=utcDay(), group="surprise", format="classic
   return shuffled(chosen,random).map((q,index)=>({...q,type:"rare",index}));
 }
 
+// Free unranked Big List mode: seven archive-backed open-answer prompts.
+export function buildOpenAtlasRound(random=Math.random) {
+  const pool=rareQuestions.filter(q=>q.arcadeOnly&&q.bigPool);
+  if(pool.length<7)throw new Error("Insufficient open-atlas questions");
+  return shuffled(pool,random).slice(0,7).map((q,index)=>({...q,type:"rare",index}));
+}
+
 export function arcadeMaximum(questions) {
   return questions.length*1000;
 }
