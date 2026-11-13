@@ -4,10 +4,10 @@
 import { scoreOf, weekStart, utcDay } from "./game.js";
 
 export const THEMES = Object.freeze([
-  { id:"nebula", name:"Nebula", symbol:"✦", requirement:0, description:"The classic violet OUTLIER look" },
-  { id:"aurora", name:"Aurora", symbol:"❋", requirement:3, description:"A vivid ocean-green glow" },
-  { id:"sunset", name:"Sunset", symbol:"☀", requirement:7, description:"A lively sunset-inspired accent" },
-  { id:"champion", name:"Champion", symbol:"♛", requirement:14, description:"Gold details for daily regulars" }
+  { id:"nebula", name:"Nebula", symbol:"✦", requirement:0, description:"Original acid-lime and signal-orange print ink" },
+  { id:"aurora", name:"Aurora", symbol:"❋", requirement:3, description:"Sea-glass teal and warm amber print ink" },
+  { id:"sunset", name:"Sunset", symbol:"☀", requirement:7, description:"Coral and sunbleached gold print ink" },
+  { id:"champion", name:"Champion", symbol:"♛", requirement:14, description:"Championship gold and sage-green trim" }
 ]);
 export const TOUR_STEPS = Object.freeze([
   {

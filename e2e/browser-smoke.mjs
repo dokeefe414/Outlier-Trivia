@@ -203,10 +203,43 @@ async function runSyntheticIdentity() {
   await seeded.locator('button[data-action="leaderboard"]').first().click();
   assert.equal(await seeded.locator('.identity-choice[data-id="diamond"]').getAttribute("aria-pressed"),"true",
     "Cosmetic frame should persist across reloads");
+  await seeded.locator('.theme-choice[data-theme="aurora"]').click();
+  const ink=await seeded.evaluate(()=>getComputedStyle(document.documentElement).getPropertyValue("--lime").trim());
+  assert.equal(ink,"#8feddc","earned theme must change the print palette");
+  await seeded.reload();
+  assert.equal(await seeded.locator('html').getAttribute("data-skin"),"aurora",
+    "earned ink palette should persist");
+  await seeded.locator('button[data-action="leaderboard"]').first().click();
   const widths=await seeded.evaluate(()=>({scroll:document.documentElement.scrollWidth,viewport:innerWidth}));
   assert.ok(widths.scroll<=widths.viewport+2,"mobile profile horizontal overflow: "+JSON.stringify(widths));
   await context2.close();
   console.log("PASS local title/frame unlocks, selection, persistence, and mobile player-card layout");
+}
+
+async function runNarrowEditorial() {
+  const ctx=await browser.newContext({viewport:{width:320,height:740},reducedMotion:"reduce"});
+  const narrow=await ctx.newPage();
+  await narrow.addInitScript(()=>{
+    localStorage.setItem("outlier-prototype-v1",JSON.stringify({
+      days:{},arcade:{},sound:false,beta:{tutorial:true},theme:"nebula"
+    }));
+  });
+  await narrow.goto(url);
+  await narrow.locator(".poster-frame").waitFor();
+  const bounds=await narrow.evaluate(()=>{
+    const poster=document.querySelector(".poster-frame").getBoundingClientRect();
+    const hero=document.querySelector(".hero h1").getBoundingClientRect();
+    return {scroll:document.documentElement.scrollWidth,viewport:innerWidth,
+      posterLeft:poster.left,posterRight:poster.right,
+      headlineRight:hero.right};
+  });
+  assert.ok(bounds.scroll<=bounds.viewport+2,
+    "320px portrait horizontal overflow: "+JSON.stringify(bounds));
+  assert.ok(bounds.posterLeft>=0 && bounds.posterRight<=bounds.viewport+2,
+    "printed poster must stay on the narrow screen: "+JSON.stringify(bounds));
+  await narrow.screenshot({path:"artifacts/editorial/home-320.png"});
+  await ctx.close();
+  console.log("PASS editorial art direction at 320px portrait and earned print-skin palette");
 }
 
 async function runAdminSafety() {
@@ -223,6 +256,7 @@ try {
   await runDaily();
   await runMobile();
   await runSyntheticIdentity();
+  await runNarrowEditorial();
   await runAdminSafety();
 } finally {
   await browser.close();

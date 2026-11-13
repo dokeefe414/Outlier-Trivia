@@ -915,3 +915,11 @@ a{color:var(--lime)}
 .practice-meta,.play-info,.practice-count,.reset-clock{
   font-variant-numeric:tabular-nums;
 }
+
+/* A theme picker should show genuinely different earned ink palettes. */
+.theme-choice .theme-orb{border-radius:2px;box-shadow:none!important;
+  color:var(--ink);border:2px solid var(--ink);filter:none}
+.theme-orb.nebula{background:#d9ef69!important}
+.theme-orb.aurora{background:#8feddc!important}
+.theme-orb.sunset{background:#ffce83!important}
+.theme-orb.champion{background:#f0d184!important}

@@ -62,6 +62,19 @@ The admin review studio is an owner-only operational tool and retains its
 purpose-built utilitarian layout; a design redesign never justifies exposing
 private data in the public UI.
 
+## Earned color themes
+
+The earlier cosmetic themes remain **visibly distinct** rather than being
+flattened into one design:
+- Original: acid-lime and signal-orange ink.
+- Aurora: sea-glass teal and warm amber.
+- Sunset: coral and sunbleached gold.
+- Champion: aged gold and sage-green trim.
+
+Theme IDs, daily-completion unlock thresholds, and saved player choices are
+unchanged. The same design grammar works in all four palettes; earned
+customization never affects scoring.
+
 ## Responsive and accessibility rules
 
 - 1040px: poster and big type shrink smoothly.
@@ -84,9 +97,9 @@ Headless Playwright runs desktop and small-mobile gameplay and checks that:
 - The game still accepts approved answers, retries rejects without resetting
   the timer, supports all practice formats, and persists earned player frames.
 
-The browser job saves four visual reference screenshots in the **editorial-
+The browser job saves five visual reference screenshots in the **editorial-
 screenshots** CI artifact: desktop homepage, desktop question, mobile homepage,
-and mobile result. These are human review aids, not a substituted
+mobile result, and a 320px narrow-phone homepage. These are human review aids, not a substituted
 pixel-perfect design-quality guarantee.
 
 ## Practical future art direction
