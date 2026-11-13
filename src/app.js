@@ -12,7 +12,7 @@ import {dailyDebrief,weeklySpotlight,weeklySpotlightRound} from "./v13-discovery
 import {openAtlasCatalog} from "./open-atlas-questions.js";
 import {personalMastery} from "./mastery.js";
 import {validateReviewDraft,reviewIssueLink,recordReviewLinkOpened,reviewTicketSummary,attachReviewIssue} from "./review-queue.js";
-import {PARTY_LIMITS,PARTY_TOPICS,PARTY_TIMERS,PARTY_WAGERS,normalizePartyConfig,buildPartyGames,partyGameScores,partyStandings,partyRevealRound} from "./party-duel.js";
+import {PARTY_LIMITS,PARTY_TOPICS,PARTY_TIMERS,PARTY_WAGERS,normalizePartyConfig,buildPartyGames,partyGameScores,partyStandings,partyRevealRound,partyRevealBeat} from "./party-duel.js";
 
 const STORAGE_KEY = "outlier-prototype-v1";
 const app = document.getElementById("app");
@@ -1051,6 +1051,7 @@ function renderPartyReveal() {
       (last&&d.config.finalWager?'<div class="party-final-drum">⚡ ALL WAGERS ARE NOW REVEALED</div>':'')+
       '</div>'+
     '<div class="party-picks-grid">'+cards+'</div>'+
+    '<div class="party-commentary" role="status">'+esc(partyRevealBeat(game,frame.index,d.config.names)||"")+'</div>'+
     '<div class="party-reveal-footer"><p>Scores are kept secret until all seven rounds are revealed.</p>'+
       homeButton(last?'SHOW GAME SCOREBOARD ↗':'REVEAL NEXT ROUND ↗','duel-reveal-next','btn-primary')+'</div></section>';
   window.scrollTo(0,0);
