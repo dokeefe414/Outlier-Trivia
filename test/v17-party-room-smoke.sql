@@ -71,6 +71,7 @@ begin
   if frame->>'phase'<>'playing' or frame->'question'->>'index'<>'0' then
     raise exception 'Room did not start round zero';
   end if;
+  if frame->'questions'<>'null'::jsonb then raise exception 'Future prompt slate leaked';end if;
   if frame->'scores'<>'null'::jsonb or frame->'answers'<>'null'::jsonb then
     raise exception 'Pre-finish scores or secrets leaked';
   end if;
@@ -101,6 +102,10 @@ begin
   final:=public.outlier_party_state(u1,room);
   if final->>'phase'<>'finished' or jsonb_array_length(final->'scores')<>2 then
     raise exception 'Final verified scoreboard missing';
+  end if;
+  if jsonb_array_length(final->'questions')<>7 or
+    final->'questions'->0->>'prompt' is null then
+    raise exception 'Final question-by-question reveal prompts are unavailable';
   end if;
   if final->'question'<>'null'::jsonb then
     raise exception 'Finished game still leaked a live question';
