@@ -418,7 +418,8 @@ function duelPanel() {
     homeButton('BUILD YOUR GAME NIGHT ↗','duel','btn-ghost')+'</section>';
 }
 
-function renderPartySetup() {
+function renderPartySetup(preserveScroll=false) {
+  const previousY=window.scrollY;
   screen="duel-setup";
   clearInterval(intervalId);
   const playerOptions=Array.from({length:PARTY_LIMITS.maxPlayers-PARTY_LIMITS.minPlayers+1},(_,i)=>i+PARTY_LIMITS.minPlayers)
@@ -464,7 +465,7 @@ function renderPartySetup() {
       (partySetup.games===1?'GAME':'GAMES')+'</strong>'+
       '<span>4 Stand Out + 3 Fit In per game · 45 seconds/question · No official points</span></div>'+
       '<button type="submit" class="btn btn-primary">START THE SHOWDOWN ↗</button></div></form></section>';
-  window.scrollTo(0,0);
+  window.scrollTo(0,preserveScroll?previousY:0);
 }
 function spotlightPanel() {
   const event=weeklySpotlight(today());
@@ -1136,12 +1137,17 @@ function closeRules() { modalRoot.replaceChildren(); }
 function shareResult() {
   storage.beta.shared=true; saveStore();
   if(session?.duel){
-    const score=duelSummary(session.duel.players[0].answers,session.duel.players[1].answers);
-    const value="OUTLIER LOCAL DUEL (UNRANKED)\nPLAYER 1: "+fmt(score.oneScore)+
-      " pts\nPLAYER 2: "+fmt(score.twoScore)+" pts\n"+
-      window.location.origin+window.location.pathname;
+    if(screen!=="duel-champion")return;
+    const d=session.duel,summary=partyStandings(d.config,d.games);
+    const rows=summary.table.map((row,index)=>
+      (index+1)+". "+row.name+" · "+row.wins+" game "+(row.wins===1?"win":"wins")+
+      " · "+fmt(row.points)+" pts").join("\\n");
+    const value="OUTLIER PASS & PLAY SHOWDOWN\\n"+
+      d.config.players+" players · "+d.config.games+" "+(d.config.games===1?"game":"games")+
+      "\\nCHAMPION: "+summary.champions.map(row=>row.name).join(" & ")+
+      "\\n"+rows+"\\n"+window.location.origin+window.location.pathname;
     if(navigator.clipboard?.writeText)
-      navigator.clipboard.writeText(value).then(()=>toast("Duel result copied!"),()=>copyFallback(value));
+      navigator.clipboard.writeText(value).then(()=>toast("Final party standings copied!"),()=>copyFallback(value));
     else copyFallback(value);
     return;
   }
@@ -1178,12 +1184,42 @@ document.addEventListener("click", event => {
     case "practice-format": practiceFormat = control.dataset.format||"classic"; renderPracticeSelect(); break;
     case "retry-practice": newSession(session?.weeklyEvent?"spotlight":"practice",session?.practiceGroup||"surprise"); break;
     case "weekly-event": newSession("spotlight"); break;
-    case "duel": newSession("duel"); break;
+    case "duel": renderPartySetup(); break;
+    case "party-topic": {
+      if(screen!=="duel-setup")return;
+      const topic=control.dataset.topic;
+      if(!PARTY_TOPICS.some(x=>x.value===topic))return;
+      partySetup.categories=partySetup.categories.includes(topic)
+        ?partySetup.categories.filter(x=>x!==topic):[...partySetup.categories,topic];
+      renderPartySetup(true);break;
+    }
+    case "party-all":
+      if(screen!=="duel-setup")return;
+      partySetup.categories=[];renderPartySetup(true);break;
+    case "duel-begin":
+      if(screen==="duel-ready"&&session?.duel)renderGame();
+      break;
     case "duel-handoff": {
-      if(screen!=="duel-handoff"||!session?.duel||session.duel.playerIndex!==0)return;
-      session.duel.playerIndex=1;session.answers=[];session.index=0;session.deadline=null;
+      if(screen!=="duel-handoff"||!session?.duel)return;
+      const d=session.duel;
+      if(d.playerIndex+1>=d.config.players)return;
+      d.playerIndex++;session.answers=[];session.index=0;session.deadline=null;
       session.retryQuestionIndex=-1;feedback=null;renderGame();break;
     }
+    case "duel-reveal-next": {
+      if(screen!=="duel-reveal"||!session?.duel)return;
+      const d=session.duel;
+      if(d.revealIndex>=session.questions.length-1){renderPartyGameResult();break;}
+      d.revealIndex++;sound(690,.12);renderPartyReveal();break;
+    }
+    case "duel-next-game": partyNextGame();break;
+    case "duel-champion":
+      if(screen==="duel-game-results"&&session?.duel?.gameIndex+1===session.duel.config.games)
+        renderDuelResult();
+      break;
+    case "duel-rematch":
+      if(screen==="duel-champion"&&session?.duel)newSession("duel",session.duel.config);
+      break;
     case "online": showOnline(); break;
     case "result": newSession("daily"); break;
     case "fit-answer": submitAnswer(control.dataset.answer); break;
@@ -1256,6 +1292,12 @@ document.addEventListener("click", event => {
 });
 
 document.addEventListener("input", event => {
+  if(screen==="duel-setup"&&event.target?.hasAttribute?.("data-party-name")){
+    const index=Number(event.target.dataset.partyName);
+    if(Number.isInteger(index)&&index>=0&&index<PARTY_LIMITS.maxPlayers)
+      partySetup.names[index]=event.target.value;
+    return;
+  }
   if(event.target?.id === "rare-answer") {
     const warning = document.getElementById("answer-validation");
     if (warning) warning.hidden = true;
@@ -1274,7 +1316,30 @@ document.addEventListener("input", event => {
   if(empty)empty.hidden=shown>0;
 });
 
+document.addEventListener("change",event=>{
+  if(screen!=="duel-setup")return;
+  if(event.target?.id==="party-player-count"){
+    partySetup.players=Number(event.target.value);
+    while(partySetup.names.length<partySetup.players)
+      partySetup.names.push("PLAYER "+(partySetup.names.length+1));
+    renderPartySetup(true);
+  }else if(event.target?.id==="party-game-count"){
+    partySetup.games=Number(event.target.value);
+    renderPartySetup(true);
+  }
+});
+
 document.addEventListener("submit", event => {
+  if(event.target?.id==="party-config-form"){
+    event.preventDefault();
+    if(screen!=="duel-setup")return;
+    try{
+      const config=normalizePartyConfig(partySetup);
+      partySetup={...config,names:[...config.names]};
+      newSession("duel",config);
+    }catch(error){toast(error?.message||"Check your player names and categories.");}
+    return;
+  }
   if (event.target?.id !== "rare-form") return;
   event.preventDefault();
   const text = document.getElementById("rare-answer")?.value.trim();
