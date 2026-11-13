@@ -1328,3 +1328,50 @@ a{color:var(--lime)}
   .review-tracker-row form .answer-input{flex:1}
   .party-wager-options .btn{width:100%}
 }
+
+.party-commentary{background:var(--ink);border:2px solid var(--lime);padding:18px 22px;
+  text-align:center;font:700 clamp(14px,2.7vw,22px)/1.25 'Archivo Black',sans-serif;
+  letter-spacing:.015em;margin-top:20px;color:var(--lime)}
+.online-party-panel{margin:22px 0;display:flex;flex-direction:column;gap:13px}
+.online-party-panel h3,.online-party-head h2,.online-party-final-reveal h3{font:400 clamp(23px,3.2vw,38px)/1.1 'Archivo Black',sans-serif}
+.online-party-panel .btn{align-self:flex-start}
+.online-party-panel form{margin-top:10px;max-width:600px}
+.online-party-head{margin:22px auto 18px;max-width:950px}
+.online-party-head p{max-width:700px;line-height:1.6}
+.online-party-waiting,.online-party-question,.online-party-countdown,
+.online-party-finale,.online-party-final-scores,.online-party-final-reveal{
+  margin:20px auto;max-width:950px;padding:30px}
+.online-party-waiting h3,.online-party-countdown h3,.online-party-question h3,
+.online-party-finale h3,.online-party-final-scores h3{
+  font:400 clamp(23px,4vw,44px)/1.15 'Archivo Black',sans-serif;margin:15px 0}
+.online-party-roster{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:18px 0}
+.online-party-member{display:flex;align-items:center;min-width:0;gap:8px;border:1px solid var(--line);
+  padding:12px;background:var(--panel2)}
+.online-party-member strong{font-size:13px;min-width:0;overflow-wrap:anywhere}
+.online-party-member small{font:500 10px 'DM Mono',monospace;margin-left:auto;color:var(--lime)}
+.party-invite-code{font:700 clamp(26px,4.5vw,43px) 'DM Mono',monospace;letter-spacing:.15em;
+  padding:16px;background:var(--ink);color:var(--lime);border:2px dashed var(--lime);margin:15px 0;
+  overflow-wrap:anywhere;text-align:center}
+.online-party-clock,.online-party-bigclock{font:700 clamp(28px,8vw,65px) 'DM Mono',monospace;color:var(--lime)}
+.online-party-picks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px;margin:24px 0}
+.online-party-picks button{white-space:normal;min-height:58px;text-align:left}
+.online-party-sealed{padding:20px;border:2px solid var(--lime);color:var(--lime);margin:24px 0;
+  font:700 14px 'DM Mono',monospace}
+.online-party-question form{margin:24px 0}
+.online-party-question form .answer-input{flex:1;min-width:0}
+.online-party-room-actions{display:flex;gap:10px;flex-wrap:wrap;max-width:950px;margin:20px auto 50px}
+.online-party-room-actions .btn{white-space:normal}
+.online-party-finale{text-align:center}
+.online-party-finale .btn{margin:auto}
+.online-party-final-reveal .btn{margin-top:25px}
+.online-party-final-scores{text-align:center}
+.online-party-score{display:flex;justify-content:space-between;align-items:center;gap:13px;
+  margin:9px 0;padding:16px;border:1px solid var(--line);text-align:left}
+.online-party-score.winner{border:2px solid var(--lime);background:var(--panel3)}
+.online-party-score span{font:600 12px 'DM Mono',monospace}
+@media(max-width:650px){
+  .online-party-roster,.online-party-picks{grid-template-columns:1fr}
+  .online-party-waiting,.online-party-question,.online-party-countdown,
+  .online-party-finale,.online-party-final-scores,.online-party-final-reveal{padding:20px}
+  .online-party-panel .btn{width:100%}
+}
