@@ -1,5 +1,8 @@
 # OUTLIER — Hosted online league setup
 
+> **v1.7 private multiplayer rooms:** The seven-round online rooms use a distinct, owner-curated **private room question bank**, server-authoritative clocks and a separate migration 018. Refer to [the v1.7 deployment and security guide](V17_GAMEPLAY_MULTIPLAYER.md) before offering room play. GitHub Pages alone cannot operate authenticated room matches; production room keys and Supabase secrets are never committed.
+
+
 **Current status:** Hosted mode is source code only. GitHub Pages continues to run
 the local daily game until Supabase and Stripe are independently configured.
 No real accounts, payments, or worldwide rankings are active solely from these commits.

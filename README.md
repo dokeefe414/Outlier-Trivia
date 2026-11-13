@@ -2,6 +2,8 @@
 
 **A playable, mobile-friendly daily general-knowledge game.** Seven questions, two mindsets: find a rare correct answer in **Stand Out**, then predict the most popular answer in **Fit In**.
 
+> **v1.7 GAME NIGHT & KNOWLEDGE MASTERY:** Better source-evidence answer reporting, 2–8 player Pass & Play with selectable 20–90s timers, optional secret final-question stakes, player portraits, series standings and dramatic reveals; new official-daily-only category mastery, trophies and personal bests. A separately secured 2–4 account private online room service is included as **deployable source only**; it requires a Supabase deployment and a separately reviewed private room bank. [Full v1.7 gameplay and activation notes](docs/V17_GAMEPLAY_MULTIPLAYER.md).
+
 > **v1.6 Universal Answer Atlas — 235 Stand Out questions and 107,588 approved answer slots.** Added 80 deep-source prompts across all twelve topics: thousands of movies and TV shows, historical MLB players, music, books, science, sports, people, animals, food, games, and more. THE BIG LIST now samples seven different topic groups. [See sources, counts, and exact answer rules](docs/V16_UNIVERSAL_ANSWER_ATLAS.md).
 >
 > **v1.5 Deep Answer Atlas — THE BIG LIST is now playable.** 5,644 additional source-backed city, county and dinosaur records power 18 large open-answer prompts. Search thousands of accepted names with faster indexed typo checks. New content is currently guest practice/party only to preserve established official daily scores. Read the [source, licensing and answer-coverage guide](docs/OPEN_ANSWER_ATLAS.md).
@@ -36,6 +38,20 @@ The browser must load the site over HTTP, not the file protocol, because the gam
 4. Once GitHub finishes deploying, the expected URL is **https://dokeefe414.github.io/Outlier-Trivia/**.
 
 GitHub Pages deployments are verified through the repository's Actions workflow. Check the latest deployment run if you are testing a newly merged release.
+
+## v1.7 — Game Night, source-based review, mastery and private rooms
+
+OUTLIER v1.7 extends the actual game feel and player ownership without removing the free daily or the 107,588 existing accepted rare-answer slots.
+
+**Pass & Play Showdown 2.0** keeps the configurable **2–8 players, 1–7 games, and categories**, and now offers **20, 30, 45, 60 or 90 seconds per question**, custom colored initials avatars, previous-game series standings, and an optional **0/100/250/500-point secret final-question wager**. Correct final answers add the wager; skipped/invalid final answers lose it. No stakes involve money. Everyone plays the same slate privately, points remain sealed until the question-by-question reveal, and exact series ties still produce co-champions.
+
+**Answer review with proof:** After a Stand Out round you can type a missing answer, explain exactly why it qualifies and supply an HTTPS source. OUTLIER opens a prefilled GitHub issue instead of automatically trusting an AI guess. A local tracker distinguishes an **issue link opened** from a **confirmed GitHub issue URL**; neither implies editorial approval. Published official scores and prior records remain unchanged.
+
+**Knowledge Mastery:** A new profile card calculates personal-best scores, six new trophies and subject mastery levels (Rookie through Sage) strictly from your own **completed official daily games**. Party, Big List, unranked practice and online exhibitions do not affect verified local daily progression.
+
+**Private online rooms (backend source, not activated on public Pages):** The authenticated Supabase Edge Function now supports 2–4 players on separate devices in a private seven-question room, shared 45-second server timers, one sealed pick per question, and verified end-only scoring followed by round reveals. The service uses an **entirely separate, initially empty private room question bank** to avoid leaking future official daily answers. The public Supabase URL and anon key are not configured and no real online users or private bank are provisioned by this commit. Follow the [full setup/security/beta guide](docs/V17_GAMEPLAY_MULTIPLAYER.md) to activate and test this capability.
+
+**Validation:** Node/Playwright cover category selection, 90-second party wagers, mobile winner reveals, evidence-review links and local mastery. PostgreSQL security tests run the private-room migration using disposable CI-only answer fixtures; real production keys never appear in this repo.
 
 ## v1.6 — Universal Answer Atlas / EVERY CATEGORY EXPANDED
 

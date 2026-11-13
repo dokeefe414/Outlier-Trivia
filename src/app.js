@@ -10,7 +10,9 @@ import {scoreHistory,weekSummary,nextGoal,versusHistory,utcResetRemaining} from 
 import { readFriendChallenge, challengeLink, challengeOutcome, categoryInsights } from "./social.js";
 import {dailyDebrief,weeklySpotlight,weeklySpotlightRound} from "./v13-discovery.js";
 import {openAtlasCatalog} from "./open-atlas-questions.js";
-import {PARTY_LIMITS,PARTY_TOPICS,normalizePartyConfig,buildPartyGames,partyGameScores,partyStandings,partyRevealRound} from "./party-duel.js";
+import {personalMastery} from "./mastery.js";
+import {validateReviewDraft,reviewIssueLink,recordReviewLinkOpened,reviewTicketSummary,attachReviewIssue} from "./review-queue.js";
+import {PARTY_LIMITS,PARTY_TOPICS,PARTY_TIMERS,PARTY_WAGERS,normalizePartyConfig,buildPartyGames,partyGameScores,partyStandings,partyRevealRound,partyRevealBeat} from "./party-duel.js";
 
 const STORAGE_KEY = "outlier-prototype-v1";
 const app = document.getElementById("app");
@@ -22,6 +24,7 @@ function loadStore() {
     const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
     return { days: raw.days && typeof raw.days === "object" ? raw.days : {},
       arcade: raw.arcade && typeof raw.arcade === "object" ? raw.arcade : {},
+      reviewLinks:Array.isArray(raw.reviewLinks)?raw.reviewLinks.slice(0,40):[],
       sound: Boolean(raw.sound),
       beta: raw.beta && typeof raw.beta === "object" ? raw.beta : {},
       theme: typeof raw.theme === "string" ? raw.theme : "nebula",
@@ -29,7 +32,7 @@ function loadStore() {
         ? {title:String(raw.player.title||""),frame:String(raw.player.frame||"")}
         : {title:"",frame:""} };
   } catch {
-    return { days: {}, arcade: {}, sound: false, beta: {}, theme: "nebula",
+    return { days: {}, arcade: {}, reviewLinks:[], sound: false, beta: {}, theme: "nebula",
       player:{title:"",frame:""} };
   }
 }
@@ -39,7 +42,7 @@ let session = null;
 let feedback = null;
 let boardTab = "daily";
 let practiceFormat = "classic";
-let partySetup = {players:2,games:1,categories:[],names:["PLAYER 1","PLAYER 2"]};
+let partySetup = {players:2,games:1,categories:[],names:["PLAYER 1","PLAYER 2"],timerSeconds:45,finalWager:false};
 let tourPage = 0;
 let tourWasSeenThisSession = false;
 const friendChallenge = readFriendChallenge(window.location.search, utcDay());
@@ -187,6 +190,68 @@ function deepKnowledgePanel() {
     '<p class="tiny muted">This is a local browser-only profile, not a claim about worldwide knowledge rankings.</p></section>';
 }
 
+function masteryPreviewPanel() {
+  const m=personalMastery(storage.days);
+  const featured=m.categories.slice(0,3);
+  return '<section class="card mastery-card"><div class="section-heading"><div>'+
+    '<span class="eyebrow">THE SKILL TREE / VERIFIED DAILY RESULTS</span>'+
+    '<h3>TURN KNOWLEDGE INTO MASTERY.</h3>'+
+    '<p class="muted small">Earn subject XP, trophies and personal records from completed official daily rounds. Practice and parties stay unranked.</p></div>'+
+    '<span class="pill pill-purple">'+m.trophyCount+' / '+m.trophies.length+' TROPHIES</span></div>'+
+    '<div class="mastery-hero"><span>💎 <b>'+fmt(m.deepCuts)+'</b> DEEP CUTS</span>'+
+    '<span>✦ <b>'+fmt(m.distinctRare)+'</b> RARE FINDS</span>'+
+    '<span>🏆 <b>'+fmt(m.personalBest)+'</b> PERSONAL BEST</span></div>'+
+    (featured.length?'<div class="mastery-levels">'+featured.map(topic=>
+      '<div class="mastery-level"><div><strong>'+esc(topic.name)+'</strong>'+
+        '<span>'+esc(topic.icon)+' '+esc(topic.level)+' · '+fmt(topic.xp)+' XP</span></div>'+
+      '<div class="mastery-track"><span style="width:'+topic.progress+'%"></span></div>'+
+      '<small>'+(topic.remaining?fmt(topic.remaining)+' XP TO NEXT LEVEL':'MAX LEVEL')+'</small></div>').join('')+
+      '</div>':'<p class="muted small">Your mastery journey begins with a completed daily game.</p>')+
+    '<div class="mastery-trophies">'+m.trophies.map(t=>
+      '<div class="mastery-trophy '+(t.unlocked?'is-earned':'is-locked')+'">'+
+        '<span>'+esc(t.icon)+'</span><strong>'+esc(t.title)+'</strong>'+
+        '<small>'+esc(t.description)+'</small>'+
+        '<em>'+(t.unlocked?'✓ EARNED':fmt(t.value)+' / '+t.goal)+'</em></div>').join('')+'</div>'+
+    '</section>';
+}
+function answerReviewTracker() {
+  const summary=reviewTicketSummary(storage.reviewLinks);
+  if(!summary.opened)return '<section class="card review-tracker"><div class="eyebrow">SOURCE-CHECKED ANSWERS</div>'+
+    '<h3>MAKE THE LIBRARY SMARTER.</h3><p class="small muted">Know a correct answer we missed? Use the Review Answer link after a Stand Out question and include a credible source.</p></section>';
+  return '<section class="card review-tracker"><div class="eyebrow">YOUR ANSWER REVIEW LINKS</div>'+
+    '<h3>HELP US FILL THE GAPS.</h3><p class="small muted">Saved in this browser. Opening an issue link does not prove it was submitted, reviewed, or approved. Existing scores never change.</p>'+
+    summary.items.slice(0,10).map((item,i)=>
+      '<div class="review-tracker-row"><div><b>'+esc(item.answer)+'</b>'+
+        '<small>'+esc(item.questionId)+' · '+(item.issueUrl?'ISSUE LINK ATTACHED':'ISSUE LINK OPENED · UNCONFIRMED')+'</small></div>'+
+      (item.issueUrl?'<a href="'+esc(item.issueUrl)+'" target="_blank" rel="noopener noreferrer">VIEW ISSUE ↗</a>':
+        '<form data-form="review-link" data-index="'+i+'">'+
+          '<input class="answer-input" type="url" required placeholder="Paste your GitHub issue URL" aria-label="GitHub issue URL for '+esc(item.answer)+'">'+
+          '<button type="submit" class="btn btn-outline">ATTACH</button></form>')+
+      '</div>').join('')+'</section>';
+}
+function renderReviewForm() {
+  if(!feedback||feedback.question.type!=="rare")return renderHome();
+  screen="review";clearInterval(intervalId);
+  const q=feedback.question;
+  app.innerHTML='<section class="review-compose">'+
+    '<button class="back-link" type="button" data-action="review-back">← BACK TO QUESTION RESULT</button>'+
+    '<div class="eyebrow">PLAYER-SOURCED ANSWER REVIEW</div>'+
+    '<h1>YOU FOUND A GAP?</h1><p>Every reported answer needs evidence for the question\'s exact reference set. '+
+      'We will not guess, quietly change points, or alter old scores.</p>'+
+    '<div class="card"><strong>'+esc(q.prompt)+'</strong>'+
+      '<p class="small muted">QUESTION ID: '+esc(q.id)+'</p></div>'+
+    '<form id="review-composer">'+
+      '<label for="review-answer">THE ANSWER WE MISSED</label>'+
+      '<input class="answer-input" id="review-answer" maxlength="80" minlength="2" required value="'+esc(feedback.rejectedGuess||"")+'" placeholder="Canonical name">'+
+      '<label for="review-reason">WHY IT QUALIFIES UNDER THIS PROMPT</label>'+
+      '<textarea class="answer-input" id="review-reason" minlength="20" maxlength="500" rows="4" required placeholder="Explain using the source, date and eligibility rule"></textarea>'+
+      '<label for="review-source">RELIABLE HTTPS SOURCE</label>'+
+      '<input type="url" class="answer-input" id="review-source" required placeholder="https://example.org/reliable-reference">'+
+      '<p class="small muted">This opens a prefilled GitHub issue. You still need to submit the issue there. Your draft is recorded locally as link opened, not approved.</p>'+
+      '<p class="answer-validation" role="alert" id="review-error" hidden></p>'+
+      '<button class="btn btn-primary" type="submit">OPEN EVIDENCE REVIEW ISSUE ↗</button></form></section>';
+  window.scrollTo(0,0);
+}
 function badgeCabinet() {
   const badges = earnedBadges(storage.days);
   return '<div class="card badge-section"><div class="section-heading"><div><h3>Your badge cabinet</h3>' +
@@ -428,6 +493,19 @@ function duelPanel() {
     homeButton('BUILD YOUR GAME NIGHT ↗','duel','btn-ghost')+'</section>';
 }
 
+function partyPortrait(name,index,extra="") {
+  const initials=String(name||"P").trim().split(/\s+/).slice(0,2).map(x=>x[0]?.toUpperCase()||"").join("");
+  return '<span class="party-portrait portrait-'+(index%8)+' '+extra+
+    '" aria-label="'+esc(name)+' avatar">'+esc(initials||"P")+'</span>';
+}
+function partySeriesPulse(d) {
+  if(!d.gameIndex)return '<p class="small muted">A fresh series. Every game win counts toward the crown.</p>';
+  const previous=partyStandings({...d.config,games:d.gameIndex},d.games.slice(0,d.gameIndex));
+  return '<div class="party-series-pulse"><div class="eyebrow">SERIES SO FAR · FINISHED GAMES ONLY</div>'+
+    previous.table.map(row=>'<div>'+partyPortrait(row.name,row.index)+
+      '<strong>'+esc(row.name)+'</strong><span>'+row.wins+' GAME '+(row.wins===1?'WIN':'WINS')+
+      ' · '+fmt(row.points)+' PTS</span></div>').join("")+'</div>';
+}
 function renderPartySetup(preserveScroll=false) {
   const previousY=window.scrollY;
   screen="duel-setup";
@@ -442,6 +520,8 @@ function renderPartySetup(preserveScroll=false) {
       '<input id="party-name-'+i+'" data-party-name="'+i+'" name="player-'+i+
       '" type="text" maxlength="18" autocomplete="off" value="'+esc(value)+'" required></label>';
   }).join('');
+  const timers=PARTY_TIMERS.map(n=>'<option value="'+n+'" '+(partySetup.timerSeconds===n?'selected':'')+
+      '>'+n+' SEC</option>').join('');
   const chosen=partySetup.categories.length;
   const topics=PARTY_TOPICS.map(topic=>{
     const active=partySetup.categories.includes(topic.value);
@@ -461,11 +541,17 @@ function renderPartySetup(preserveScroll=false) {
       '<select id="party-player-count" class="answer-input" name="players">'+playerOptions+'</select></label>'+
     '<label for="party-game-count"><span>02 / NUMBER OF GAMES</span>'+
       '<select id="party-game-count" class="answer-input" name="games">'+gameOptions+'</select></label></div>'+
-    '<div class="party-setup-section"><h2>03 / NAME YOUR PLAYERS.</h2>'+
+    '<div class="party-setup-section"><h2>03 / SHOWDOWN EXTRAS.</h2>'+
+      '<div class="party-extras"><label for="party-timer"><span>QUESTION TIMER</span>'+
+        '<select id="party-timer" class="answer-input">'+timers+'</select></label>'+
+      '<label class="party-wager-toggle" for="party-wager"><input id="party-wager" type="checkbox" '+
+        (partySetup.finalWager?'checked':'')+'><span><b>FINAL-ROUND WAGER</b>'+
+        '<small>Choose 0, 100, 250 or 500 points before question seven. Correct adds the wager; a miss loses it.</small></span></label></div></div>'+
+    '<div class="party-setup-section"><h2>04 / NAME YOUR PLAYERS.</h2>'+
       '<p class="small muted">Everyone gets their own turn. Names are only kept for this local session.</p>'+
       '<div class="party-name-grid">'+names+'</div></div>'+
     '<div class="party-setup-section"><div class="party-topic-heading"><div>'+
-      '<h2>04 / PICK YOUR CATEGORIES.</h2>'+
+      '<h2>05 / PICK YOUR CATEGORIES.</h2>'+
       '<p class="small muted">Choose any combination of Stand Out categories. The three Fit In crowd questions per game stay mixed-topic.</p></div>'+
       '<button type="button" class="party-all-topics" data-action="party-all">'+
         (chosen?'USE ALL TOPICS':'ALL TOPICS ACTIVE')+'</button></div>'+
@@ -473,7 +559,8 @@ function renderPartySetup(preserveScroll=false) {
       '<div class="party-topic-status" role="status">'+(chosen?chosen+' SELECTED TOPICS':'SURPRISE MIX · ALL TOPICS')+'</div></div>'+
     '<div class="party-setup-footer"><div><strong>'+partySetup.players+' PLAYERS · '+partySetup.games+' '+
       (partySetup.games===1?'GAME':'GAMES')+'</strong>'+
-      '<span>4 Stand Out + 3 Fit In per game · 45 seconds/question · No official points</span></div>'+
+      '<span>4 Stand Out + 3 Fit In per game · '+partySetup.timerSeconds+' sec/question'+
+      (partySetup.finalWager?' · secret finale wager':'')+' · Unranked</span></div>'+
       '<button type="submit" class="btn btn-primary">START THE SHOWDOWN ↗</button></div></form></section>';
   window.scrollTo(0,preserveScroll?previousY:0);
 }
@@ -607,7 +694,7 @@ function newSession(mode,practiceGroup = 'surprise') {
     const config=normalizePartyConfig(practiceGroup==="surprise"?partySetup:practiceGroup);
     const games=buildPartyGames(config);
     session={mode:"duel",day:today(),questions:games[0].questions,
-      timerSeconds:45,answers:[],index:0,deadline:null,
+      timerSeconds:config.timerSeconds,answers:[],index:0,deadline:null,
       duel:{config,games,gameIndex:0,playerIndex:0,revealIndex:-1}};
     return renderPartyReady();
   } else if (mode === "open-atlas") {
@@ -688,7 +775,8 @@ function renderGame() {
     '<div class="progress-track"><div class="progress-fill" style="width:' + (session.index/session.questions.length*100) + '%"></div></div>',
     roundDots(),'<article class="card question-card ' + q.type + '">',
     '<div class="question-head"><span class="pill ' + (fit ? "pill-teal" : "pill-purple") + '">' + (fit ? "◎ FIT IN — MATCH THE CROWD" : "✦ STAND OUT — BE THE EXCEPTION") + '</span>',
-    '<div id="timer" class="timer" role="timer" aria-label="Time remaining" aria-live="off">0:45</div></div>',
+    '<div id="timer" class="timer" role="timer" aria-label="Time remaining" aria-live="off">'+
+      Math.floor((session.timerSeconds||45)/60)+':'+String((session.timerSeconds||45)%60).padStart(2,'0')+'</div></div>',
     '<div class="time-track" role="presentation"><div id="timebar" class="time-fill"></div></div>',
     '<div class="question-category">' + esc(q.category) + ' · ROUND ' + (session.index+1) + '</div>',
     '<h2 class="question-prompt">' + esc(q.prompt) + '</h2>',
@@ -710,7 +798,7 @@ function tickTimer() {
   const remaining = Math.max(0, Math.ceil((session.deadline - Date.now()) / 1000));
   const timer = document.getElementById("timer");
   if (timer) {
-    timer.textContent = '0:' + String(remaining).padStart(2,'0');
+    timer.textContent = Math.floor(remaining/60)+':' + String(remaining%60).padStart(2,'0');
     timer.classList.toggle("urgent",remaining <= 10);
   }
   const bar = document.getElementById("timebar");
@@ -854,10 +942,10 @@ function renderFeedback() {
     answerExplorer(q),
     !fit?'<div class="answer-suggestion"><div><strong>KNOW ANOTHER VALID ANSWER?</strong>'+
       '<p class="small muted">Our finite approved lists improve through source-checked suggestions. Help us catch omissions.</p></div>'+
-      homeButton('SUGGEST A VERIFIED ANSWER ↗','suggest-answer','btn-outline')+'</div>':'',
-    (!result.valid && !fit && feedback.rejectedGuess) ?
-      '<div class="answer-report"><span>Think your answer should count?</span>'+
-      homeButton('REQUEST AN ANSWER REVIEW ↗','report-answer','btn-outline')+'</div>' : '',
+      homeButton('SUGGEST A VERIFIED ANSWER ↗','review-open','btn-outline')+'</div>':'',
+    (!fit && feedback.rejectedGuess) ?
+      '<div class="answer-report"><span>Think your missing answer qualifies?</span>'+
+      homeButton('REVIEW WITH A SOURCE ↗','review-open','btn-outline')+'</div>' : '',
     '<p class="insight">' + (fit ?
       'These percentages are fixed example values for the prototype, NOT survey data or live player votes. Everyone gets the same score for the same pick.' :
       'Stand Out scores are curated prototype rarity tiers, NOT actual frequencies from other players. Answers are checked against a finite validated list.') + '</p>',
@@ -878,7 +966,8 @@ function renderPartyReady() {
   app.innerHTML='<section class="v13-duel-screen party-interstitial"><div class="v13-duel-stamp">✳</div>'+
     '<div class="eyebrow">THE SHOWDOWN / GAME '+(d.gameIndex+1)+' OF '+d.config.games+'</div>'+
     '<h1>GAME ON.</h1><p>'+d.config.players+' players. Seven fresh questions. Same slate for everyone.</p>'+
-    '<div class="v13-duel-secret">'+esc(d.config.names[0])+' · TAKE THE DEVICE</div>'+
+    partySeriesPulse(d)+
+    '<div class="v13-duel-secret">'+partyPortrait(d.config.names[0],0)+esc(d.config.names[0])+' · TAKE THE DEVICE</div>'+
     homeButton('BEGIN GAME '+(d.gameIndex+1)+' ↗','duel-begin','btn-primary')+'</section>';
   window.scrollTo(0,0);
 }
@@ -905,8 +994,25 @@ function renderDuelHandoff() {
     '<h1>PASS THE DEVICE.</h1>'+
     '<p>Keep those answers a secret. '+esc(d.config.names[next])+
       ' gets the exact same seven questions.</p>'+
-    '<div class="v13-duel-secret">'+esc(d.config.names[next])+' · READY WHEN YOU ARE</div>'+
+    '<div class="v13-duel-secret">'+partyPortrait(d.config.names[next],next)+esc(d.config.names[next])+' · READY WHEN YOU ARE</div>'+
     homeButton('START '+esc(d.config.names[next])+' ↗','duel-handoff','btn-primary')+'</section>';
+  window.scrollTo(0,0);
+}
+function renderPartyWager() {
+  if(!session?.duel)return renderHome();
+  screen="duel-wager";clearInterval(intervalId);
+  const d=session.duel;
+  app.innerHTML='<section class="party-reveal-intro party-wager-screen">'+
+    '<div class="eyebrow">THE FINAL ROUND / GAME '+(d.gameIndex+1)+'</div>'+
+    '<div class="party-reveal-symbol" aria-hidden="true">⚡</div>'+
+    '<h1>HOW MUCH DO YOU TRUST YOURSELF?</h1>'+
+    '<p>'+esc(d.config.names[d.playerIndex])+', place your secret wager before question seven is shown. '+
+    'A correct answer adds your stake to its normal points. A miss loses the stake. '+
+    'Everyone will see wagers only during the final reveal.</p>'+
+    '<div class="party-wager-options">'+PARTY_WAGERS.map(n=>
+      '<button type="button" class="btn btn-ghost" data-action="duel-wager" data-stake="'+n+'">'+
+        (n===0?'PLAY IT SAFE':n+' POINTS')+'</button>').join('')+'</div>'+
+    '</section>';
   window.scrollTo(0,0);
 }
 function renderPartyReveal() {
@@ -927,10 +1033,13 @@ function renderPartyReveal() {
   const last=frame.index===game.questions.length-1;
   const cards=frame.picks.map(p=>
     '<div class="party-pick-card '+(frame.bestPickers.includes(p.playerIndex)?'star-pick':'')+'">'+
-    '<span class="party-pick-player">'+esc(p.name)+'</span>'+
+    '<span class="party-pick-player">'+partyPortrait(p.name,p.playerIndex)+esc(p.name)+'</span>'+
     '<strong>'+esc(p.answer)+'</strong>'+
-    '<span class="party-pick-score">'+(p.valid?'+':'')+fmt(p.points)+' PTS'+
-      (frame.bestPickers.includes(p.playerIndex)?' · TOP PICK':'')+'</span></div>').join('');
+    '<span class="party-pick-score">'+(p.points>0?'+':'')+fmt(p.points)+' PTS'+
+      (frame.bestPickers.includes(p.playerIndex)?' · TOP PICK':'')+'</span>'+
+    (last&&d.config.finalWager?'<small class="party-wager-result">BASE '+fmt(p.basePoints)+
+      ' · WAGER '+(p.wagerAdjustment>=0?'+':'')+fmt(p.wagerAdjustment)+'</small>':'')+
+    '</div>').join('');
   app.innerHTML='<section class="party-reveal">'+
     '<div class="party-reveal-top"><span class="eyebrow">THE BIG REVEAL / GAME '+(d.gameIndex+1)+'</span>'+
       '<span>ROUND '+(frame.index+1)+' / '+game.questions.length+'</span></div>'+
@@ -938,8 +1047,11 @@ function renderPartyReveal() {
       '<i class="'+(i<=frame.index?'lit':'')+'"></i>').join('')+'</div>'+
     '<div class="party-reveal-prompt"><div class="eyebrow">'+
       (frame.question.type==="rare"?'✦ STAND OUT':'◎ FIT IN')+' · '+esc(frame.question.category)+'</div>'+
-      '<h1>'+esc(frame.question.prompt)+'</h1></div>'+
+      '<h1>'+esc(frame.question.prompt)+'</h1>'+
+      (last&&d.config.finalWager?'<div class="party-final-drum">⚡ ALL WAGERS ARE NOW REVEALED</div>':'')+
+      '</div>'+
     '<div class="party-picks-grid">'+cards+'</div>'+
+    '<div class="party-commentary" role="status">'+esc(partyRevealBeat(game,frame.index,d.config.names)||"")+'</div>'+
     '<div class="party-reveal-footer"><p>Scores are kept secret until all seven rounds are revealed.</p>'+
       homeButton(last?'SHOW GAME SCOREBOARD ↗':'REVEAL NEXT ROUND ↗','duel-reveal-next','btn-primary')+'</div></section>';
   window.scrollTo(0,0);
@@ -964,7 +1076,7 @@ function renderPartyGameResult() {
       ' Series champion: most game wins, with total points as the tiebreaker.</p>'+
     '<div class="party-game-standings">'+rows.map((row,rank)=>
       '<div class="'+(result.winners.includes(row.index)?'game-winner':'')+'">'+
-        '<span>'+String(rank+1).padStart(2,'0')+' · '+esc(row.name)+'</span><strong>'+fmt(row.points)+' PTS</strong>'+
+        '<span>'+partyPortrait(row.name,row.index)+String(rank+1).padStart(2,'0')+' · '+esc(row.name)+'</span><strong>'+fmt(row.points)+' PTS</strong>'+
       '</div>').join('')+'</div>'+
     '<div class="party-game-actions">'+
       homeButton(d.gameIndex+1>=d.config.games?'REVEAL SERIES CHAMPION ↗':
@@ -990,7 +1102,7 @@ function renderDuelResult() {
     '<div class="party-series-header"><span>PLAYER</span><span>GAME WINS</span><span>TOTAL PTS</span></div>'+
     summary.table.map((row,index)=>
       '<div class="'+(summary.champions.some(w=>w.index===row.index)?'series-champion':'')+'">'+
-      '<span>'+(index===0?'👑 ':'')+esc(row.name)+'</span><b>'+row.wins+'</b>'+
+      '<span>'+partyPortrait(row.name,row.index)+(index===0?'👑 ':'')+esc(row.name)+'</span><b>'+row.wins+'</b>'+
       '<strong>'+fmt(row.points)+'</strong></div>').join('')+'</div>'+
     '<details class="party-series-history"><summary>SEE ALL GAME SCORES</summary>'+
     d.games.map((game,index)=>{
@@ -1022,6 +1134,10 @@ function nextRound() {
   if (screen !== "feedback" || !session) return;
   session.index += 1;
   feedback = null;
+  if(session.duel && session.index===6 && session.duel.config.finalWager &&
+      session.duel.games[session.duel.gameIndex].wagersByPlayer[session.duel.playerIndex]===null){
+    return renderPartyWager();
+  }
   if (session.index >= session.questions.length) {
     if(session.duel){
       const d=session.duel;
@@ -1093,7 +1209,7 @@ function renderResult() {
       '<div class="mode-stat fit"><span>◎ FIT IN</span><strong>' + fmt(fitScore) + '<small> / '+fmt(fitMax)+'</small></strong>' +
       '<div class="bar-bg"><div class="bar-fg" style="width:' + (fitMax ? fitScore/fitMax*100 : 0) + '%"></div></div></div></div>',
     debriefPanel(session.questions,session.answers),
-    daily ? missionBoard() + playerCardPreview() : '',
+    daily ? missionBoard() + playerCardPreview() + masteryPreviewPanel() : '',
     unlockedToday.length ? '<div class="card unlocked-today"><span class="eyebrow">NEW ACHIEVEMENT</span>' +
       unlockedToday.map(b=>'<div class="achievement-reveal"><span>' + esc(b.icon) + '</span><div><strong>' + esc(b.title) +
         '</strong><p>' + esc(b.detail) + '</p></div></div>').join("") + '</div>' : '',
@@ -1148,6 +1264,8 @@ function renderLeaderboard() {
     '<div class="board-note">Only official daily games count. Unlimited practice never changes these numbers. Scores are stored locally on this device, not synced between devices.</div>',
     '</div>',
     personalJourneyPanel(),
+    masteryPreviewPanel(),
+    answerReviewTracker(),
     missionBoard(),
     playerIdentityPanel(),
     seasonPanel(),
@@ -1247,6 +1365,14 @@ document.addEventListener("click", event => {
     case "duel-begin":
       if(screen==="duel-ready"&&session?.duel)renderGame();
       break;
+    case "duel-wager": {
+      if(screen!=="duel-wager"||!session?.duel)return;
+      const stake=Number(control.dataset.stake);
+      if(!PARTY_WAGERS.includes(stake))return;
+      const d=session.duel;
+      d.games[d.gameIndex].wagersByPlayer[d.playerIndex]=stake;
+      renderGame();break;
+    }
     case "duel-handoff": {
       if(screen!=="duel-handoff"||!session?.duel)return;
       const d=session.duel;
@@ -1273,6 +1399,8 @@ document.addEventListener("click", event => {
     case "fit-answer": submitAnswer(control.dataset.answer); break;
     case "skip": submitAnswer(null); break;
     case "next": nextRound(); break;
+    case "review-open": if(screen==="feedback"&&feedback?.question?.type==="rare")renderReviewForm();break;
+    case "review-back": if(screen==="review")renderFeedback();break;
     case "suggest-answer": {
       if(screen==="feedback"&&feedback?.question?.type==="rare") {
         const params=new URLSearchParams({
@@ -1374,10 +1502,43 @@ document.addEventListener("change",event=>{
   }else if(event.target?.id==="party-game-count"){
     partySetup.games=Number(event.target.value);
     renderPartySetup(true);
+  }else if(event.target?.id==="party-timer"){
+    partySetup.timerSeconds=Number(event.target.value);renderPartySetup(true);
+  }else if(event.target?.id==="party-wager"){
+    partySetup.finalWager=event.target.checked;renderPartySetup(true);
   }
 });
 
 document.addEventListener("submit", event => {
+  if(event.target?.id==="review-composer"){
+    event.preventDefault();
+    if(screen!=="review"||!feedback)return;
+    const data={questionId:feedback.question.id,question:feedback.question.prompt,
+      answer:document.getElementById("review-answer")?.value,
+      reason:document.getElementById("review-reason")?.value,
+      source:document.getElementById("review-source")?.value};
+    const validation=validateReviewDraft(data);
+    const warning=document.getElementById("review-error");
+    if(!validation.ok){if(warning){warning.textContent=validation.errors.join(" ");warning.hidden=false;}return;}
+    try{
+      const link=reviewIssueLink(data);
+      storage.reviewLinks=recordReviewLinkOpened(storage.reviewLinks,data);
+      saveStore();
+      window.open(link,"_blank","noopener,noreferrer");
+      toast("Review form opened. Submit your issue on GitHub; points remain unchanged.");
+      renderFeedback();
+    }catch(e){if(warning){warning.textContent=e.message;warning.hidden=false;}}
+    return;
+  }
+  if(event.target?.dataset.form==="review-link"){
+    event.preventDefault();
+    const index=Number(event.target.dataset.index);
+    try{
+      storage.reviewLinks=attachReviewIssue(storage.reviewLinks,index,event.target.querySelector("input")?.value);
+      saveStore();renderLeaderboard();toast("Issue link saved locally. Approval is not automatic.");
+    }catch(e){toast(e.message);}
+    return;
+  }
   if(event.target?.id==="party-config-form"){
     event.preventDefault();
     if(screen!=="duel-setup")return;

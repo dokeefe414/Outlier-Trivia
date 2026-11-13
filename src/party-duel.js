@@ -4,6 +4,8 @@ import {shuffled,practiceCategoryOptions} from "./game.js";
 import {DAILY_PATTERN,rareQuestions,fitQuestions} from "./data.js";
 
 export const PARTY_LIMITS=Object.freeze({minPlayers:2,maxPlayers:8,minGames:1,maxGames:7,roundsPerGame:7});
+export const PARTY_TIMERS=Object.freeze([20,30,45,60,90]);
+export const PARTY_WAGERS=Object.freeze([0,100,250,500]);
 export const PARTY_TOPICS=Object.freeze(practiceCategoryOptions.filter(t=>t.value!=="surprise"));
 
 const groups=new Set(PARTY_TOPICS.map(t=>t.value));
@@ -16,6 +18,8 @@ const validName=(name,index)=>{
 export function normalizePartyConfig(config={}) {
   const players=clamp(config.players??2,PARTY_LIMITS.minPlayers,PARTY_LIMITS.maxPlayers);
   const games=clamp(config.games??1,PARTY_LIMITS.minGames,PARTY_LIMITS.maxGames);
+  const timerSeconds=PARTY_TIMERS.includes(Number(config.timerSeconds))?Number(config.timerSeconds):45;
+  const finalWager=config.finalWager===true;
   const selected=Array.isArray(config.categories)?config.categories:[];
   const categories=[...new Set(selected.filter(x=>groups.has(x)))];
   const supplied=Array.isArray(config.names)?config.names:[];
@@ -23,7 +27,7 @@ export function normalizePartyConfig(config={}) {
   if(new Set(names.map(n=>n.toLocaleLowerCase("en-US"))).size!==names.length){
     throw new Error("Give every player a different name.");
   }
-  return {players,games,categories,names};
+  return {players,games,categories,names,timerSeconds,finalWager};
 }
 
 function deck(source,random) {
@@ -74,18 +78,25 @@ export function buildPartyGames(input={},random=Math.random) {
     }));
     if(questions.length!==7||new Set(questions.map(q=>q.id)).size!==7)
       throw new Error("Invalid party game slate.");
-    games.push({questions,answersByPlayer:Array.from({length:config.players},()=>null)});
+    games.push({questions,answersByPlayer:Array.from({length:config.players},()=>null),
+      wagersByPlayer:Array.from({length:config.players},()=>config.finalWager?null:0)});
   }
   return games;
 }
 
 const points=rows=>(Array.isArray(rows)?rows:[])
   .reduce((sum,row)=>sum+(Number.isFinite(+row?.points)?Math.max(0,Math.min(1000,+row.points)):0),0);
+export function partyWagerAdjustment(game,playerIndex) {
+  const stake=Number(game?.wagersByPlayer?.[playerIndex]??0);
+  if(!PARTY_WAGERS.includes(stake))return 0;
+  const final=game?.answersByPlayer?.[playerIndex]?.[6];
+  return final?.valid?stake:-stake;
+}
 export function partyGameScores(game,playerCount) {
   if(!game||!Array.isArray(game.answersByPlayer))return null;
   const rows=game.answersByPlayer.slice(0,playerCount);
   if(rows.length!==playerCount||rows.some(row=>!Array.isArray(row)||row.length!==7))return null;
-  const scores=rows.map(points),best=Math.max(...scores);
+  const scores=rows.map((row,i)=>points(row)+partyWagerAdjustment(game,i)),best=Math.max(...scores);
   return {scores,winners:scores.map((score,i)=>score===best?i:-1).filter(i=>i>=0)};
 }
 export function partyStandings(config,games) {
@@ -113,10 +124,28 @@ export function partyRevealRound(game,index,names) {
   const question=game.questions[index];
   const picks=names.map((name,playerIndex)=>{
     const answer=game.answersByPlayer[playerIndex][index];
+    const adjustment=index===6?partyWagerAdjustment(game,playerIndex):0;
     return {name,playerIndex,answer:answer?.accepted||"No accepted answer",
-      points:Number(answer?.points)||0,valid:!!answer?.valid};
+      points:(Number(answer?.points)||0)+adjustment,
+      basePoints:Number(answer?.points)||0,
+      wager:index===6?Number(game?.wagersByPlayer?.[playerIndex]??0):0,
+      wagerAdjustment:adjustment,valid:!!answer?.valid};
   });
   const high=Math.max(...picks.map(p=>p.points));
   return {question,index,picks,high,
     bestPickers:high>0?picks.filter(p=>p.points===high).map(p=>p.playerIndex):[]};
+}
+
+export function partyRevealBeat(game,index,names) {
+  const frame=partyRevealRound(game,index,names);
+  if(!frame)return null;
+  if(index===6) {
+    const anyWager=frame.picks.some(p=>p.wager>0);
+    return anyWager?"FINAL BETS HAVE LANDED. THE SCOREBOARD DECIDES THE CROWN.":
+      "SEVEN ANSWERS. ONE CHAMPION REVEAL REMAINS.";
+  }
+  if(frame.high<=0)return "THE ROOM GOES QUIET. NOBODY SCORES THIS ROUND.";
+  if(frame.bestPickers.length>1)return "A DEAD HEAT ON THIS QUESTION.";
+  const leader=names[frame.bestPickers[0]];
+  return String(leader).toUpperCase()+" TAKES THE TOP PICK THIS ROUND.";
 }
