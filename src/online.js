@@ -2,10 +2,17 @@ import {rarityTier} from "./answer-intelligence.js";
 import {readLeagueInvite,leagueInviteLink,removeLeagueInvite,officialShareMessage,comparisonLabel} from "./community.js";
 import { ONLINE_ENABLED, SUPABASE_URL, SUPABASE_ANON_KEY } from "./online-config.js";
 import { dailyDebrief, weeklyCup } from "./v13-discovery.js";
+import {readRoomInvite,roomInviteUrl,roomSecondsRemaining,roomWinnerRows} from "./online-room.js";
 
 const escape = value => String(value ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const number = value => Number(value ?? 0).toLocaleString("en-US");
 let container, onBack, supabase, state, timer, busy = false;
+let partyPolling=null,partyTicker=null,partyRefreshing=false;
+function stopPartyPolling() {
+  if(partyPolling)clearInterval(partyPolling);
+  if(partyTicker)clearInterval(partyTicker);
+  partyPolling=null;partyTicker=null;partyRefreshing=false;
+}
 
 function stopTimer() { if (timer) clearInterval(timer); timer = null; }
 function notice(message, style = "") {
@@ -277,8 +284,150 @@ function showRivalry() {
     '<p class="tiny muted">Comparisons are generated server-side from completed official games, never from unverified guest scores. Private leagues only.</p></div></section>');
 }
 
-function showMenu() {
+
+function partyRoomPanel() {
+  if(!state.user)return '<div class="card online-party-panel"><div class="eyebrow">PRIVATE ROOM COMPETITION</div>'+
+    '<h3>PLAY FROM SEPARATE DEVICES.</h3>'+
+    '<p class="small muted">Sign in to join a private 2–4 player seven-question match with synchronized server timers.</p></div>';
+  if(state.capabilities?.rankedReady!==true)return '<div class="card online-party-panel">'+
+    '<div class="eyebrow">PRIVATE ROOM COMPETITION · NOT ACTIVATED</div>'+
+    '<h3>SERVER-VERIFIED MULTIPLAYER IS READY FOR SETUP.</h3>'+
+    '<p class="small muted">A real Supabase project, reviewed private question bank, and deployment of migration 018 are required. Public guest matches remain playable.</p></div>';
+  return '<section class="card online-party-panel"><div class="eyebrow">NEW / PRIVATE SHOWDOWN</div>'+
+    '<h3>FRIENDS. SEPARATE SCREENS. SAME CLOCK.</h3>'+
+    '<p class="small muted">2–4 signed-in players answer seven shared questions. Every round lasts 45 seconds from a single server timer. No scores until the match is over. Unranked, free.</p>'+
+    (state.partyId?act("party-reopen","REJOIN MY PRIVATE ROOM ↗","btn-teal"):'')+
+    act("party-create","CREATE A PRIVATE ROOM ↗","btn-primary")+
+    '<form data-form="party-join"><label class="answer-label" for="online-party-code">INVITE CODE</label>'+
+      '<div class="answer-row"><input id="online-party-code" class="answer-input" minlength="12" maxlength="12" pattern="[A-Fa-f0-9]{12}" required placeholder="12-character invite code">'+
+      '<button class="btn btn-outline" type="submit">JOIN</button></div></form></section>';
+}
+function partyClockText(seconds) {
+  const s=Math.max(0,Math.ceil(seconds));
+  return Math.floor(s/60)+':'+String(s%60).padStart(2,"0");
+}
+function tickPartyClock() {
+  if(state.view!=="party-room"||!state.partyRoom)return;
+  const r=state.partyRoom;
+  const end=r.phase==="countdown"?r.startedAt:r.question?.deadline;
+  if(!end)return;
+  const left=roomSecondsRemaining(end,r.serverTime,state.partyReceivedAt);
+  const label=container.querySelector("#online-party-timer");
+  if(label)label.textContent=partyClockText(left);
+}
+async function refreshPartyRoom(force=false) {
+  if(!state.partyId||partyRefreshing)return;
+  partyRefreshing=true;
+  try{
+    const response=await invoke("party-state",{query:"room="+encodeURIComponent(state.partyId)});
+    const room=response.room;
+    const signature=JSON.stringify([room.phase,room.players?.length,
+      room.question?.index,room.question?.submitted,room.scores?.length,
+      room.startedAt]);
+    state.partyRoom=room;state.partyReceivedAt=Date.now();
+    if(room.phase==="finished"&&state.partySignature&&!state.partySignature.includes("finished"))
+      state.partyRevealStep=-1;
+    if(force||signature!==state.partySignature||state.view!=="party-room"){
+      state.partySignature=signature;showPartyRoom();
+    }
+    tickPartyClock();
+  }catch(e){
+    stopPartyPolling();
+    state.partyId=null;state.partyRoom=null;
+    showError(e,"Could not refresh private room");
+  }finally{partyRefreshing=false;}
+}
+function beginPartyPolling() {
+  stopPartyPolling();
+  partyPolling=setInterval(()=>{if(!busy)void refreshPartyRoom();},3000);
+  partyTicker=setInterval(tickPartyClock,200);
+}
+async function enterPartyRoom(id) {
+  state.partyId=id;state.partyRoom=null;state.partySignature=null;
+  state.partyRevealStep=-1;
+  await refreshPartyRoom(true);
+  if(state.partyId)beginPartyPolling();
+}
+function showPartyRoom() {
   stopTimer();
+  const r=state.partyRoom;if(!r)return showMenu();
+  state.view="party-room";
+  const header='<div class="online-party-head"><span class="eyebrow">OUTLIER · SERVER-VERIFIED PRIVATE SHOWDOWN</span>'+
+    '<h2>THE INNER CIRCLE.</h2>'+
+    '<p>Same seven questions for everyone. Your account is verified; individual scores stay sealed until the clock closes.</p></div>';
+  const people=(r.players||[]).map((m,i)=>'<div class="online-party-member"><span class="party-portrait portrait-'+(i%8)+'">'+
+    escape(String(m.name||"P").slice(0,1).toUpperCase())+'</span>'+
+    '<strong>'+escape(m.name||"Player")+'</strong>'+
+    (m.id===r.host?'<small>HOST</small>':'')+
+    (m.id===state.user?.id?'<small>YOU</small>':'')+'</div>').join("");
+  const roster='<div class="online-party-roster">'+people+'</div>';
+  let body='';
+  if(r.phase==="waiting"){
+    body='<div class="card online-party-waiting"><div class="eyebrow">LOBBY · '+(r.players||[]).length+'/4 PLAYERS</div>'+
+      '<h3>BRING THE CREW.</h3><p class="small muted">Share your invite. Everyone must sign in and join before the host starts. The room closes if left waiting too long.</p>'+
+      '<div class="party-invite-code">'+escape(r.code||"")+'</div>'+
+      act("party-copy","COPY PRIVATE INVITE ↗","btn-primary")+roster+
+      (r.host===state.user?.id?act("party-start","START SEVEN-ROUND MATCH ↗","btn-teal",
+        (r.players?.length||0)<2?"disabled":""):'<p class="small muted">Only the host can start the match.</p>')+'</div>';
+  }else if(r.phase==="countdown"){
+    body='<div class="card online-party-countdown"><span class="eyebrow">EVERYONE GET READY</span>'+
+      '<h3>THE CLOCK STARTS IN</h3><div class="online-party-bigclock" id="online-party-timer">—</div>'+
+      roster+'<p class="small muted">The timer is synchronized to the server, not your device clock.</p></div>';
+  }else if(r.phase==="playing"){
+    const q=r.question||{};
+    body='<div class="card online-party-question"><div class="eyebrow">SHARED ROUND '+(Number(q.index)+1)+' / 7'+
+      ' · '+escape(q.category)+'</div><div class="online-party-clock" id="online-party-timer">—</div>'+
+      '<h3>'+escape(q.prompt||"Waiting for the shared question…")+'</h3>'+
+      '<p class="small muted">'+escape(q.detail||"")+'</p>'+
+      (q.submitted?'<div class="online-party-sealed">🔒 ANSWER LOCKED. Keep your pick secret until all seven shared rounds finish.</div>':
+        q.type==="fit"?'<div class="online-party-picks">'+(q.choices||[]).map(choice=>
+          '<button class="btn btn-outline" type="button" data-online="party-pick" data-answer="'+escape(choice)+'">'+escape(choice)+'</button>').join("")+'</div>'+
+          act("party-skip","LOCK BLANK ANSWER","btn-ghost"):
+          '<form data-form="party-answer"><label for="online-party-answer">YOUR UNEXPECTED CORRECT ANSWER</label>'+
+            '<div class="answer-row"><input id="online-party-answer" class="answer-input" maxlength="100" required placeholder="Enter an approved answer">'+
+            '<button type="submit" class="btn btn-primary">LOCK IT IN ↗</button></div></form>'+
+            act("party-skip","LOCK BLANK ANSWER","btn-ghost"))+
+      roster+'<p class="small muted">One submission per question. A wrong answer earns zero; later corrections are not permitted. All choices are sealed and no ranked progress is awarded.</p></div>';
+  }else if(r.phase==="finished"){
+    const n=state.partyRevealStep;
+    if(n<0){
+      body='<section class="card online-party-finale"><div class="eyebrow">ALL SEVEN SHARED ROUNDS ARE CLOSED</div>'+
+        '<div class="party-reveal-symbol" aria-hidden="true">✹</div>'+
+        '<h3>THE REVEAL IS YOURS.</h3><p>Everyone finished under the same clock. Uncover each answer before the final standings.</p>'+
+        act("party-reveal-next","REVEAL ROUND ONE ↗")+'</section>';
+    }else if(n<7){
+      const q=(r.questions||[])[n]||{};
+      const picks=(r.players||[]).map((player,i)=>{
+        const pick=(r.answers||[]).find(a=>a.index===n&&a.player===player.id);
+        return '<div class="party-pick-card"><span class="party-pick-player"><span class="party-portrait portrait-'+(i%8)+'">'+
+          escape(String(player.name||"P").slice(0,1).toUpperCase())+'</span>'+
+          escape(player.name||"Player")+'</span><strong>'+escape(pick?.accepted||"No accepted answer")+'</strong>'+
+          '<span class="party-pick-score">'+number(pick?.points||0)+' PTS</span></div>';
+      }).join("");
+      body='<section class="online-party-final-reveal"><div class="eyebrow">THE REVEAL · ROUND '+(n+1)+' OF 7</div>'+
+        '<h3>'+escape(q.prompt||"THE SHARED QUESTION")+'</h3><div class="party-picks-grid">'+picks+'</div>'+
+        act("party-reveal-next",n===6?"SHOW FINAL STANDINGS ↗":"REVEAL NEXT ROUND ↗")+'</section>';
+    }else{
+      const scores=roomWinnerRows(r.scores);
+      const champion=scores.filter(p=>p.winner).map(p=>p.name).join(" & ");
+      body='<section class="card online-party-final-scores"><div class="party-winner-mark">🏆</div>'+
+        '<div class="eyebrow">THE VERIFIED SHOWDOWN RESULT</div><h3>'+escape(champion)+' '+(scores.filter(p=>p.winner).length>1?"TIE!":"WINS!")+'</h3>'+
+        scores.map(p=>'<div class="online-party-score '+(p.winner?'winner':'')+'"><strong>'+
+          escape(p.name)+'</strong><span>'+number(p.score)+' / 7,000 PTS</span></div>').join("")+
+        '<p class="small muted">Private match points are server-calculated exhibition results. They do not count toward official rankings or purchases.</p>'+
+        act("party-leave","BACK TO ONLINE HUB","btn-primary")+'</section>';
+    }
+  }else{
+    body='<div class="card">'+notice("This private room expired. Create a new room.","warning")+
+      act("party-leave","BACK TO ONLINE HUB","btn-primary")+'</div>';
+  }
+  setView(header+body+'<div class="online-party-room-actions">'+
+    act("party-refresh","REFRESH ROOM","btn-outline")+
+    act("party-leave","LEAVE ROOM VIEW","btn-outline")+'</div>');
+  tickPartyClock();
+}
+function showMenu() {
+  stopTimer();stopPartyPolling();
   state.view = "menu";
   const signedIn=Boolean(state.user);
   const heading='<div class="online-heading"><span class="eyebrow">THE COMPETITIVE LEAGUE</span>'+
@@ -302,6 +451,13 @@ function showMenu() {
     '<div class="answer-row"><input class="answer-input" id="online-email" type="email" required autocomplete="email" placeholder="you@example.com">'+
     '<button class="btn btn-primary" type="submit">SEND LINK</button></div></form>'+
     (state.sent ? notice("Check your email for your sign-in link.","ok") : "")+'</div>';
+  const partyInvite=state.pendingRoomCode?'<div class="card online-party-invite">'+
+    '<span class="eyebrow">PRIVATE ROOM INVITATION</span>'+
+    '<h3>YOUR FRIEND SENT A CHALLENGE.</h3>'+
+    '<p class="small muted">Accepting a room invite requires a verified account. Nothing joins automatically.</p>'+
+    (signedIn&&rankedReady?act("party-accept-invite","JOIN PRIVATE GAME ↗","btn-primary"):
+      '<p class="small muted">Sign in and connect the private ranked bank to join.</p>')+
+    act("party-dismiss-invite","IGNORE INVITE","btn-outline")+'</div>':"";
   const inviteBanner=state.pendingInvite?
     '<div class="card invited-banner"><span class="eyebrow">YOU HAVE BEEN INVITED</span>'+
     '<h3>Your friends are waiting in OUTLIER.</h3>'+
@@ -310,10 +466,10 @@ function showMenu() {
       act("dismiss-invite","NOT NOW","btn-ghost"):
       '<p class="small muted">Sign in below to accept your league invitation.</p>')+
     '</div>':"";
-  setView(heading + inviteBanner + (state.error ? notice(state.error,"warning") : "")+
+  setView(heading + partyInvite + inviteBanner + (state.error ? notice(state.error,"warning") : "")+
     (state.message ? notice(state.message,"ok") : "")+
     (!rankedReady?notice("Online beta setup is incomplete: verified ranked games are not open yet. The guest daily game is still free.","warning"):"")+
-    buttons + profilePanel() + onlineJourney() + myReviewsPanel() + leaguesPanel() + boardUI());
+    buttons + partyRoomPanel() + profilePanel() + onlineJourney() + myReviewsPanel() + leaguesPanel() + boardUI());
 }
 function formatTime(deadline) {
   if (!deadline) return 45;
@@ -579,11 +735,25 @@ async function checkout() {
   } catch(e) {showError(e,"Checkout could not open");}
   finally {busy=false;}
 }
+async function submitPartyAnswer(answer) {
+  const q=state.partyRoom?.question;
+  if(!state.partyId||state.partyRoom?.phase!=="playing"||q?.submitted||busy)return;
+  busy=true;
+  try{
+    await invoke("party-answer",{method:"POST",payload:{
+      room:state.partyId,index:q.index,response:answer
+    }});
+    await refreshPartyRoom(true);
+  }catch(e){
+    state.message=e.message;
+    await refreshPartyRoom(true);
+  }finally{busy=false;}
+}
 async function handleClick(event) {
   const button=event.target.closest("[data-online]");
   if (!button || !container.contains(button)) return;
   const action=button.dataset.online;
-  if (action==="back") {stopTimer();container.onclick=null;container.onsubmit=null;window.removeEventListener("keydown",onKeydown);onBack();return;}
+  if (action==="back") {stopTimer();stopPartyPolling();container.onclick=null;container.onsubmit=null;window.removeEventListener("keydown",onKeydown);onBack();return;}
   if (busy) return;
   if (action==="crowd-consent") {
     busy=true;
@@ -597,6 +767,72 @@ async function handleClick(event) {
     }catch(e){showError(e,"Could not change crowd consent")}
     finally{busy=false;}
     return;
+  }
+  if(action==="party-dismiss-invite"){
+    state.pendingRoomCode=null;
+    const u=new URL(window.location.href);u.searchParams.delete("room");
+    window.history.replaceState(null,"",u.pathname+u.search+u.hash);
+    showMenu();return;
+  }
+  if(action==="party-reopen"){
+    if(state.partyId)await enterPartyRoom(state.partyId);
+    return;
+  }
+  if(action==="party-accept-invite"){
+    if(!state.user||!state.pendingRoomCode)return;
+    busy=true;
+    try{
+      const joined=await invoke("party-join",{method:"POST",
+        payload:{code:state.pendingRoomCode}});
+      state.pendingRoomCode=null;
+      const u=new URL(window.location.href);u.searchParams.delete("room");
+      window.history.replaceState(null,"",u.pathname+u.search+u.hash);
+      await enterPartyRoom(joined.room.id);
+    }catch(e){showError(e,"Could not accept private room invite");}
+    finally{busy=false;}
+    return;
+  }
+  if(action==="party-create"){
+    if(!state.user)return;
+    busy=true;
+    try{
+      const response=await invoke("party-create",{method:"POST",payload:{}});
+      await enterPartyRoom(response.room.id);
+    }catch(e){showError(e,"Could not create private room")}
+    finally{busy=false;}
+    return;
+  }
+  if(action==="party-start"){
+    if(!state.partyId||state.partyRoom?.host!==state.user?.id)return;
+    busy=true;
+    try{
+      await invoke("party-start",{method:"POST",payload:{room:state.partyId}});
+      await refreshPartyRoom(true);
+    }catch(e){state.message=e.message;showPartyRoom();}
+    finally{busy=false;}
+    return;
+  }
+  if(action==="party-refresh"){
+    await refreshPartyRoom(true);return;
+  }
+  if(action==="party-leave"){
+    stopPartyPolling();state.partyId=null;state.partyRoom=null;
+    state.partyRevealStep=-1;showMenu();return;
+  }
+  if(action==="party-copy"){
+    if(!state.partyRoom?.code)return;
+    const link=roomInviteUrl(window.location.href,state.partyRoom.code);
+    try{await navigator.clipboard.writeText(link);state.message="Private room invite copied.";}
+    catch{state.message="Copy failed. Share this link: "+link;}
+    showPartyRoom();return;
+  }
+  if(action==="party-pick"||action==="party-skip"){
+    await submitPartyAnswer(action==="party-skip"?null:button.dataset.answer);return;
+  }
+  if(action==="party-reveal-next"){
+    if(state.partyRoom?.phase!=="finished")return;
+    state.partyRevealStep=Math.min(7,state.partyRevealStep+1);
+    showPartyRoom();return;
   }
   if (action==="dismiss-invite") {
     state.pendingInvite=null;
@@ -699,7 +935,7 @@ async function handleClick(event) {
     showResults();
   }
   if (action==="logout") {
-    await supabase.auth.signOut();
+    stopPartyPolling();await supabase.auth.signOut();
     state.user=null;state.profile=null;state.game=null;state.crowdPulses={};state.crowdLoadedFor=null;
     showMenu();
   }
@@ -710,6 +946,18 @@ async function handleSubmit(event) {
   event.preventDefault();
   if (busy) return;
   if (form.dataset.form==="answer") return submitAnswer(container.querySelector("#online-answer")?.value?.trim()||null);
+  if (form.dataset.form==="party-answer")
+    return submitPartyAnswer(container.querySelector("#online-party-answer")?.value?.trim()||null);
+  if (form.dataset.form==="party-join") {
+    busy=true;
+    try{
+      const code=container.querySelector("#online-party-code")?.value?.trim();
+      const response=await invoke("party-join",{method:"POST",payload:{code}});
+      await enterPartyRoom(response.room.id);
+    }catch(e){showError(e,"Could not join private room")}
+    finally{busy=false;}
+    return;
+  }
   if (form.dataset.form==="login") {
     const email=String(container.querySelector("#online-email")?.value||"").trim();
     if (!email) return;
@@ -718,6 +966,7 @@ async function handleSubmit(event) {
       const redirect=new URL(window.location.origin+window.location.pathname);
       redirect.searchParams.set("online","1");
       if(state.pendingInvite)redirect.searchParams.set("league",state.pendingInvite);
+      if(state.pendingRoomCode)redirect.searchParams.set("room",state.pendingRoomCode);
       const redirectTo=redirect.href;
       const {error}=await supabase.auth.signInWithOtp({email,options:{emailRedirectTo:redirectTo}});
       if (error) throw error;
@@ -789,6 +1038,8 @@ export async function mountOnline(element, back) {
     leagues:[],activeLeague:null,leaguePlayers:[],leaguePeriod:"week",rivalId:null,rivalry:null,
     crowdPulses:{},crowdLoadingFor:null,crowdLoadedFor:null,
     pendingInvite:readLeagueInvite(window.location.search),
+    pendingRoomCode:readRoomInvite(window.location.search),partyId:null,partyRoom:null,
+    partyReceivedAt:0,partySignature:null,partyRevealStep:-1,
     error:null,message:null,sent:false};
   showBusy();
   if (!ONLINE_ENABLED) {
