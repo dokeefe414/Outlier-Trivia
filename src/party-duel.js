@@ -79,7 +79,7 @@ export function buildPartyGames(input={},random=Math.random) {
     if(questions.length!==7||new Set(questions.map(q=>q.id)).size!==7)
       throw new Error("Invalid party game slate.");
     games.push({questions,answersByPlayer:Array.from({length:config.players},()=>null),
-      wagersByPlayer:Array.from({length:config.players},()=>0)});
+      wagersByPlayer:Array.from({length:config.players},()=>config.finalWager?null:0)});
   }
   return games;
 }
