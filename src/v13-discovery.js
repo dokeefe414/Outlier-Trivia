@@ -76,3 +76,16 @@ export function weeklyCup(players,period="week") {
     participants:sorted.length,final:period==="last-week",
     note:"Pairings are alphabetical by account ID and can change as members join. Scores are server-verified official weekly totals; these are exhibition head-to-head comparisons, not an elimination bracket."};
 }
+
+export function duelSummary(one,two) {
+  const a=Array.isArray(one)?one:[];
+  const b=Array.isArray(two)?two:[];
+  const total=rows=>rows.reduce((points,answer)=>points+clampPoints(answer?.points),0);
+  const oneScore=total(a),twoScore=total(b);
+  const roundCount=Math.max(a.length,b.length);
+  return {oneScore,twoScore,roundCount,
+    outcome:oneScore===twoScore?"tie":oneScore>twoScore?"one":"two",
+    oneAccepted:a.filter(x=>x?.valid).length,
+    twoAccepted:b.filter(x=>x?.valid).length
+  };
+}
