@@ -15,6 +15,9 @@ declare
   answer text;
   final jsonb;
 begin
+  if public.outlier_request_budget(u1,'party-answer',30,3600)<>true then
+    raise exception 'Rate budget rejected legitimate private-room action';
+  end if;
   lobby:=public.outlier_party_create(u1);
   room:=(lobby->>'id')::uuid;
   code:=lobby->>'code';
