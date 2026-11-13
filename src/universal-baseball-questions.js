@@ -54,10 +54,10 @@ const eras=[
 export const universalBaseballQuestions=eras.map(([label,start,end])=>
   makeSourceQuestion({
     id:"v16-mlb-"+label,category:"BASEBALL",group:"sports",
-    prompt:"Name an MLB player who made their major-league debut between "+
-      start+" and "+end+" from the historical Chadwick register.",
+    prompt:"Name a player whose first MLB-listed playing season is between "+
+      start+" and "+end+" in the historical Chadwick register.",
     source,records:players.filter(x=>x.firstYear>=start&&x.firstYear<=end),
-    name:row=>row.name+" (MLB debut "+row.firstYear+")",
+    name:row=>row.name+" (first listed "+row.firstYear+")",
     score,alias
   })
 );
