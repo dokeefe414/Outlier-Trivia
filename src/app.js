@@ -744,21 +744,34 @@ function feedbackHeading(result) {
 }
 
 
+const explorerCache=new WeakMap();
+function explorerRows(question,search="") {
+  let entries=explorerCache.get(question);
+  if(!entries){
+    // Cached sort avoids rebuilding or rendering thousands of rows on mobile.
+    entries=[...question.answers].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]));
+    explorerCache.set(question,entries);
+  }
+  const needle=normalizeAnswer(search);
+  const matches=needle ? entries.filter(([name,,aliases=[]])=>
+    normalizeAnswer([name,...aliases].join(" ")).includes(needle)) : entries;
+  const rows=matches.slice(0,80).map(([name,points])=>
+    '<div class="explorer-row"><strong>'+esc(name)+'</strong><span>'+fmt(points)+' pts</span></div>'
+  ).join("");
+  return {rows,count:matches.length,shown:Math.min(80,matches.length)};
+}
 function answerExplorer(question) {
-  if (!question.bigPool) return "";
-  const ranked = [...question.answers].sort((a,b)=>b[1]-a[1] || a[0].localeCompare(b[0]));
-  const rows = ranked.map(([name,points,aliases=[]])=> {
-    const haystack=normalizeAnswer([name,...aliases].join(" "));
-    return '<div class="explorer-row" data-search="'+esc(haystack)+'">'+
-      '<strong>'+esc(name)+'</strong><span>'+fmt(points)+' pts</span></div>';
-  }).join("");
+  if(!question.bigPool)return "";
+  const initial=explorerRows(question);
   return '<details class="answer-explorer"><summary>EXPLORE ALL '+question.answers.length+
     ' VALID ANSWERS <span class="explorer-plus">+</span></summary>'+
-    '<div class="answer-explorer-body"><p class="small muted">These are the accepted answers for this category, sorted from highest to lowest prototype rarity points. '+
-    'Rarity tiers are estimates, not live crowd percentages.</p>'+
-    '<label class="answer-label" for="answer-explorer-filter">FIND AN ANSWER</label>'+
+    '<div class="answer-explorer-body"><p class="small muted">Accepted names from this prompt’s particular archived reference. Rarity points are editorial estimates, not measured crowd percentages.</p>'+
+    '<label class="answer-label" for="answer-explorer-filter">SEARCH THE FULL APPROVED ANSWER SET</label>'+
     '<input id="answer-explorer-filter" type="search" class="answer-input" placeholder="Search names or accepted aliases..." autocomplete="off">'+
-    '<div class="answer-explorer-results">'+rows+'</div>'+
+    '<p id="answer-explorer-count" class="small muted" role="status">'+
+      'SHOWING '+initial.shown+' OF '+initial.count+' ANSWERS'+
+      (initial.count>80?' · SEARCH TO FIND MORE':'')+'</p>'+
+    '<div class="answer-explorer-results">'+initial.rows+'</div>'+
     '<p id="answer-explorer-empty" class="small muted" hidden>No approved answers match that search.</p></div></details>';
 }
 
@@ -1305,15 +1318,15 @@ document.addEventListener("input", event => {
     return;
   }
   if(event.target?.id !== "answer-explorer-filter") return;
-  const needle=normalizeAnswer(event.target.value);
-  let shown=0;
-  document.querySelectorAll(".explorer-row").forEach(row => {
-    const visible=row.dataset.search.includes(needle);
-    row.hidden=!visible;
-    if(visible)shown++;
-  });
+  if(!feedback?.question?.bigPool)return;
+  const result=explorerRows(feedback.question,event.target.value);
+  const container=document.querySelector(".answer-explorer-results");
+  if(container)container.innerHTML=result.rows;
+  const count=document.getElementById("answer-explorer-count");
+  if(count)count.textContent="SHOWING "+result.shown+" OF "+result.count+" MATCHING ANSWERS"+
+    (result.count>80?" · REFINE YOUR SEARCH TO SEE MORE":"");
   const empty=document.getElementById("answer-explorer-empty");
-  if(empty)empty.hidden=shown>0;
+  if(empty)empty.hidden=result.count>0;
 });
 
 document.addEventListener("change",event=>{
