@@ -126,6 +126,12 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f test/v13-crowd-smoke.sql
       - name: Apply v1.7 server-verified private party rooms
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261112001800_v17_private_party_rooms.sql
+      - name: Verify private party question bank is empty before CI fixtures
+        run: |
+          COUNT=$(psql -Atc 'select count(*) from private.outlier_party_question_bank')
+          [ "$COUNT" = "0" ] || (echo "Room answer keys may not be shipped in public migrations" && exit 1)
+      - name: Import CI-only private party question fixture
+        run: psql -v ON_ERROR_STOP=1 -f test/v17-private-room-fixture.sql
       - name: Verify synchronized shared questions, room authorization and score secrecy
         run: psql -v ON_ERROR_STOP=1 -f test/v17-party-room-smoke.sql
 
