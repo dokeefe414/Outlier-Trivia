@@ -415,8 +415,8 @@ function openAtlasPanel() {
   return '<section class="open-atlas-panel" aria-labelledby="open-atlas-title">'+
     '<div><div class="eyebrow">NEW / THE BIG LIST</div>'+
     '<h2 id="open-atlas-title">THOUSANDS OF ANSWERS. SEVEN SHOTS.</h2>'+
-    '<p>A new seven-question Stand Out challenge drawn from '+fmt(openAtlasCatalog.sourceEntries)+
-      ' archived city, county and dinosaur names. Find the unexpected correct pick.</p>'+
+    '<p>Movies. Music. Athletes. Video games. Science. History. Food. Geography. '+
+    'Seven source-backed Stand Out questions across the full expanded trivia universe.</p>'+
     '<small>ALL STAND OUT · 45 SECONDS EACH · FREE & UNRANKED</small></div>'+
     homeButton('PLAY THE BIG LIST ↗','open-atlas','btn-primary')+'</section>';
 }
