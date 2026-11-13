@@ -638,6 +638,21 @@ function roundDots() {
       return '<span class="round-dot ' + q.type + ' ' + state + '" title="Question ' + (index+1) + ': ' + q.type + '"></span>';
     }).join("") + '</div>';
 }
+function questionSourceLink(question) {
+  if(!question?.arcadeOnly)return "";
+  let url="",label="";
+  if(question.id.startsWith("open-v16-mlb-")){
+    url="https://github.com/chadwickbureau/register";
+    label="SOURCE: CHADWICK BASEBALL BUREAU · ODC-BY 1.0";
+  }else if(question.id.startsWith("open-v16-cc0-")){
+    url="https://github.com/dariusk/corpora";
+    label="SOURCE: CC0 CORPORA HISTORICAL DATA";
+  }else if(question.id.startsWith("open-v16-")){
+    url="https://github.com/Flightmussy/filmmap-dataset";
+    label="SOURCE: WIKIDATA / CC0 FILMMAP SNAPSHOT";
+  }
+  return url?'<a class="question-source" href="'+url+'" target="_blank" rel="noopener noreferrer">'+label+' ↗</a>':"";
+}
 function renderGame() {
   if (!session) return renderHome();
   const q = currentQuestion();
@@ -678,6 +693,7 @@ function renderGame() {
     '<div class="question-category">' + esc(q.category) + ' · ROUND ' + (session.index+1) + '</div>',
     '<h2 class="question-prompt">' + esc(q.prompt) + '</h2>',
     '<p class="question-detail">' + esc(fit ? "Six options. Only one is the crowd favorite. Pick the answer you think most people would choose." : q.detail) + '</p>',
+    questionSourceLink(q),
     optionContent,
     '<div class="question-foot"><span class="question-legend ' + q.type + '"><i></i>' + (fit ? "Highest crowd match = 1,000 pts" : "Rarer approved answers = more points") + '</span>',
     '<button type="button" class="skip" data-action="skip">Skip this question</button></div>',
