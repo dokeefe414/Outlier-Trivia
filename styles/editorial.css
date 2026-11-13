@@ -1258,3 +1258,73 @@ a{color:var(--lime)}
   overflow-wrap:anywhere;
 }
 .question-source:hover,.question-source:focus-visible{opacity:1;text-decoration-thickness:2px}
+
+/* OUTLIER 1.7 / personal mastery, evidence review, party showmanship */
+.party-extras{display:grid;grid-template-columns:minmax(160px,1fr) minmax(0,2fr);gap:14px;align-items:stretch}
+.party-extras>label{min-width:0;display:flex;flex-direction:column;gap:10px;font:600 12px 'DM Mono',monospace}
+.party-extras .answer-input{max-width:100%;min-width:0;background:var(--ink);color:var(--paper);border:1px solid var(--line);padding:12px}
+.party-wager-toggle{flex-direction:row!important;align-items:center;border:1px solid var(--line);background:var(--panel2);padding:15px;cursor:pointer}
+.party-wager-toggle input{accent-color:var(--lime);width:22px;height:22px;flex-shrink:0}
+.party-wager-toggle>span{display:flex;flex-direction:column;gap:5px;min-width:0}
+.party-wager-toggle small{font:400 11px/1.5 'DM Mono',monospace;color:var(--muted)}
+.party-portrait{display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;flex-shrink:0;
+  width:40px;height:40px;background:var(--lime);border:2px solid var(--ink);color:var(--ink);font:700 13px 'DM Mono',monospace;
+  box-shadow:3px 3px 0 var(--orange);border-radius:50%;margin-right:9px}
+.party-portrait.portrait-1{background:#f1ba7b}.party-portrait.portrait-2{background:#91d8d9}
+.party-portrait.portrait-3{background:#ffb6d8}.party-portrait.portrait-4{background:#dbc8ff}
+.party-portrait.portrait-5{background:#dfd2a1}.party-portrait.portrait-6{background:#b5e6aa}
+.party-portrait.portrait-7{background:#ffcf99}
+.party-pick-player{display:flex;align-items:center;gap:4px}
+.party-series-pulse{margin:22px auto;max-width:660px;text-align:left}
+.party-series-pulse>.eyebrow{margin-bottom:12px}
+.party-series-pulse>div:not(.eyebrow){display:flex;gap:10px;align-items:center;padding:7px 12px;
+  border:1px solid var(--line);background:var(--panel2);font-size:12px}
+.party-series-pulse>div span:last-child{margin-left:auto;font:500 11px 'DM Mono',monospace}
+.party-game-standings>div>span{display:flex;align-items:center}
+.party-series-table>div:not(.party-series-header)>span{display:flex;align-items:center;gap:3px}
+.party-wager-options{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:30px}
+.party-wager-options .btn{white-space:normal;min-width:140px}
+.party-wager-result{font:500 11px 'DM Mono',monospace}
+.party-final-drum{margin:20px auto;padding:10px;border:2px solid var(--orange);font:700 13px 'DM Mono',monospace;max-width:460px}
+.mastery-card{margin:23px 0}
+.mastery-hero{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}
+.mastery-hero span{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);padding:11px 13px;font:600 11px 'DM Mono',monospace}
+.mastery-hero b{font-size:18px;color:var(--lime)}
+.mastery-levels{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:20px}
+.mastery-level{border:2px solid var(--line);background:var(--panel);padding:13px;min-width:0}
+.mastery-level>div:first-child{display:flex;align-items:flex-start;flex-direction:column;gap:6px}
+.mastery-level strong{font:700 12px 'DM Mono',monospace}
+.mastery-level span,.mastery-level small{font:500 11px 'DM Mono',monospace;color:var(--muted)}
+.mastery-track{background:var(--ink);border:1px solid var(--line);height:9px;margin:14px 0 8px}
+.mastery-track span{display:block;background:var(--lime);height:100%}
+.mastery-trophies{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px}
+.mastery-trophy{display:flex;flex-direction:column;gap:7px;border:1px solid var(--line);padding:15px;min-width:0}
+.mastery-trophy>span{font-size:25px}
+.mastery-trophy strong{font:700 12px 'DM Mono',monospace}
+.mastery-trophy small{font-size:12px;color:var(--muted);line-height:1.4}
+.mastery-trophy em{font:600 11px 'DM Mono',monospace;margin-top:auto;font-style:normal}
+.mastery-trophy.is-earned{border:2px solid var(--lime);background:var(--panel3)}
+.mastery-trophy.is-earned em{color:var(--lime)}
+.mastery-trophy.is-locked{opacity:.72}
+.review-tracker{margin:23px 0}
+.review-tracker-row{display:flex;gap:12px;justify-content:space-between;align-items:center;padding:14px 0;border-top:1px solid var(--line);flex-wrap:wrap}
+.review-tracker-row>div{display:flex;flex-direction:column;gap:5px}
+.review-tracker-row b{font-size:14px}
+.review-tracker-row small{font:500 11px 'DM Mono',monospace;color:var(--muted)}
+.review-tracker-row form{display:flex;align-items:center;gap:8px;max-width:100%}
+.review-tracker-row form .answer-input{min-width:0;max-width:260px}
+.review-compose{max-width:780px;margin:30px auto 90px}
+.review-compose h1{font:400 clamp(27px,5vw,48px) 'Archivo Black',sans-serif}
+.review-compose>p{line-height:1.6}
+.review-compose>.card{margin:20px 0;padding:24px}
+.review-compose form{display:flex;flex-direction:column;gap:13px}
+.review-compose form label{font:600 11px 'DM Mono',monospace;margin-top:10px}
+.review-compose form input,.review-compose form textarea{width:100%;padding:14px;border:1px solid var(--line);background:var(--panel);color:var(--paper);font:400 14px/1.6 system-ui}
+.review-compose form .btn{align-self:flex-start;margin-top:10px}
+@media(max-width:700px){
+  .party-extras,.mastery-levels,.mastery-trophies{grid-template-columns:1fr}
+  .party-series-pulse>div span:last-child{font-size:10px}
+  .review-tracker-row form{width:100%}
+  .review-tracker-row form .answer-input{flex:1}
+  .party-wager-options .btn{width:100%}
+}
