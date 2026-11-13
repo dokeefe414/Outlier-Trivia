@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {rareQuestions,fitQuestions} from "../src/data.js";
 import {normalizeAnswer,inspectRareGuess,auditQuestionAliases} from "../src/answer-intelligence.js";
-import {buildRound,buildArcadeRound,buildOpenAtlasRound} from "../src/game.js";
+import {buildRound,buildArcadeRound,buildOpenAtlasRound,randomFromSeed,seedFromString} from "../src/game.js";
 import {buildPartyGames} from "../src/party-duel.js";
 import {universalMediaQuestions,universalMediaCounts} from "../src/universal-media-questions.js";
 import {universalBaseballQuestions,universalBaseballCount} from "../src/universal-baseball-questions.js";
@@ -92,6 +92,16 @@ test("every Big List game has seven different categories, all new answers stay u
   }
   const arcade=buildArcadeRound("2026-11-16","music","rare-rush");
   assert.ok(arcade.some(q=>q.arcadeOnly));
-  const party=buildPartyGames({players:2,games:1,categories:["sports"]});
-  assert.ok(party[0].questions.some(q=>q.arcadeOnly));
+  // A single shuffled 4-question slate can legitimately contain only older
+  // sports prompts. Test across reproducible seeds, never one lucky draw.
+  const config={players:2,games:1,categories:["sports"]};
+  let expandedSportsFound=false;
+  for(let i=0;i<24;i++){
+    const random=randomFromSeed(seedFromString("v16-party-source-"+i));
+    const party=buildPartyGames(config,random);
+    assert.ok(party[0].questions.filter(q=>q.type==="rare")
+      .every(q=>q.poolGroup==="sports"));
+    if(party[0].questions.some(q=>q.arcadeOnly))expandedSportsFound=true;
+  }
+  assert.equal(expandedSportsFound,true);
 });
