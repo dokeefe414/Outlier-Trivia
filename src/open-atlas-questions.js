@@ -118,7 +118,7 @@ add({...cityBase,id:"us-city-top1000",prompt:"Name a U.S. city in our archived t
 add({...cityBase,id:"us-city-am",prompt:"Name a U.S. city beginning A–M in our archived top-1,000 cities (2016).",filter:x=>am(x.city)});
 add({...cityBase,id:"us-city-nz",prompt:"Name a U.S. city beginning N–Z in our archived top-1,000 cities (2016).",filter:x=>nz(x.city)});
 add({...cityBase,id:"us-city-long",prompt:"Name a U.S. city with at least ten letters in its city name from our archived top-1,000 cities (2016).",filter:x=>long(x.city)});
-for(const state of ["California","Texas","Florida","New York"]){
+for(const state of ["California","Texas","Florida"]){
   add({...cityBase,id:"us-city-"+abbreviations[state].toLowerCase(),
     prompt:"Name a city in "+state+" from our archived 2016 top-1,000 U.S. city list.",
     filter:x=>x.state===state});
