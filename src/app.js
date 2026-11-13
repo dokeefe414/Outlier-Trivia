@@ -914,10 +914,10 @@ function shareResult() {
   storage.beta.shared=true; saveStore();
   const link = challengeLink(window.location.href,session.day,scoreOf(session.answers));
   const value = session.weeklyEvent
-    ? "OUTLIER WEEKLY SPOTLIGHT / "+session.weeklyEvent+"\\n"+
-      fmt(scoreOf(session.answers))+" / 10,000 points (unranked)\\n"+
-      "Same ten questions all week — beat my score!\\n"+window.location.origin+window.location.pathname
-    : shareText(session.day, session.answers) + "\\nBEAT MY SCORE: " + link;
+    ? "OUTLIER WEEKLY SPOTLIGHT / "+session.weeklyEvent+"\n"+
+      fmt(scoreOf(session.answers))+" / 10,000 points (unranked)\n"+
+      "Same ten questions all week — beat my score!\n"+window.location.origin+window.location.pathname
+    : shareText(session.day, session.answers) + "\nBEAT MY SCORE: " + link;
   if (navigator.clipboard?.writeText) {
     navigator.clipboard.writeText(value).then(() => toast("Results copied! Challenge a friend."), () => copyFallback(value));
   } else copyFallback(value);
