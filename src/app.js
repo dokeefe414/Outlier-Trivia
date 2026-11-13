@@ -1141,11 +1141,11 @@ function shareResult() {
     const d=session.duel,summary=partyStandings(d.config,d.games);
     const rows=summary.table.map((row,index)=>
       (index+1)+". "+row.name+" · "+row.wins+" game "+(row.wins===1?"win":"wins")+
-      " · "+fmt(row.points)+" pts").join("\\n");
-    const value="OUTLIER PASS & PLAY SHOWDOWN\\n"+
+      " · "+fmt(row.points)+" pts").join("\n");
+    const value="OUTLIER PASS & PLAY SHOWDOWN\n"+
       d.config.players+" players · "+d.config.games+" "+(d.config.games===1?"game":"games")+
-      "\\nCHAMPION: "+summary.champions.map(row=>row.name).join(" & ")+
-      "\\n"+rows+"\\n"+window.location.origin+window.location.pathname;
+      "\nCHAMPION: "+summary.champions.map(row=>row.name).join(" & ")+
+      "\n"+rows+"\n"+window.location.origin+window.location.pathname;
     if(navigator.clipboard?.writeText)
       navigator.clipboard.writeText(value).then(()=>toast("Final party standings copied!"),()=>copyFallback(value));
     else copyFallback(value);
