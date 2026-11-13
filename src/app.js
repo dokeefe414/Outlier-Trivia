@@ -977,8 +977,8 @@ function shareResult() {
   storage.beta.shared=true; saveStore();
   if(session?.duel){
     const score=duelSummary(session.duel.players[0].answers,session.duel.players[1].answers);
-    const value="OUTLIER LOCAL DUEL (UNRANKED)\\nPLAYER 1: "+fmt(score.oneScore)+
-      " pts\\nPLAYER 2: "+fmt(score.twoScore)+" pts\\n"+
+    const value="OUTLIER LOCAL DUEL (UNRANKED)\nPLAYER 1: "+fmt(score.oneScore)+
+      " pts\nPLAYER 2: "+fmt(score.twoScore)+" pts\n"+
       window.location.origin+window.location.pathname;
     if(navigator.clipboard?.writeText)
       navigator.clipboard.writeText(value).then(()=>toast("Duel result copied!"),()=>copyFallback(value));
