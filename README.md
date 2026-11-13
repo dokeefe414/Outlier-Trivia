@@ -2,6 +2,8 @@
 
 **A playable, mobile-friendly daily general-knowledge game.** Seven questions, two mindsets: find a rare correct answer in **Stand Out**, then predict the most popular answer in **Fit In**.
 
+> **v1.4 Custom Party Showdown — choose 2–8 players, 1–7 games, and your own Stand Out categories.** Every player answers the same seven-question slate per game. Results are sealed until a seven-stage dramatic reveal, followed by a game scoreboard and final series champion. This is free, local and unranked.
+
 > **v1.3 competition and discovery — weekly spotlight, Daily Debrief, league cup displays, opt-in crowd research and editorial QA.** The v1.2 editorial design remains intact. The hosted features still require Supabase, private ranked content and real player validation.
 
 > **v1.2 editorial redesign — an original OUTLIER visual identity, new printed-ticket game screens, and no generic glowing-orb dashboard.** The repository now contains production-oriented account, private-content, social league, editorial-review and Stripe test-mode infrastructure. Supabase/Stripe credentials, privately authored ranked answers and real-user validation are still required. No live payments or worldwide leaderboards are active.
@@ -31,12 +33,31 @@ The browser must load the site over HTTP, not the file protocol, because the gam
 
 Pages is **not enabled automatically** by these commits, and the expected URL should not be considered live until deployment succeeds.
 
+## v1.4 — Custom Party Showdown
+
+Pass & Play is now a full game-night flow. From **Build Your Game Night**, choose
+the player count (2–8), number of games (1–7), and one or multiple Stand Out
+categories. Give each player a name. Everyone answers the same seven questions
+in a game, passing the device after their turn; no points are shown mid-game.
+
+After the last player finishes, the dramatic reveal exposes **one question
+at a time**, showing every player's answer and points. Game scores remain
+hidden until all seven questions are revealed. The highest scorer earns
+one game win (shared wins for ties). A series champion is chosen by number
+of game wins, then total points, with shared champions on exact ties.
+
+The whole party mode is local, free, unranked and independent of the official
+daily. Each game's four Stand Out questions follow your selected categories;
+three Fit In prompts remain mixed. Games may reuse material once a selected
+question pool is exhausted. You can run a rematch with the same house rules
+or choose new settings. See [v1.4 game flow and testing](docs/V14_CUSTOM_PARTY_DUEL.md).
+
 ## v1.3 — Competition & Discovery
 
 Five new release workstreams improve what happens between daily games.
 
 - **Daily Debrief (playable now):** Genuine session-derived standout pick, strongest crowd call, missed rounds, actual accepted answers, and a category score ledger in guest and hosted results. No fictional player comparisons.
-- **Pass & Play Duel (playable now):** Two people take turns on the exact same seven questions on one device. Accepted answers and scores remain sealed until both finish; this is local unranked competition, not online multiplayer.\n- **Weekly Spotlight (playable now):** A free, deterministic 10-question themed rare-answer challenge, identical across each UTC week for everyone running the same game version. A 30-second timer, unranked weekly personal best, and optional score sharing make this replayable without touching official results.
+- **Pass & Play Duel (playable now):** Party players take turns on the same seven questions per game on one device. Accepted answers and scores remain sealed until both finish; this is local unranked competition, not online multiplayer.\n- **Weekly Spotlight (playable now):** A free, deterministic 10-question themed rare-answer challenge, identical across each UTC week for everyone running the same game version. A 30-second timer, unranked weekly personal best, and optional score sharing make this replayable without touching official results.
 - **Friend League Weekly Cup (hosted source):** Verified weekly points drive provisional head-to-head matchups; previous-week comparisons are retrospective. Pairings are exhibition comparisons, not a locked elimination bracket.
 - **Opt-in Crowd Pulse (hosted source):** Authenticated users explicitly permit completed future official responses to contribute anonymously to observed Fit In comparisons. Fit In counts are visible only to people who completed that question, only after 30 prior-day eligible responses. Legacy Stand Out history now uses the same consent rule. Withdrawal excludes prior contributions immediately. Frozen editorial scoring remains unchanged.
 - **Editorial QA (owner tool):** `npm run review:answer -- <question-id> <answer>` checks whether a proposal is already accepted and identifies ambiguous or source-needed cases. Human reference checks are required before versioned edits. Existing approved answers are not broadened blindly.
