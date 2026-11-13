@@ -2,6 +2,8 @@
 
 **A playable, mobile-friendly daily general-knowledge game.** Seven questions, two mindsets: find a rare correct answer in **Stand Out**, then predict the most popular answer in **Fit In**.
 
+> **v1.6 Universal Answer Atlas — 235 Stand Out questions and 107,588 approved answer slots.** Added 80 deep-source prompts across all twelve topics: thousands of movies and TV shows, historical MLB players, music, books, science, sports, people, animals, food, games, and more. THE BIG LIST now samples seven different topic groups. [See sources, counts, and exact answer rules](docs/V16_UNIVERSAL_ANSWER_ATLAS.md).
+>
 > **v1.5 Deep Answer Atlas — THE BIG LIST is now playable.** 5,644 additional source-backed city, county and dinosaur records power 18 large open-answer prompts. Search thousands of accepted names with faster indexed typo checks. New content is currently guest practice/party only to preserve established official daily scores. Read the [source, licensing and answer-coverage guide](docs/OPEN_ANSWER_ATLAS.md).
 
 > **v1.4 Custom Party Showdown — choose 2–8 players, 1–7 games, and your own Stand Out categories.** Every player answers the same seven-question slate per game. Results are sealed until a seven-stage dramatic reveal, followed by a game scoreboard and final series champion. This is free, local and unranked.
@@ -33,7 +35,49 @@ The browser must load the site over HTTP, not the file protocol, because the gam
 3. Select **main**, **/(root)**, then **Save**.
 4. Once GitHub finishes deploying, the expected URL is **https://dokeefe414.github.io/Outlier-Trivia/**.
 
-Pages is **not enabled automatically** by these commits, and the expected URL should not be considered live until deployment succeeds.
+GitHub Pages deployments are verified through the repository's Actions workflow. Check the latest deployment run if you are testing a newly merged release.
+
+## v1.6 — Universal Answer Atlas / EVERY CATEGORY EXPANDED
+
+OUTLIER now has **235 Stand Out question types** and **53 Fit In prediction
+questions**. The content audit verifies **107,588 accepted canonical answer
+slots** and **104,286 alternate-name slots** across Stand Out prompts.
+An answer slot may repeat across related questions: these are *not*
+107,588 distinct real-world entities or live player response percentages.
+
+The **80 new** source-backed Stand Out prompts span **all twelve** practice
+categories. The new public-domain/attributed historical source records include:
+
+- **11,540** Wikidata-derived media production records (7,716 films, 1,818
+  television titles, 1,311 video games, 388 anime and 307 manga) from an
+  August 2026 CC0 archive, disambiguated by release year where necessary.
+- **23,485** historical MLB playing records from the Chadwick Baseball Bureau
+  register (**ODC-BY 1.0**, attributed in the documentation). The correct
+  question range is each player's *first MLB-listed season in the source*;
+  it is not a promise about conventional MLB debut years.
+- **14,543** additional archived CC0 reference entries from 31 subject lists,
+  including British actors, Rock Hall inductees, XXL Freshmen, minor-league
+  teams, cat and horse breeds, tabletop RPGs, books, programming languages,
+  colors, occupations, herbs, apple cultivars, rivers, meteorology and more.
+
+The free **THE BIG LIST** mode now draws seven rare-answer prompts from
+**seven distinct categories** every run. The Knowledge Arcade and custom
+Pass & Play get the same much broader reference pools. The source lists
+are finite and the question text identifies the applicable archive; no
+unverified generative-AI verdicts or scraped competitor answers are used.
+
+A normalization fix keeps `C`, `C++` and `C#` distinguishable.
+Existing source-backed aliases, single-character typo tolerance,
+no-guess handling of ambiguous names, and full answer search are retained.
+
+**Safety boundary:** All 80 questions are explicitly marked unranked
+(`arcadeOnly`); they do **not** change the official daily's seven questions,
+historical scores, private hosted ranked answers, league results or payments.
+The six-choice Fit In popularity-prediction boards remain intentionally fixed.
+
+See [v1.6 sources and implementation](docs/V16_UNIVERSAL_ANSWER_ATLAS.md)
+for full licenses, source date restrictions, scoring assumptions and
+release checks.
 
 ## v1.5 — Deep Answer Atlas / THE BIG LIST
 
