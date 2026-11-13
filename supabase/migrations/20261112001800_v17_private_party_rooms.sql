@@ -176,7 +176,7 @@ declare
   v_now timestamptz:=clock_timestamp();
   v_phase text;
   v_index int;
-  v_question private.ranked_question_bank%rowtype;
+  v_question private.outlier_party_question_bank%rowtype;
   v_pledges jsonb;
   v_has boolean;
   v_members jsonb;
@@ -258,7 +258,7 @@ create or replace function public.outlier_party_answer(
 set search_path=public,private,pg_temp as $$
 declare
   v_room public.outlier_party_rooms%rowtype;
-  v_q private.ranked_question_bank%rowtype;
+  v_q private.outlier_party_question_bank%rowtype;
   v_now timestamptz:=clock_timestamp();
   v_idx integer;
   v_row jsonb;
