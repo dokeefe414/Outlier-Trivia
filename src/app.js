@@ -570,12 +570,15 @@ function renderPracticeSelect() {
       '<span class="arcade-format-icon">'+format.icon+'</span><strong>'+format.title+'</strong>'+
       '<span>'+format.description+'</span><small>'+format.rounds+' ROUNDS · '+format.seconds+' SEC EACH</small></button>').join('')+
       '</div><div class="practice-grid">' + practiceCategoryOptions.map(option => {
-      const matches=rareQuestions.filter(q=>q.bigPool && q.poolGroup===option.value);
+      const matches=rareQuestions.filter(q=>q.bigPool &&
+        (option.value==="surprise"||q.poolGroup===option.value));
+      const slots=matches.reduce((n,q)=>n+q.answers.length,0);
       return '<button type="button" data-action="start-practice" data-group="'+esc(option.value)+'" class="practice-option '+(option.value==="surprise"?"featured":"")+'">'+
         '<span class="practice-art">'+option.icon+'</span><strong>'+esc(option.label)+'</strong>'+
         '<span class="practice-description">'+esc(option.detail)+'</span>'+
-        '<span class="practice-count">'+(option.value==="surprise"?"ALL CATEGORIES":matches.length+" RARE PROMPTS")+' <b>↗</b></span></button>';
-    }).join("")+'</div><p class="practice-footnote">Practice is free during beta testing. It never affects official daily or lifetime leaderboards. The $4.99 lifetime unlock is not active yet.</p></section>';
+        '<span class="practice-count">'+(option.value==="surprise"?"ALL CATEGORIES · "+fmt(slots)+" ANSWER SLOTS":
+          matches.length+" RARE PROMPTS · "+fmt(slots)+" ANSWER SLOTS")+' <b>↗</b></span></button>';
+    }).join("")+'</div><p class="practice-footnote">Practice uses archived reference lists with many valid names, but not every real-world answer is in every list. Answer-slot counts include repeats across questions. It never affects official daily or lifetime leaderboards. The $4.99 lifetime unlock is not active yet.</p></section>';
   window.scrollTo(0,0);
 }
 
