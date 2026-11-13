@@ -83,6 +83,15 @@ function parseError(message: string): ApiError {
       message.includes("league_membership_limit") || message.includes("review_already_processed"))
     return new ApiError(409,message.slice(0,70));
   if (message.includes("review_rate_limit")) return new ApiError(429,"review_rate_limit");
+  if (message.includes("party_private_bank_not_ready")) return new ApiError(503,"party_private_bank_not_ready");
+  if (message.includes("party_not_a_member") || message.includes("party_host_only")) return new ApiError(403,"party_forbidden");
+  if (message.includes("party_room_not_found") || message.includes("party_room_unavailable")) return new ApiError(404,"party_room_unavailable");
+  if (message.includes("invalid_party_code") || message.includes("party_round_expired")) return new ApiError(400,message.slice(0,65));
+  if (message.includes("party_room_limit") || message.includes("party_daily_room_limit") ||
+      message.includes("party_membership_limit")) return new ApiError(429,"party_room_limit");
+  if (message.includes("party_room_full") || message.includes("party_need_two_to_four") ||
+      message.includes("party_not_playing") || message.includes("party_already_answered"))
+    return new ApiError(409,message.slice(0,65));
   if (message.includes("invalid_review_filter") || message.includes("invalid_review_decision")) return new ApiError(400,"invalid_review_request");
   if (message.includes("review_not_found")) return new ApiError(404,"review_not_found");
   if (message.includes("invalid_league_name") || message.includes("invalid_invite_code") ||
@@ -143,7 +152,9 @@ async function enforceBudget(userId: string, action: string) {
   const limits: Record<string,[number,number]> = {
     "start":[20,3600],"answer":[240,3600],"advance":[45,3600],
     "league-create":[5,86400],"league-join":[12,3600],
-    "review":[5,86400],"checkout":[5,3600],"name":[8,3600],"crowd-consent":[8,86400]
+    "review":[5,86400],"checkout":[5,3600],"name":[8,3600],"crowd-consent":[8,86400],
+    "party-create":[5,86400],"party-join":[20,3600],"party-start":[12,3600],
+    "party-answer":[30,3600]
   };
   const [max,windowSeconds] = limits[action] ?? [20,3600];
   const permitted=await rpc("outlier_request_budget",{
@@ -333,7 +344,9 @@ async function handle(req: Request): Promise<Response> {
     const mutationBudget: Record<string,string> = {
       "profile":"name","start":"start","answer":"answer","advance":"advance",
       "league-create":"league-create","league-join":"league-join",
-      "review":"review","checkout":"checkout","crowd-consent":"crowd-consent"
+      "review":"review","checkout":"checkout","crowd-consent":"crowd-consent",
+      "party-create":"party-create","party-join":"party-join",
+      "party-start":"party-start","party-answer":"party-answer"
     };
     if ((req.method==="POST" || req.method==="PATCH") && mutationBudget[action]) {
       await enforceBudget(user.id,mutationBudget[action]);
@@ -402,6 +415,42 @@ async function handle(req: Request): Promise<Response> {
         p_user:user.id,p_league:leagueId,p_opponent:opponentId,p_days:days
       });
       return json({rivalry},200,origin);
+    }
+    if (action === "party-create" && req.method === "POST") {
+      const room=await rpc("outlier_party_create",{p_user:user.id});
+      return json({room},200,origin);
+    }
+    if (action === "party-join" && req.method === "POST") {
+      const input=await bodyJson(req);
+      const code=safeStr(input.code,20).toLowerCase();
+      if(!/^[a-f0-9]{12}$/.test(code))throw new ApiError(400,"invalid_party_code");
+      const room=await rpc("outlier_party_join",{p_user:user.id,p_code:code});
+      return json({room},200,origin);
+    }
+    if (action === "party-start" && req.method === "POST") {
+      const input=await bodyJson(req);
+      const room=await rpc("outlier_party_start",{
+        p_user:user.id,p_room:ensureUuid(input.room)
+      });
+      return json({room},200,origin);
+    }
+    if (action === "party-state" && req.method === "GET") {
+      const room=await rpc("outlier_party_state",{
+        p_user:user.id,p_room:ensureUuid(url.searchParams.get("room"))
+      });
+      return json({room},200,origin);
+    }
+    if (action === "party-answer" && req.method === "POST") {
+      const input=await bodyJson(req);
+      const index=Number(input.index);
+      if(!Number.isInteger(index)||index<0||index>6)
+        throw new ApiError(400,"invalid_index");
+      const response=input.response===null||input.response===undefined?null:safeStr(input.response,100);
+      const lock=await rpc("outlier_party_answer",{
+        p_user:user.id,p_room:ensureUuid(input.room),
+        p_index:index,p_response:response
+      });
+      return json({lock},200,origin);
     }
     if (action === "review" && req.method === "POST") {
       const input=await bodyJson(req);
