@@ -15,6 +15,7 @@ export function normalizeAnswer(value) {
     .normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
     .toLocaleLowerCase("en-US")
     .replace(/&/g, " and ")
+    .replace(/\+/g," plus ").replace(/#/g," sharp ")
     .replace(/[^a-z0-9]/g, "");
 }
 
