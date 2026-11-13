@@ -75,7 +75,8 @@ begin
     raise exception 'Pre-finish scores or secrets leaked';
   end if;
   select question_ids[1] into qid from public.outlier_party_rooms where id=room;
-  select answers->0->>0 into answer from private.ranked_question_bank where id=qid;
+  select answers->0->>0 into answer from private.outlier_party_question_bank where id=qid;
+  if qid not like 'party_fixture_%' then raise exception 'Dedicated room question bank was not used';end if;
   if answer is null then raise exception 'Expected first room question to be rare';end if;
   submitted:=public.outlier_party_answer(u1,room,0,answer);
   if submitted->>'locked'<>'true' or submitted ? 'points' or submitted ? 'accepted' then
