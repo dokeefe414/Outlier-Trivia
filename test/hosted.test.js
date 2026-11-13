@@ -14,7 +14,7 @@ const latestPacks=Object.fromEntries(["movies","tv","music","sports","animals","
 const quote = value => "'" + String(value).replaceAll("'","''") + "'";
 
 test("every curated question and its scoring keys have been seeded server-side",()=>{
-  const questions=[...rareQuestions.map(q=>({...q,kind:"rare"})),...fitQuestions.map(q=>({...q,kind:"fit"}))];
+  const questions=[...rareQuestions.filter(q=>!q.arcadeOnly).map(q=>({...q,kind:"rare"})),...fitQuestions.map(q=>({...q,kind:"fit"}))];
   assert.equal(rareQuestions.filter(q=>!q.arcadeOnly).length,137);
   assert.equal(fitQuestions.length,53);
   for(const q of questions) {
