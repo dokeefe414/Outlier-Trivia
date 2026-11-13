@@ -32,8 +32,11 @@ export function oneEditApart(a, b) {
   }
   return edits + (a.length-i)+(b.length-j) === 1;
 }
+// Indexed exact matches and one-deletion fingerprints scale to thousands
+// of approved names. We validate each candidate with the strict one-edit
+// checker before accepting it; never guess a new correct answer.
 export function indexQuestion(question) {
-  if(cache.has(question)) return cache.get(question);
+  if(cache.has(question))return cache.get(question);
   const exact=new Map(),variants=[],seenVariants=new Set();
   for(const row of question.answers||[]) {
     const [label,points,aliases=[]]=row;
@@ -47,31 +50,70 @@ export function indexQuestion(question) {
       if(!seenVariants.has(signature)){seenVariants.add(signature);variants.push(entry);}
     }
   }
-  const result={exact,variants};
+  const deletes=new Map();
+  for(const variant of variants){
+    if(variant.key.length<4)continue;
+    const seen=new Set();
+    for(let i=0;i<variant.key.length;i++){
+      const deletion=variant.key.slice(0,i)+variant.key.slice(i+1);
+      if(seen.has(deletion))continue;
+      seen.add(deletion);
+      if(!deletes.has(deletion))deletes.set(deletion,[]);
+      deletes.get(deletion).push(variant);
+    }
+  }
+  const result={exact,variants,deletes};
   cache.set(question,result);
   return result;
 }
+function closeCandidates(index,query) {
+  const found=new Map();
+  const consider=entry=>{
+    if(!oneEditApart(entry.key,query))return;
+    const signature=entry.key+"\u0000"+entry.label;
+    if(!found.has(signature))found.set(signature,{...entry,matchKind:"typo"});
+  };
+  // Missing character in the submitted guess.
+  for(const entry of index.deletes.get(query)||[])consider(entry);
+  // Extra character, or one substitution in the submitted guess.
+  const checked=new Set();
+  for(let i=0;i<query.length;i++){
+    const deletion=query.slice(0,i)+query.slice(i+1);
+    if(checked.has(deletion))continue;
+    checked.add(deletion);
+    for(const entry of index.exact.get(deletion)||[])consider(entry);
+    for(const entry of index.deletes.get(deletion)||[])consider(entry);
+  }
+  return [...found.values()];
+}
 export function inspectRareGuess(question,raw) {
   const query=normalizeAnswer(raw);
-  if(!query) return {status:"empty",match:null};
-  if(query.length>100) return {status:"too_long",match:null};
-  const {exact,variants}=indexQuestion(question);
-  const names=exact.get(query);
+  if(!query)return {status:"empty",match:null};
+  if(query.length>100)return {status:"too_long",match:null};
+  const index=indexQuestion(question),names=index.exact.get(query);
   if(names?.length===1)return {status:"accepted",match:names[0]};
   if(names?.length>1)return {status:"ambiguous",match:null};
   if(query.length<5)return {status:"unrecognized",match:null};
-  let candidate=null;
-  for(const item of variants) {
-    if(Math.abs(item.key.length-query.length)>1)continue;
-    if(!oneEditApart(item.key,query))continue;
-    if(candidate && candidate.label!==item.label) {
-      return {status:"ambiguous",match:null};
-    }
-    candidate={...item,matchKind:"typo"};
-  }
-  return candidate
-    ? {status:"accepted",match:candidate}
+  const close=closeCandidates(index,query);
+  const owners=new Set(close.map(x=>x.label));
+  if(owners.size>1)return {status:"ambiguous",match:null};
+  return close.length
+    ? {status:"accepted",match:close[0]}
     : {status:"unrecognized",match:null};
+}
+// Suggestions are non-authoritative: never assign points to an unrecognized
+// answer. Only fully approved library entries can appear here.
+export function suggestedApprovedAnswers(question,raw,max=3) {
+  const query=normalizeAnswer(raw);
+  if(query.length<5||query.length>100)return [];
+  const indexed=indexQuestion(question);
+  const direct=indexed.exact.get(query);
+  if(direct?.length===1)return [];
+  const seen=new Set();
+  return closeCandidates(indexed,query)
+    .filter(entry=>{if(seen.has(entry.label))return false;seen.add(entry.label);return true;})
+    .slice(0,Math.max(0,Math.min(3,Number(max)||0)))
+    .map(entry=>({label:entry.label,points:entry.points}));
 }
 export function rarityTier(points) {
   const p=Math.max(0,Math.min(1000,Number(points)||0));
