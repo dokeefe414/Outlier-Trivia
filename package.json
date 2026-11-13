@@ -1,13 +1,13 @@
 {
   "name": "outlier-trivia",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "private": true,
   "type": "module",
   "description": "OUTLIER daily rarity and crowd prediction trivia with optional hosted league",
   "scripts": {
     "test": "node --test",
     "test:browser": "node e2e/browser-smoke.mjs",
-    "check": "node --check src/v13-discovery.js && node --check src/app.js && node --check src/data.js && node --check src/game.js && node --check src/progression.js && node --check src/online.js && node --check src/online-config.js && node --check src/journey.js && node --check src/beta.js && node --check src/social.js && node --check src/community.js && node --check src/player-atlas.js && node --check src/rare-moments.js && node --check src/answer-intelligence.js && node --check src/approved-aliases.js && node --check src/rarity-insights.js && node --check src/admin.js && node --check scripts/audit-content.mjs && node --check scripts/validate-private-bank.mjs && node --check src/content-packs.js && node --check src/fit-expansion.js && node --test",
+    "check": "node --check src/v13-discovery.js && node --check src/review-proposal.js && node --check scripts/review-answer.mjs && node --check src/app.js && node --check src/data.js && node --check src/game.js && node --check src/progression.js && node --check src/online.js && node --check src/online-config.js && node --check src/journey.js && node --check src/beta.js && node --check src/social.js && node --check src/community.js && node --check src/player-atlas.js && node --check src/rare-moments.js && node --check src/answer-intelligence.js && node --check src/approved-aliases.js && node --check src/rarity-insights.js && node --check src/admin.js && node --check scripts/audit-content.mjs && node --check scripts/validate-private-bank.mjs && node --check src/content-packs.js && node --check src/fit-expansion.js && node --test",
     "audit:content": "node scripts/audit-content.mjs",
     "review:answer": "node scripts/review-answer.mjs",
     "validate:ranked": "node scripts/validate-private-bank.mjs private/questions.json --validate-only"
