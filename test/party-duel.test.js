@@ -1,12 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {normalizePartyConfig,PARTY_LIMITS,PARTY_TOPICS,buildPartyGames,partyGameScores,partyStandings,partyRevealRound} from "../src/party-duel.js";
+import {normalizePartyConfig,PARTY_LIMITS,PARTY_TOPICS,buildPartyGames,partyGameScores,partyStandings,partyRevealRound,partyWagerAdjustment,PARTY_TIMERS,PARTY_WAGERS} from "../src/party-duel.js";
 
 const answers=(score=0)=>Array.from({length:7},()=>({points:score,valid:score>0,accepted:score>0?"Valid":"",type:"rare"}));
 
 test("setup defaults, name normalization, custom limits and duplicate-name protection",()=>{
   const a=normalizePartyConfig({});
-  assert.deepEqual(a,{players:2,games:1,categories:[],names:["PLAYER 1","PLAYER 2"]});
+  assert.deepEqual(a,{players:2,games:1,categories:[],names:["PLAYER 1","PLAYER 2"],timerSeconds:45,finalWager:false});
   const b=normalizePartyConfig({players:12,games:24,categories:["sports","movies","sports","invalid"],
     names:["  Name  One ","Maddie", "Brian"]});
   assert.equal(b.players,PARTY_LIMITS.maxPlayers);
@@ -87,7 +87,7 @@ test("series champion uses game wins before point tiebreak, without inventing a 
 test("no official game scores or progression keys are written by match model",()=>{
   const g=buildPartyGames({players:2,games:1})[0];
   g.answersByPlayer=[answers(100),answers(150)];
-  assert.deepEqual(Object.keys(g).sort(),["answersByPlayer","questions"]);
+  assert.deepEqual(Object.keys(g).sort(),["answersByPlayer","questions","wagersByPlayer"]);
   assert.equal(partyGameScores(g,2).winners[0],1);
   const partial=partyStandings({players:2,games:2},[g,buildPartyGames({players:2,games:1})[0]]);
   assert.equal(partial.complete,false);
@@ -104,4 +104,29 @@ test("two game wins beat one high-scoring game",()=>{
   assert.equal(final.table[0].name,"Steady");
   assert.equal(final.table[0].wins,2);
   assert.ok(final.table[0].points<final.table[1].points);
+});
+
+test("configurable timers and optional final wagers are always bounded",()=>{
+  assert.deepEqual(PARTY_TIMERS,[20,30,45,60,90]);
+  assert.deepEqual(PARTY_WAGERS,[0,100,250,500]);
+  const invalid=normalizePartyConfig({timerSeconds:999,finalWager:"yes"});
+  assert.equal(invalid.timerSeconds,45);
+  assert.equal(invalid.finalWager,false);
+  const config={players:2,games:1,timerSeconds:60,finalWager:true};
+  const g=buildPartyGames(config)[0];
+  assert.deepEqual(g.wagersByPlayer,[null,null]);
+  assert.equal(partyGameScores(g,2),null);
+  g.answersByPlayer=[answers(200),answers(200)];
+  g.wagersByPlayer=[500,250];
+  assert.equal(partyWagerAdjustment(g,0),500);
+  assert.equal(partyWagerAdjustment(g,1),250);
+  assert.deepEqual(partyGameScores(g,2).scores,[1900,1650]);
+  const round=partyRevealRound(g,6,["A","B"]);
+  assert.equal(round.picks[0].wager,500);
+  assert.equal(round.picks[0].points,700);
+  assert.equal(round.picks[0].basePoints,200);
+  g.answersByPlayer[0][6]={points:0,valid:false,accepted:null,type:"rare"};
+  assert.equal(partyWagerAdjustment(g,0),-500);
+  assert.deepEqual(partyGameScores(g,2).scores,[700,1650]);
+  assert.deepEqual(partyGameScores(g,2).winners,[1]);
 });
