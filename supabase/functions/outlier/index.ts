@@ -374,6 +374,18 @@ async function handle(req: Request): Promise<Response> {
       });
       return json({players,period,leagueId},200,origin);
     }
+    if (action === "rivalry" && req.method === "GET") {
+      const leagueId=ensureUuid(url.searchParams.get("league"));
+      const opponentId=ensureUuid(url.searchParams.get("opponent"));
+      const daysText=url.searchParams.get("days")??"14";
+      const days=Number(daysText);
+      if(!Number.isInteger(days)||days<7||days>28)
+        throw new ApiError(400,"invalid_rivalry_window");
+      const rivalry=await rpc("outlier_rivalry",{
+        p_user:user.id,p_league:leagueId,p_opponent:opponentId,p_days:days
+      });
+      return json({rivalry},200,origin);
+    }
     if (action === "review" && req.method === "POST") {
       const input=await bodyJson(req);
       const ticket=await rpc("outlier_review_submit",{

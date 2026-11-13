@@ -258,3 +258,16 @@ not expose raw player responses or private question keys.
 
 See [V1_BETA_PLAYBOOK.md](V1_BETA_PLAYBOOK.md) for the recommended
 14-day testing sequence and release checklist.
+
+## v1.1 secure rivalry migration
+
+After the v1.0 migrations, apply
+`supabase/migrations/20261112001600_rivalries.sql` and redeploy the
+latest Edge Function. The `GET ?action=rivalry&league=UUID&opponent=UUID&days=14`
+route is authenticated, verifies **both** people are members of the
+specified private league, and returns only mutually completed official
+daily score totals. The frontend shows a DUEL button beside other members
+and supports spoiler-free challenge invitations. Unfinished days, raw
+answers, private question keys and account email addresses are never
+returned. This feature remains offline until Supabase is configured;
+do not represent it as a public multiplayer launch before live testing.

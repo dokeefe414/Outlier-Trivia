@@ -1,4 +1,6 @@
 import { scoreExplanation } from "./rarity-insights.js";
+import { describeRareMoment } from "./rare-moments.js";
+import {PLAYER_TITLES,PLAYER_FRAMES,identityProgress,atlasProfile,weeklyMissions} from "./player-atlas.js";
 import { buildRound, buildLegacyRound, utcDay, normalizeAnswer, evaluate, scoreOf, getTier, lifetimeStats, shareText, shuffled, randomFromSeed, seedFromString, inspectRareGuess, practiceCategoryOptions, buildArcadeRound, arcadeFormats, arcadeMaximum, QUESTION_SECONDS, MAX_SCORE } from "./game.js";
 import { rareQuestions, fitQuestions } from "./data.js";
 import { activityWeek, currentStreak, longestStreak, earnedBadges } from "./progression.js";
@@ -19,9 +21,13 @@ function loadStore() {
       arcade: raw.arcade && typeof raw.arcade === "object" ? raw.arcade : {},
       sound: Boolean(raw.sound),
       beta: raw.beta && typeof raw.beta === "object" ? raw.beta : {},
-      theme: typeof raw.theme === "string" ? raw.theme : "nebula" };
+      theme: typeof raw.theme === "string" ? raw.theme : "nebula",
+      player: raw.player && typeof raw.player==="object"
+        ? {title:String(raw.player.title||""),frame:String(raw.player.frame||"")}
+        : {title:"",frame:""} };
   } catch {
-    return { days: {}, arcade: {}, sound: false, beta: {}, theme: "nebula" };
+    return { days: {}, arcade: {}, sound: false, beta: {}, theme: "nebula",
+      player:{title:"",frame:""} };
   }
 }
 const storage = loadStore();
@@ -103,6 +109,78 @@ function renderKnowledgeProfile() {
       '<div class="knowledge-row"><div class="knowledge-row-label"><span>' + esc(cat.name) + ' <small>(' + cat.attempts + ')</small></span><b>' + fmt(cat.average) + ' / 1,000</b></div>' +
       '<div class="bar-bg"><div class="bar-fg" style="width:' + (cat.average/10) + '%"></div></div></div>'
     ).join("")+'</div><p class="tiny muted">These are your own records, not comparisons with other players.</p></div>';
+}
+
+
+function playerCardPreview() {
+  const identity=identityProgress(storage.days,storage.player);
+  return '<div class="card identity-preview"><div class="identity-preview-art frame-'+esc(identity.frame.id)+'">'+
+    '<span aria-hidden="true">'+esc(identity.frame.icon)+'</span>'+
+    '<strong>'+esc(identity.title.icon)+'</strong></div>'+
+    '<div><span class="eyebrow">YOUR PLAYER IDENTITY</span><h3>'+esc(identity.title.name)+'</h3>'+
+    '<p class="muted small">'+identity.daysPlayed+' completed official days · '+fmt(identity.xp)+' cosmetic XP</p></div>'+
+    homeButton('CUSTOMIZE →','leaderboard','btn-outline')+'</div>';
+}
+function playerIdentityPanel() {
+  const identity=identityProgress(storage.days,storage.player);
+  return '<section class="card player-identity-panel"><div class="section-heading">'+
+    '<div><span class="eyebrow">THE PLAYER YOU ARE BECOMING</span><h3>Wear your knowledge.</h3>'+
+    '<p class="small muted">Titles and frames unlock through official daily games. They never affect points or rankings.</p></div>'+
+    '<div class="player-badge frame-'+esc(identity.frame.id)+'" aria-label="Current player frame: '+esc(identity.frame.name)+'">'+
+    '<span>'+esc(identity.frame.icon)+'</span><strong>'+esc(identity.title.icon)+'</strong></div></div>'+
+    '<div class="player-identity-metrics"><span>'+fmt(identity.xp)+' <small>COSMETIC XP</small></span>'+
+      '<span>'+identity.daysPlayed+' <small>OFFICIAL DAYS</small></span>'+
+      '<span>'+identity.bestRare+' <small>BEST RARE PICK</small></span></div>'+
+    '<div class="eyebrow">PLAYER TITLES</div><div class="identity-choices">'+
+    identity.titles.map(t=>'<button type="button" data-action="player-title" data-id="'+esc(t.id)+'" '+
+      'class="identity-choice '+(identity.title.id===t.id?'active':'')+'" '+
+      (t.unlocked?'':'disabled')+' aria-pressed="'+(identity.title.id===t.id)+'">'+
+      '<b>'+esc(t.icon)+' '+esc(t.name)+'</b><small>'+
+        (t.unlocked?'UNLOCKED':t.remaining+' MORE DAILY GAMES')+'</small></button>').join('')+
+    '</div><div class="eyebrow" style="margin-top:20px">COLLECTIBLE FRAMES</div>'+
+    '<div class="identity-choices">'+identity.frames.map(f=>'<button type="button" '+
+      'data-action="player-frame" data-id="'+esc(f.id)+'" class="identity-choice '+(identity.frame.id===f.id?'active':'')+'" '+
+      (f.unlocked?'':'disabled')+' aria-pressed="'+(identity.frame.id===f.id)+'">'+
+      '<b>'+esc(f.icon)+' '+esc(f.name)+'</b><small>'+
+        (f.unlocked?'UNLOCKED':esc(f.description))+'</small></button>').join('')+
+    '</div></section>';
+}
+function missionBoard() {
+  const missions=weeklyMissions(storage.days,today());
+  const done=missions.filter(m=>m.complete).length;
+  return '<section class="card missions-panel"><div class="section-heading"><div>'+
+    '<span class="eyebrow">WEEKLY KNOWLEDGE QUESTS</span><h3>Four ways to grow.</h3>'+
+    '<p class="small muted">Play your free official daily. Quests reset Monday UTC; they award cosmetic recognition only.</p></div>'+
+    '<span class="mission-count">'+done+' / 4</span></div><div class="mission-grid">'+
+    missions.map(m=>'<div class="mission-item '+(m.complete?'done':'')+'">'+
+      '<div class="mission-top"><span class="mission-icon">'+esc(m.icon)+'</span><div>'+
+        '<strong>'+esc(m.label)+'</strong><small>'+esc(m.description)+'</small></div>'+
+        (m.complete?'<span class="mission-done">✓</span>':'')+'</div>'+
+      '<div class="mission-bar"><span style="width:'+m.progress+'%"></span></div>'+
+      '<div class="mission-foot"><span>'+fmt(m.value)+' / '+fmt(m.goal)+'</span>'+
+        '<span>'+esc(m.complete?m.reward:"IN PROGRESS")+'</span></div></div>').join('')+
+    '</div><p class="tiny muted">These local achievements are not verified worldwide leaderboards or purchasable boosts.</p></section>';
+}
+function deepKnowledgePanel() {
+  const atlas=atlasProfile(storage.days,today());
+  if(!atlas.daysPlayed)return '<section class="card deep-knowledge"><span class="eyebrow">THE KNOWLEDGE ATLAS</span>'+
+    '<h3>Every mind has a specialty.</h3><p class="small muted">Finish your first official daily game to begin collecting your strongest subjects and most memorable accepted answers.</p></section>';
+  const rareRows=atlas.highest.map((item,i)=>'<div class="rare-memory">'+
+    '<span class="memory-rank">'+String(i+1).padStart(2,'0')+'</span>'+
+    '<div><strong>'+esc(item.answer)+'</strong><small>'+esc(item.category)+' · '+esc(item.day)+'</small></div>'+
+    '<b>'+fmt(item.points)+' PTS</b></div>').join('');
+  return '<section class="card deep-knowledge"><span class="eyebrow">THE KNOWLEDGE ATLAS</span>'+
+    '<h3>Your rarest memories.</h3><p class="small muted">Your five highest-scoring distinct accepted Stand Out answers from completed official daily games.</p>'+
+    '<div class="atlas-metrics"><div><strong>'+fmt(atlas.uniqueRareAnswers)+'</strong><span>UNIQUE RARE ANSWERS</span></div>'+
+      '<div><strong>'+atlas.rareAccuracy+'%</strong><span>STAND OUT ACCEPTANCE</span></div>'+
+      '<div><strong>'+atlas.crowdAccuracy+'%</strong><span>FIT IN ACCEPTANCE</span></div>'+
+      '<div><strong>'+fmt(atlas.recentAverage)+'</strong><span>LAST 7 COMPLETED GAMES AVG</span></div></div>'+
+    '<div class="rare-memories">'+(rareRows||'<p class="muted small">Your first rare discovery is still ahead.</p>')+'</div>'+
+    '<div class="atlas-strengths">'+(atlas.strongest?'<div><small>STRONGEST SUBJECT BY SCORE</small>'+
+      '<strong>'+esc(atlas.strongest.name)+'</strong><p>'+fmt(atlas.strongest.average)+' average points across '+atlas.strongest.attempts+' questions</p></div>':'')+
+    (atlas.weakest?'<div><small>ROOM TO GROW</small><strong>'+esc(atlas.weakest.name)+'</strong>'+
+      '<p>Explore this subject in unranked practice to build your knowledge.</p></div>':'')+'</div>'+
+    '<p class="tiny muted">This is a local browser-only profile, not a claim about worldwide knowledge rankings.</p></section>';
 }
 
 function badgeCabinet() {
@@ -342,7 +420,7 @@ function renderHome() {
     stat("LIFETIME AVERAGE", fmt(stats.average)),
     stat("LIFETIME POINTS", fmt(stats.total)),
     stat("PERSONAL BEST", fmt(stats.best)),
-    '</div>' + progressPanel() + journeyPreview() + seasonPanel() + themesPanel() + betaPanel() + '</section>',
+    '</div>' + progressPanel() + journeyPreview() + missionBoard() + playerCardPreview() + seasonPanel() + themesPanel() + betaPanel() + '</section>',
     '<section class="promo"><div><span class="pill pill-purple" style="margin-bottom:13px">' +
       (ONLINE_ENABLED ? 'ONLINE LEAGUE' : 'COMING AFTER THE PROTOTYPE') + '</span>',
     '<h3>More trivia. No more waiting.</h3><p>' + (ONLINE_ENABLED ?
@@ -573,6 +651,14 @@ function renderFeedback() {
   const result = feedback.result;
   const info=feedbackHeading(result);
   const fit=q.type==="fit";
+  const moment=describeRareMoment(q,result);
+  const momentBanner=moment?'<div class="rare-moment moment-'+esc(moment.intensity)+'" aria-label="'+esc(moment.tagline)+'">'+
+    '<div class="moment-rays" aria-hidden="true">'+Array.from({length:12},(_,i)=>
+      '<span style="--ray:'+i+'"></span>').join('')+'</div>'+
+    '<div class="moment-emblem" aria-hidden="true">'+(moment.intensity==="legendary"?'✹':moment.intensity==="diamond"?'💎':'✦')+'</div>'+
+    '<strong>'+esc(moment.tagline)+'</strong>'+
+    '<p>'+esc(moment.explanation)+'</p>'+
+    '<small>'+esc(moment.sourceNote)+'</small></div>':'';
   const insight=scoreExplanation(result,q);
   const tier=insight?'<div class="scoring-insight"><span class="rarity-pill">✦ '+esc(insight.band)+'</span>'+
     '<strong>'+esc(insight.match)+'</strong><p>'+esc(insight.detail)+'</p></div>':"";
@@ -594,11 +680,15 @@ function renderFeedback() {
     '<div class="feedback-points gradient-text '+(!fit && result.points>=850?'high-rarity':'')+'" role="status" aria-live="polite">+' + fmt(result.points) + '</div>',
     '<div class="feedback-name">' + esc(result.accepted || (result.response ? '"' + result.response + '" — not in the approved answer set' : 'No answer submitted')) + '</div>',
     '<p class="small">' + info.description + '</p>',
+    momentBanner,
     '<span class="pill pill-yellow">TOTAL ' + fmt(scoreOf(session.answers)) + ' PTS</span>'+tier+'</div>',
     '<div class="feedback-divider"></div>',
     '<div class="feedback-subhead">' + (fit ? 'THE PROTOTYPE CROWD BOARD' : 'SOME OF THE RAREST ACCEPTED ANSWERS') + '</div>',
     fit ? topScore : '<div class="answer-chips">' + topScore + '</div>',
     answerExplorer(q),
+    !fit?'<div class="answer-suggestion"><div><strong>KNOW ANOTHER VALID ANSWER?</strong>'+
+      '<p class="small muted">Our finite approved lists improve through source-checked suggestions. Help us catch omissions.</p></div>'+
+      homeButton('SUGGEST A VERIFIED ANSWER ↗','suggest-answer','btn-outline')+'</div>':'',
     (!result.valid && !fit && feedback.rejectedGuess) ?
       '<div class="answer-report"><span>Think your answer should count?</span>'+
       homeButton('REQUEST AN ANSWER REVIEW ↗','report-answer','btn-outline')+'</div>' : '',
@@ -679,6 +769,7 @@ function renderResult() {
       '<div class="bar-bg"><div class="bar-fg" style="width:' + (rareMax ? rareScore/rareMax*100 : 0) + '%"></div></div></div>' +
       '<div class="mode-stat fit"><span>◎ FIT IN</span><strong>' + fmt(fitScore) + '<small> / '+fmt(fitMax)+'</small></strong>' +
       '<div class="bar-bg"><div class="bar-fg" style="width:' + (fitMax ? fitScore/fitMax*100 : 0) + '%"></div></div></div></div>',
+    daily ? missionBoard() + playerCardPreview() : '',
     unlockedToday.length ? '<div class="card unlocked-today"><span class="eyebrow">NEW ACHIEVEMENT</span>' +
       unlockedToday.map(b=>'<div class="achievement-reveal"><span>' + esc(b.icon) + '</span><div><strong>' + esc(b.title) +
         '</strong><p>' + esc(b.detail) + '</p></div></div>').join("") + '</div>' : '',
@@ -733,9 +824,12 @@ function renderLeaderboard() {
     '<div class="board-note">Only official daily games count. Unlimited practice never changes these numbers. Scores are stored locally on this device, not synced between devices.</div>',
     '</div>',
     personalJourneyPanel(),
+    missionBoard(),
+    playerIdentityPanel(),
     seasonPanel(),
     themesPanel(),
     renderKnowledgeProfile(),
+    deepKnowledgePanel(),
     badgeCabinet(),
     histories.length ? '<div class="card result-breakdown board-history"><h3>Your recent daily scores</h3>' +
       histories.map(([day,run])=>'<div class="history-row"><span>' + esc(friendlyDay(day)) +
@@ -798,6 +892,22 @@ document.addEventListener("click", event => {
     case "fit-answer": submitAnswer(control.dataset.answer); break;
     case "skip": submitAnswer(null); break;
     case "next": nextRound(); break;
+    case "suggest-answer": {
+      if(screen==="feedback"&&feedback?.question?.type==="rare") {
+        const params=new URLSearchParams({
+          template:"beta-feedback.yml",
+          title:"[Beta] Additional valid answer for "+feedback.question.id,
+          body:"Question: "+feedback.question.prompt+"\n"+
+            "Suggested canonical name: \n"+
+            "Why this qualifies under the specific question wording: \n"+
+            "Reliable source URL: \n\n"+
+            "Do not include account details, private codes or payment information."
+        });
+        window.open("https://github.com/dokeefe414/Outlier-Trivia/issues/new?"+params,
+          "_blank","noopener,noreferrer");
+      }
+      break;
+    }
     case "report-answer": {
       if(screen==="feedback" && feedback?.question && feedback?.rejectedGuess) {
         const params = new URLSearchParams({
@@ -820,6 +930,18 @@ document.addEventListener("click", event => {
     case "tour-prev": openTour(tourPage-1); break;
     case "tour-skip": finishTour(); break;
     case "feedback": openFeedback(); break;
+    case "player-title":
+    case "player-frame": {
+      const part=action==="player-title"?"title":"frame";
+      const desired=control.dataset.id;
+      const identity=identityProgress(storage.days,{...storage.player,[part]:desired});
+      if(identity[part].id!==desired)return;
+      storage.player[part]=desired;
+      saveStore();
+      renderLeaderboard();
+      toast("Player "+part+" updated: "+identity[part].name);
+      break;
+    }
     case "theme": {
       const desired=control.dataset.theme;
       const options=unlockableThemes(storage.days,desired);

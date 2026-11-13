@@ -116,6 +116,10 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261112001500_v1_community_metrics.sql
       - name: Verify v1 launch gate, previous week standings, and reporting privacy
         run: psql -v ON_ERROR_STOP=1 -f test/v1-integrity-smoke.sql
+      - name: Apply v1.1 verified friend rivalry records
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261112001600_rivalries.sql
+      - name: Verify member-only head-to-head scoring and privacy
+        run: psql -v ON_ERROR_STOP=1 -f test/rivalry-smoke.sql
 
   browser-e2e:
     name: Desktop and mobile browser smoke

@@ -2,7 +2,7 @@
 
 **A playable, mobile-friendly daily general-knowledge game.** Seven questions, two mindsets: find a rare correct answer in **Stand Out**, then predict the most popular answer in **Fit In**.
 
-> **v1.0 beta candidate — the playable free game is live; online competition is not yet activated.** The repository now contains production-oriented account, private-content, social league, editorial-review and Stripe test-mode infrastructure. Supabase/Stripe credentials, privately authored ranked answers and real-user validation are still required. No live payments or worldwide leaderboards are active.
+> **v1.1 game experience — the upgraded free daily game is live; hosted competition still requires setup.** The repository now contains production-oriented account, private-content, social league, editorial-review and Stripe test-mode infrastructure. Supabase/Stripe credentials, privately authored ranked answers and real-user validation are still required. No live payments or worldwide leaderboards are active.
 
 ## Play
 
@@ -28,6 +28,34 @@ The browser must load the site over HTTP, not the file protocol, because the gam
 4. Once GitHub finishes deploying, the expected URL is **https://dokeefe414.github.io/Outlier-Trivia/**.
 
 Pages is **not enabled automatically** by these commits, and the expected URL should not be considered live until deployment succeeds.
+
+## v1.1 — Knowledge Atlas, rare-answer celebrations and friend rivalries
+
+This release puts much more care into the **feel of playing OUTLIER**.
+
+- **High-energy rare reveals:** 850+ and 950+ point rare answers get
+  distinct animated moments, with reduced-motion fallbacks and honest
+  comparisons against *approved editorial answer scores* (not invented
+  player-popularity data).
+- **Earned player identities:** Five player titles and five collectible
+  profile frames unlock solely from completed official daily games.
+  Cosmetics and XP never change official ranks or accepted answers.
+- **Four weekly missions:** Collect daily participation, rare-answer
+  success, crowd predictions and weekly points; quests reset Monday UTC.
+- **Deeper Knowledge Atlas:** See your five highest-valued distinct
+  accepted rare answers, category strengths, unique entries, accuracy and
+  seven-game trends in your local player profile.
+- **Head-to-head friend rivalries (hosted backend):** Within a private
+  league, compare server-verified days both friends played the same free
+  official daily. View win/loss/tie totals, current streak and spoiler-free
+  invitation links. Requires Supabase; not live by default.
+- **Better library improvement loop:** After any Stand Out round,
+  players can suggest a missing answer with a credible reference, for
+  manual review. Existing content audits and accepted lists remain in
+  place; no unverified content is automatically accepted.
+
+See [v1.1 Game Experience notes](docs/V11_GAME_EXPERIENCE.md) for
+design, accuracy boundaries, tests and deployment requirements.
 
 ## v1.0 beta candidate — six core upgrades
 
@@ -302,6 +330,9 @@ Daily generation is deterministically seeded by a UTC date, so every visitor wit
     src/answer-intelligence.js Safe normalized answer matching and collision checks
     src/approved-aliases.js   Curated category-specific alternative names
     src/rarity-insights.js    Transparent editorial rarity explanations
+    src/player-atlas.js       Titles, frames, weekly quests and Knowledge Atlas
+    src/rare-moments.js       Editorial-score-based discovery celebrations
+    docs/V11_GAME_EXPERIENCE.md Design and hosted rivalry deployment notes
     admin.html                Owner-only review interface (requires backend)
     scripts/audit-content.mjs Automated public answer-bank auditing
     scripts/validate-private-bank.mjs Offline, owner-local ranked bank validation
@@ -343,8 +374,9 @@ The app has no run-time JavaScript dependencies. CI checks JavaScript and Deno s
 10. **Public Beta Readiness v0.7:** tutorial, weekly cosmetic seasons, themes, private ranked-content isolation, hardened purchase lifecycle and aggregate retention reporting.
 11. **Fair Answer Retries v0.8:** Invalid guesses can be retried until accepted, skipped, or timed out, in guest and hosted play.
 12. **Answer Intelligence v0.9:** vetted nicknames and scoring calibration, faster safe matching, better rarity reveals, audited review administration and private-beta validation scripts.
-13. **Competitive Beta v1.0 candidate (current):** strict private-bank launch gate, consent-based friend invites, previous-week champions, owner-only quality analytics and explicit Stripe live-mode controls.
-14. **Public launch:** moderation/reporting, accessibility audit, anti-cheat, privacy policy, operations monitoring, content pipeline.
+13. **Competitive Beta v1.0 candidate:** strict private-bank launch gate, consent-based friend invites, previous-week champions, owner-only quality analytics and explicit Stripe live-mode controls.
+14. **Game Experience v1.1 (current):** animated editorial rarity moments, personal titles and frames, Knowledge Atlas, weekly missions, missing-answer suggestions and member-only rivalry comparisons.
+15. **Public launch:** moderation/reporting, accessibility audit, anti-cheat, privacy policy, operations monitoring, content pipeline.
 
 ## Philosophy
 

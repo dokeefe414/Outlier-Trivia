@@ -20,6 +20,8 @@ async function runDaily() {
   }
   assert.equal(await page.locator("#tour-dialog").count(),0,"intro should close");
   await page.locator(".season-panel").waitFor();
+  await page.locator(".missions-panel").waitFor();
+  await page.locator(".identity-preview").waitFor();
   await page.locator(".cosmetics-panel").waitFor();
   await page.locator(".beta-panel").waitFor();
   assert.equal(await page.locator(".theme-choice").count(),4);
@@ -74,6 +76,10 @@ async function runDaily() {
   await page.locator(".history-chart").waitFor();
   assert.match(await page.locator(".history-chart").innerText(),/28-DAY JOURNEY/);
   await page.locator(".knowledge-card").waitFor();
+  await page.locator(".player-identity-panel").waitFor();
+  await page.locator(".deep-knowledge").waitFor();
+  assert.equal(await page.locator(".player-identity-panel .identity-choice").count(),10);
+  assert.match(await page.locator(".missions-panel").first().innerText(),/WEEKLY KNOWLEDGE QUESTS/);
   assert.match(await page.locator(".badge-section").innerText(),/First Spark/);
   await page.reload();
   await page.locator(".hero").waitFor();
@@ -109,6 +115,8 @@ async function runMobile() {
       await page.locator("#rare-form button[type=submit]").click();
       await page.locator(".feedback-card").waitFor();
       await page.locator(".scoring-insight").waitFor();
+      await page.locator(".rare-moment").waitFor();
+      assert.match(await page.locator(".rare-moment").innerText(),/curated answer scores|approved answer entries|vetted options/i);
       assert.match(await page.locator(".scoring-insight").innerText(),/APPROVED ANSWER SCORES/);
       assert.ok(Number((await page.locator(".feedback-points").innerText()).replace(/[^0-9]/g,""))>0,
         "valid library answer must finish the same question with points");
@@ -136,6 +144,46 @@ async function runMobile() {
   console.log("PASS mobile practice arcade Quick Hit (3 rounds), Rare Rush (10 rounds), score caps and viewport fit");
 }
 
+async function runSyntheticIdentity() {
+  const context2=await browser.newContext({viewport:{width:440,height:850},reducedMotion:"reduce"});
+  const seeded=await context2.newPage();
+  const today=new Date().toISOString().slice(0,10);
+  const dates=[0,1,2].map(offset=>{
+    const date=new Date(today+"T12:00:00Z");
+    date.setUTCDate(date.getUTCDate()-offset);
+    return date.toISOString().slice(0,10);
+  });
+  const answers=[960,1000,700,1000,800,1000,400].map((points,i)=>({
+    points,valid:true,type:i%2===0?"rare":"fit",category:"SCIENCE",
+    accepted:i%2===0?"Rare answer "+i:"Top crowd "+i
+  }));
+  const days=Object.fromEntries(dates.map(day=>[day,{
+    complete:true,answers,startedAt:Date.now()-86400000,
+    questionIds:["test1","test2","test3","test4","test5","test6","test7"]
+  }]));
+  await seeded.addInitScript(value=>{
+    localStorage.setItem("outlier-prototype-v1",JSON.stringify(value));
+  },{days,arcade:{},sound:false,beta:{tutorial:true},theme:"nebula",player:{title:"",frame:""}});
+  await seeded.goto(url);
+  await seeded.locator(".identity-preview").waitFor();
+  await seeded.locator('button[data-action="leaderboard"]').first().click();
+  await seeded.locator(".player-identity-panel").waitFor();
+  assert.equal(await seeded.locator('.identity-choice[data-id="seeker"]').isDisabled(),false);
+  assert.equal(await seeded.locator('.identity-choice[data-id="diamond"]').isDisabled(),false);
+  await seeded.locator('.identity-choice[data-id="seeker"]').click();
+  await seeded.locator('.identity-choice[data-id="diamond"]').click();
+  assert.match(await seeded.locator(".player-identity-panel").innerText(),/Knowledge Seeker/);
+  assert.equal(await seeded.locator('.identity-choice[data-id="diamond"]').getAttribute("aria-pressed"),"true");
+  await seeded.reload();
+  await seeded.locator('button[data-action="leaderboard"]').first().click();
+  assert.equal(await seeded.locator('.identity-choice[data-id="diamond"]').getAttribute("aria-pressed"),"true",
+    "Cosmetic frame should persist across reloads");
+  const widths=await seeded.evaluate(()=>({scroll:document.documentElement.scrollWidth,viewport:innerWidth}));
+  assert.ok(widths.scroll<=widths.viewport+2,"mobile profile horizontal overflow: "+JSON.stringify(widths));
+  await context2.close();
+  console.log("PASS local title/frame unlocks, selection, persistence, and mobile player-card layout");
+}
+
 async function runAdminSafety() {
   await page.goto(new URL("admin.html",url).toString());
   await page.locator("#connection").waitFor();
@@ -149,6 +197,7 @@ async function runAdminSafety() {
 try {
   await runDaily();
   await runMobile();
+  await runSyntheticIdentity();
   await runAdminSafety();
 } finally {
   await browser.close();

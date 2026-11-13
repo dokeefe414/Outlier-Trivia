@@ -77,6 +77,14 @@ async function reloadLeagueStandings() {
   });
   state.leaguePlayers=Array.isArray(response.players)?response.players:[];
 }
+async function reloadRivalry() {
+  if(!state.activeLeague?.id||!state.rivalId)throw new Error("Choose a league rival.");
+  const data=await invoke("rivalry",{
+    query:"league="+encodeURIComponent(state.activeLeague.id)+
+      "&opponent="+encodeURIComponent(state.rivalId)+"&days=14"
+  });
+  state.rivalry=data.rivalry;
+}
 async function reloadBoard() {
   const result = await invoke("leaderboard",{auth:false,query:"board="+encodeURIComponent(state.board)});
   state.players = Array.isArray(result.players) ? result.players : [];
@@ -174,7 +182,9 @@ function showLeague() {
     '<div class="leader-row '+(state.user?.id===player.userId?'is-me':'')+'">'+
     '<span class="leader-rank">'+number(player.position)+'</span>'+
     '<span class="leader-name">'+escape(player.name)+(state.user?.id===player.userId?' <small>YOU</small>':'')+'</span>'+
-    '<span class="leader-score">'+number(player.score)+'<small>'+number(player.days)+' days</small></span></div>'
+    '<span class="leader-score">'+number(player.score)+'<small>'+number(player.days)+' days</small></span>'+
+    (state.user?.id===player.userId?'':act("rivalry","⚔ DUEL","btn-ghost",
+      'data-user="'+escape(player.userId)+'"'))+'</div>'
   ).join("");
   setView('<div class="league-screen"><button class="back-link" data-online="menu">← BACK TO LEAGUES</button>'+
     '<div class="online-heading"><span class="eyebrow">FRIEND LEAGUE</span><h1>🏆 '+escape(league.title)+'</h1>'+
@@ -196,6 +206,44 @@ function showLeague() {
     (rows||'<div class="board-empty"><p class="muted">Nobody has completed an official game yet.</p></div>')+
     '<div class="league-code"><span>INVITE CODE: <strong>'+escape(league.code)+'</strong></span>'+
     act("league-copy","COPY INVITE CODE","btn-ghost")+'</div></div></div>');
+}
+
+function showRivalry() {
+  stopTimer();
+  const r=state.rivalry;
+  if(!r||!state.activeLeague)return showLeague();
+  state.view="rivalry";
+  const days=Array.isArray(r.days)?r.days:[];
+  const you=Number(r.yourWins)||0,them=Number(r.opponentWins)||0,ties=Number(r.ties)||0;
+  const youAhead=you>them,draw=you===them;
+  const history=days.map(x=>
+    '<div class="rivalry-day"><span>'+escape(x.day)+'</span>'+
+    '<b>'+number(x.you)+' <small>YOU</small></b>'+
+    '<span class="rivalry-versus">VS</span>'+
+    '<b>'+number(x.opponent)+' <small>'+escape(r.opponentName)+'</small></b>'+
+    '<span class="rivalry-day-outcome '+escape(x.winner)+'">'+
+      (x.winner==="you"?"WIN":x.winner==="rival"?"LOSS":"TIE")+'</span></div>'
+  ).join("");
+  setView('<section class="league-screen rivalry-screen">'+
+    '<button class="back-link" data-online="rivalry-back">← BACK TO LEAGUE</button>'+
+    '<div class="online-heading"><span class="eyebrow">FRIENDLY RIVALRY · VERIFIED SCORES</span>'+
+    '<h1>⚔ YOU <span class="gradient-text">VS '+escape(r.opponentName)+'</span></h1>'+
+    '<p class="muted">A head-to-head record over the last 14 UTC days. Only days you both completed the free official game count.</p></div>'+
+    '<div class="card rivalry-hero"><div class="rivalry-trophy" aria-hidden="true">'+
+       (days.length===0?'◇':draw?'🤝':youAhead?'🏆':'⚡')+'</div>'+
+    '<div class="rivalry-scoreline"><div><small>YOUR WINS</small><strong>'+number(you)+'</strong></div>'+
+      '<div class="rivalry-divider">— <span>'+number(ties)+' TIES</span> —</div>'+
+      '<div><small>'+escape(r.opponentName.toUpperCase())+' WINS</small><strong>'+number(them)+'</strong></div></div>'+
+    '<h2>'+(days.length===0?'A RIVALRY IS BORN':draw?'EVENLY MATCHED':
+      youAhead?"YOU'RE LEADING":"THE CHASE IS ON")+'</h2>'+
+    '<p class="muted">'+(days.length?number(days.length)+' shared official dailies · '+
+      'Your current head-to-head win streak: '+number(r.currentWinStreak):
+      'Play the same daily question set on the same UTC date to create your first verified comparison.')+'</p>'+
+    '<div class="rivalry-actions">'+act("rivalry-invite","SHARE DAILY CHALLENGE ↗","btn-teal")+
+      act("rivalry-refresh","REFRESH RESULTS","btn-ghost")+'</div></div>'+
+    '<div class="card rivalry-history"><h3>THE LAST 14 DAYS</h3>'+
+    (history||'<p class="muted">Nothing to compare yet. Neither player needs to share raw answers.</p>')+
+    '<p class="tiny muted">Comparisons are generated server-side from completed official games, never from unverified guest scores. Private leagues only.</p></div></section>');
 }
 
 function showMenu() {
@@ -462,6 +510,29 @@ async function handleClick(event) {
     }catch(e){showError(e,"Could not join the league")}
     finally{busy=false;}
   }
+  if(action==="rivalry") {
+    state.rivalId=button.dataset.user;
+    state.rivalry=null;
+    showBusy("Comparing verified daily scores...");
+    try{await reloadRivalry();showRivalry();}
+    catch(e){showError(e,"Rivalry not available")}
+  }
+  if(action==="rivalry-back") {
+    state.rivalry=null;state.rivalId=null;
+    showLeague();
+  }
+  if(action==="rivalry-refresh") {
+    showBusy("Refreshing your duel...");
+    try{await reloadRivalry();showRivalry();}
+    catch(e){showError(e,"Could not refresh duel")}
+  }
+  if(action==="rivalry-invite") {
+    const link=leagueInviteLink(window.location.href,state.activeLeague.code);
+    const message="OUTLIER — Let's play the same seven daily questions and compare our verified scores!\n"+link;
+    try{await navigator.clipboard.writeText(message);state.message="Spoiler-free rivalry invite copied.";}
+    catch{state.message="Copy unavailable. Share the league link: "+link;}
+    showRivalry();
+  }
   if (action==="league-view") {
     state.activeLeague=(state.leagues||[]).find(l=>l.id===button.dataset.id)||null;
     state.leaguePeriod="week";
@@ -609,7 +680,7 @@ function onKeydown(event) {
 export async function mountOnline(element, back) {
   container=element;onBack=back;
   state={view:"loading",board:"daily",players:[],user:null,profile:null,capabilities:null,game:null,feedback:null,rejected:null,
-    leagues:[],activeLeague:null,leaguePlayers:[],leaguePeriod:"week",
+    leagues:[],activeLeague:null,leaguePlayers:[],leaguePeriod:"week",rivalId:null,rivalry:null,
     pendingInvite:readLeagueInvite(window.location.search),
     error:null,message:null,sent:false};
   showBusy();
