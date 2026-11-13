@@ -11,7 +11,8 @@ const has=(question,answer)=>matchRare({...question,type:"rare"},answer);
 
 test("all 66 topical prompts have substantial valid sets and stable unique aliases",()=>{
   assert.equal(contentPackQuestions.length,66);
-  assert.equal(rareQuestions.length,137);
+  assert.equal(rareQuestions.filter(q=>!q.arcadeOnly).length,137);
+  assert.ok(rareQuestions.length > 150);
   assert.ok(contentPackQuestions.every(x=>x.bigPool));
   assert.ok(contentPackQuestions.every(x=>x.answers.length>=28));
   assert.equal(contentPackQuestions.reduce((total,x)=>total+x.answers.length,0),19823);
