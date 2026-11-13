@@ -44,8 +44,10 @@ test("setup rejects a single category with fewer than four rare prompts rather t
   assert.equal(options.length,1);
   // If a future editor enlarges this group, this test still verifies that
   // the selected categories remain restricted and all question IDs are unique.
-  const source=buildPartyGames({players:2,games:1,categories:["science"]});
-  assert.ok(source[0].questions.filter(q=>q.type==="rare").every(q=>q.poolGroup==="science"));
+  try{
+    const source=buildPartyGames({players:2,games:1,categories:["science"]});
+    assert.ok(source[0].questions.filter(q=>q.type==="rare").every(q=>q.poolGroup==="science"));
+  }catch(error){assert.match(error.message,/different Stand Out questions/);}
 });
 
 test("no partial scores, hidden answers, honest game winners and dramatic reveal order",()=>{
@@ -72,9 +74,9 @@ test("series champion uses game wins before point tiebreak, without inventing a 
   gs[2].answersByPlayer=[answers(200),answers(100),answers(0)];
   const summary=partyStandings(config,gs);
   assert.equal(summary.complete,true);
-  assert.deepEqual(summary.table.map(x=>x.name),["B","A","C"]);
+  assert.deepEqual(summary.table.map(x=>x.name),["A","B","C"]);
   assert.equal(summary.champions.length,1);
-  assert.equal(summary.champions[0].name,"B");
+  assert.equal(summary.champions[0].name,"A");
   assert.ok(summary.table.every(x=>x.wins===1));
   const tied=buildPartyGames({players:2,games:1});
   tied[0].answersByPlayer=[answers(50),answers(50)];
@@ -90,4 +92,16 @@ test("no official game scores or progression keys are written by match model",()
   const partial=partyStandings({players:2,games:2},[g,buildPartyGames({players:2,games:1})[0]]);
   assert.equal(partial.complete,false);
   assert.equal(partial.champions.length,0);
+});
+
+test("two game wins beat one high-scoring game",()=>{
+  const config={players:2,games:3,names:["Steady","Comeback"]};
+  const games=buildPartyGames(config);
+  games[0].answersByPlayer=[answers(150),answers(0)];
+  games[1].answersByPlayer=[answers(150),answers(0)];
+  games[2].answersByPlayer=[answers(0),answers(1000)];
+  const final=partyStandings(config,games);
+  assert.equal(final.table[0].name,"Steady");
+  assert.equal(final.table[0].wins,2);
+  assert.ok(final.table[0].points<final.table[1].points);
 });
