@@ -262,27 +262,91 @@ async function runWeeklyAndLocalDuel() {
   await p.locator(".v13-debrief").waitFor();
   assert.match(await p.locator(".result-max").innerText(),/10,000/);
   await p.goto(url);
+
+  // Full custom series: three named players, two games, two selected categories.
   await p.locator('button[data-action="duel"]').first().click();
-  for(let player=0;player<2;player++){
-    for(let round=1;round<=7;round++){
-      await p.locator(".question-card").waitFor();
-      assert.equal((await p.locator(".game-score strong").innerText()).trim(),"•••",
-        "duel scores must stay hidden until both finish");
-      await p.locator('button[data-action="skip"]').click();
-      await p.locator(".v13-duel-screen").waitFor();
-      assert.equal(await p.locator(".feedback-points").count(),0,
-        "duel should not reveal scores early");
-      await p.locator('button[data-action="next"]').click();
+  await p.locator(".party-setup").waitFor();
+  await p.locator("#party-player-count").selectOption("3");
+  await p.locator("#party-game-count").selectOption("2");
+  await p.locator('[data-party-name="0"]').fill("Ava");
+  await p.locator('[data-party-name="1"]').fill("Brian");
+  await p.locator('[data-party-name="2"]').fill("Casey");
+  await p.locator('[data-action="party-topic"][data-topic="sports"]').click();
+  await p.locator('[data-action="party-topic"][data-topic="music"]').click();
+  assert.equal(await p.locator('.party-topic[aria-pressed="true"]').count(),2);
+  const setupWidth=await p.evaluate(()=>({
+    scroll:document.documentElement.scrollWidth,viewport:innerWidth
+  }));
+  assert.ok(setupWidth.scroll<=setupWidth.viewport+2,
+    "mobile setup overflow: "+JSON.stringify(setupWidth));
+  await p.screenshot({path:"artifacts/editorial/party-setup-mobile.png",fullPage:true});
+  await p.locator("#party-config-form button[type=submit]").click();
+  await p.locator(".party-interstitial").waitFor();
+
+  for(let game=0;game<2;game++){
+    await p.locator('button[data-action="duel-begin"]').click();
+    for(let player=0;player<3;player++){
+      for(let round=1;round<=7;round++){
+        await p.locator(".question-card").waitFor();
+        assert.equal((await p.locator(".game-score strong").innerText()).trim(),"•••",
+          "party duel must keep every player's score sealed");
+        assert.match(await p.locator(".session-pill").innerText(),
+          new RegExp("GAME "+(game+1)+"/2"));
+        await p.locator('button[data-action="skip"]').click();
+        await p.locator(".v13-duel-screen").waitFor();
+        assert.equal(await p.locator(".feedback-points").count(),0,
+          "accepted answers and points must not appear mid-game");
+        await p.locator('button[data-action="next"]').click();
+      }
+      if(player<2){
+        await p.locator('button[data-action="duel-handoff"]').waitFor();
+        await p.locator('button[data-action="duel-handoff"]').click();
+      }
     }
-    if(player===0) await p.locator('button[data-action="duel-handoff"]').click();
+    await p.locator(".party-reveal-intro").waitFor();
+    assert.equal(await p.locator(".party-game-standings").count(),0,
+      "game totals must not be displayed before revealing seven rounds");
+    for(let round=1;round<=7;round++){
+      await p.locator('button[data-action="duel-reveal-next"]').click();
+      await p.locator(".party-reveal-prompt").waitFor();
+      assert.match(await p.locator(".party-reveal-top").innerText(),new RegExp("ROUND "+round+" / 7"));
+      assert.equal(await p.locator(".party-pick-card").count(),3);
+      assert.equal(await p.locator(".party-series-table").count(),0,
+        "series champion should remain sealed before final game");
+      if(round===1 && game===0)
+        await p.screenshot({path:"artifacts/editorial/party-reveal-mobile.png"});
+    }
+    await p.locator('button[data-action="duel-reveal-next"]').click();
+    await p.locator(".party-game-result").waitFor();
+    assert.equal(await p.locator(".party-game-standings>div").count(),3);
+    if(game===0){
+      await p.locator('button[data-action="duel-next-game"]').click();
+      await p.locator(".party-interstitial").waitFor();
+    }else{
+      await p.locator('button[data-action="duel-champion"]').click();
+    }
   }
-  await p.locator(".v13-duel-results").waitFor();
-  assert.match(await p.locator(".v13-duel-results h1").innerText(),/DRAW/);
-  assert.equal(await p.locator(".v13-duel-final-grid>div").count(),2);
-  const saved=await p.evaluate(()=>JSON.parse(localStorage.getItem("outlier-prototype-v1")||"{}"));
-  assert.equal(Object.keys(saved.days||{}).length,0,"duel must not write official dailies");
+  await p.locator(".party-series-result").waitFor();
+  assert.match(await p.locator(".party-series-result h1").innerText(),/CO-CHAMPIONS/);
+  assert.equal(await p.locator(".party-series-table>div").count(),4);
+  assert.equal(await p.locator(".party-series-table .series-champion").count(),3);
+  const stored=await p.evaluate(()=>JSON.parse(localStorage.getItem("outlier-prototype-v1")||"{}"));
+  assert.equal(Object.keys(stored.days||{}).length,0,
+    "party duel must never change official daily records");
+
+  // Regression: a small phone can still use the custom configuration.
+  const narrow=await ctx.newPage();
+  await narrow.setViewportSize({width:320,height:740});
+  await narrow.goto(url);
+  await narrow.locator('button[data-action="duel"]').first().click();
+  const bounds=await narrow.evaluate(()=>({
+    scroll:document.documentElement.scrollWidth,viewport:innerWidth
+  }));
+  assert.ok(bounds.scroll<=bounds.viewport+2,
+    "party setup must not overflow a 320px screen: "+JSON.stringify(bounds));
+  await narrow.close();
   await ctx.close();
-  console.log("PASS seeded weekly event and sealed local duel without official scoring");
+  console.log("PASS v1.4 setup, two-game three-player match, theatrical reveal, champion, privacy and 320px view");
 }
 async function runAdminSafety() {
   await page.goto(new URL("admin.html",url).toString());
