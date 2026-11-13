@@ -88,9 +88,9 @@ test("all 105 broad lists are audited for contradictory aliases and points",()=>
 });
 
 test("indexed one-edit matcher handles large catalogs and rejects ambiguous close names",()=>{
-  const q={answers:[["Akron",700],["Acron",710],["Zzxlongname",900]]};
+  const q={answers:[["Akron",700],["Akran",710],["Zzxlongname",900]]};
   assert.equal(inspectRareGuess(q,"Akron").match?.label,"Akron");
-  assert.equal(inspectRareGuess(q,"Akran").status,"ambiguous");
+  assert.equal(inspectRareGuess(q,"Akrin").status,"ambiguous");
   assert.equal(inspectRareGuess(q,"Zzxlongnam").match?.label,"Zzxlongname");
   assert.equal(inspectRareGuess(q,"Zzzxlongname").match?.label,"Zzxlongname");
   assert.equal(inspectRareGuess(q,"Zzxlongneme").match?.label,"Zzxlongname");
