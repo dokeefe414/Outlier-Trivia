@@ -1254,7 +1254,7 @@ a{color:var(--lime)}
   display:inline-block;margin:0 0 18px;
   font:600 10px/1.5 'DM Mono',monospace;
   letter-spacing:.035em;text-decoration:underline;
-  text-underline-offset:3px;color:var(--lime);
+  text-underline-offset:3px;color:inherit;opacity:.86;
   overflow-wrap:anywhere;
 }
-.question-source:hover,.question-source:focus-visible{color:var(--orange)}
+.question-source:hover,.question-source:focus-visible{opacity:1;text-decoration-thickness:2px}
