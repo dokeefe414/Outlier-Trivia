@@ -263,6 +263,30 @@ async function runWeeklyAndLocalDuel() {
   assert.match(await p.locator(".result-max").innerText(),/10,000/);
   await p.goto(url);
 
+  await p.locator('button[data-action="open-atlas"]').first().click();
+  for(let round=1;round<=7;round++){
+    await p.locator(".question-card.rare").waitFor();
+    await p.locator('button[data-action="skip"]').click();
+    await p.locator(".feedback-card").waitFor();
+    if(round===1){
+      const explorer=p.locator(".answer-explorer");
+      await explorer.waitFor();
+      await explorer.locator("summary").click();
+      const rendered=await explorer.locator(".explorer-row").count();
+      assert.ok(rendered>20 && rendered<=80,
+        "thousand-entry answer explorer should render at most 80 entries");
+      await explorer.locator("#answer-explorer-filter").fill("fictional-place-not-in-source-555");
+      assert.equal(await explorer.locator(".explorer-row").count(),0);
+      await explorer.locator("#answer-explorer-filter").fill("");
+      assert.equal(await explorer.locator(".explorer-row").count(),rendered);
+    }
+    await p.locator('button[data-action="next"]').click();
+  }
+  await p.locator(".v13-debrief").waitFor();
+  assert.match(await p.locator(".result-max").innerText(),/7,000/);
+  await p.goto(url);
+  console.log("PASS seven-round Big List with searchable large answer sources");
+
   // Full custom series: three named players, two games, two selected categories.
   await p.locator('button[data-action="duel"]').first().click();
   await p.locator(".party-setup").waitFor();
