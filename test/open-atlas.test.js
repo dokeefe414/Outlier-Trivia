@@ -10,8 +10,8 @@ const find=id=>openAtlasQuestions.find(q=>q.id===id);
 
 test("CC0 source snapshot is concrete, not a fabricated total",()=>{
   assert.deepEqual([openAtlasCatalog.cityEntries,openAtlasCatalog.countyEntries,
-    openAtlasCatalog.dinosaurEntries],[1000,2873,1449]);
-  assert.equal(openAtlasCatalog.sourceEntries,5322);
+    openAtlasCatalog.dinosaurEntries],[1000,3195,1449]);
+  assert.equal(openAtlasCatalog.sourceEntries,5644);
   assert.equal(openAtlasCatalog.prompts,18);
   assert.ok(openAtlasCatalog.answerSlots>10000);
   assert.ok(openAtlasQuestions.every(q=>q.arcadeOnly&&q.bigPool));
