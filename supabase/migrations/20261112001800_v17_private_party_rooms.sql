@@ -3,6 +3,25 @@
 -- tables directly to the browser. Only authenticated Edge routes call these
 -- service_role-only functions after verifying the caller's token.
 -- Requires a separately provisioned, vetted private ranked question bank.
+-- A completely SEPARATE privately-curated question catalog.
+-- Never read the official private.ranked_question_bank in room gameplay:
+-- unpublished questions might appear in future daily slates.
+-- This table is EMPTY in every public migration. Owner imports separately
+-- after source review; CI loads only an explicit disposable test fixture.
+create table if not exists private.outlier_party_question_bank (
+  id text primary key check (char_length(id) between 10 and 100),
+  kind text not null check (kind in ('rare','fit')),
+  category text not null,
+  prompt text not null,
+  detail text not null default '',
+  answers jsonb not null default '[]'::jsonb check (jsonb_typeof(answers)='array'),
+  choices jsonb not null default '[]'::jsonb check (jsonb_typeof(choices)='array'),
+  created_at timestamptz not null default clock_timestamp(),
+  check (private.outlier_ranked_row_valid(kind,answers,choices))
+);
+alter table private.outlier_party_question_bank enable row level security;
+revoke all on private.outlier_party_question_bank from public,anon,authenticated;
+
 create table if not exists public.outlier_party_rooms (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null references auth.users(id) on delete cascade,
@@ -121,22 +140,18 @@ begin
       where room_id=p_room) not between 2 and 4 then
     raise exception 'party_need_two_to_four';
   end if;
-  -- Never use a question already sealed in *any* official daily slate.
-  -- Playing the same source material privately must not leak ranked answers.
+  -- Deliberately draw only from a separate, human-curated ROOM bank.
+  -- No official-day or future-ranked answer keys can be exposed.
   select array_agg(id order by ordering) into v_rare from (
     select q.id,md5(p_room::text||q.id) as ordering
-    from private.ranked_question_bank q
+    from private.outlier_party_question_bank q
     where q.kind='rare'
-      and not exists(select 1 from private.official_daily_slates s
-        where q.id=any(s.question_ids))
     order by md5(p_room::text||q.id) limit 4
   ) selection;
   select array_agg(id order by ordering) into v_fit from (
     select q.id,md5(p_room::text||q.id) as ordering
-    from private.ranked_question_bank q
+    from private.outlier_party_question_bank q
     where q.kind='fit'
-      and not exists(select 1 from private.official_daily_slates s
-        where q.id=any(s.question_ids))
     order by md5(p_room::text||q.id) limit 3
   ) selection;
   if cardinality(coalesce(v_rare,array[]::text[]))<>4 or
@@ -192,7 +207,7 @@ begin
     join public.profiles p on p.user_id=m.user_id
     where m.room_id=p_room;
   if v_phase='playing' then
-    select * into v_question from private.ranked_question_bank
+    select * into v_question from private.outlier_party_question_bank
       where id=v_room.question_ids[v_index+1];
     select exists(select 1 from private.outlier_party_answers a
       where a.room_id=p_room and a.user_id=p_user
@@ -268,7 +283,7 @@ begin
     where room_id=p_room and user_id=p_user and question_index=v_idx) then
     raise exception 'party_already_answered';
   end if;
-  select * into v_q from private.ranked_question_bank
+  select * into v_q from private.outlier_party_question_bank
     where id=v_room.question_ids[v_idx+1];
   if not found then raise exception 'party_question_missing';end if;
   if length(v_norm)>0 then
