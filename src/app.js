@@ -8,7 +8,8 @@ import { ONLINE_ENABLED } from "./online-config.js";
 import {THEMES,TOUR_STEPS,completedDailyCount,unlockableThemes,weeklySeason,seasonArchive,betaChecklistState,safeFeedbackUrl} from "./beta.js";
 import {scoreHistory,weekSummary,nextGoal,versusHistory,utcResetRemaining} from "./journey.js";
 import { readFriendChallenge, challengeLink, challengeOutcome, categoryInsights } from "./social.js";
-import {dailyDebrief,weeklySpotlight,weeklySpotlightRound,duelSummary} from "./v13-discovery.js";
+import {dailyDebrief,weeklySpotlight,weeklySpotlightRound} from "./v13-discovery.js";
+import {PARTY_LIMITS,PARTY_TOPICS,normalizePartyConfig,buildPartyGames,partyGameScores,partyStandings,partyRevealRound} from "./party-duel.js";
 
 const STORAGE_KEY = "outlier-prototype-v1";
 const app = document.getElementById("app");
@@ -37,6 +38,7 @@ let session = null;
 let feedback = null;
 let boardTab = "daily";
 let practiceFormat = "classic";
+let partySetup = {players:2,games:1,categories:[],names:["PLAYER 1","PLAYER 2"]};
 let tourPage = 0;
 let tourWasSeenThisSession = false;
 const friendChallenge = readFriendChallenge(window.location.search, utcDay());
@@ -409,11 +411,60 @@ function debriefPanel(questions,answers) {
     '</section>';
 }
 function duelPanel() {
-  return '<section class="v13-duel-invite"><div><div class="eyebrow">TWO MINDS · ONE DEVICE</div>'+
-    '<h2>PASS & PLAY DUEL.</h2><p>Answer the same seven questions separately. '+
-    'Scores and answers stay hidden until both players finish.</p>'+
-    '<small>FREE · UNRANKED · 45 SECONDS PER QUESTION</small></div>'+
-    homeButton('CHALLENGE A FRIEND ↗','duel','btn-ghost')+'</section>';
+  return '<section class="v13-duel-invite"><div><div class="eyebrow">TWO TO EIGHT MINDS · ONE DEVICE</div>'+
+    '<h2>PASS & PLAY SHOWDOWN.</h2><p>Choose the players, how many games, and which topics come up. '+
+    'Hide every score until the big round-by-round reveal.</p>'+
+    '<small>2–8 PLAYERS · 1–7 GAMES · CUSTOM CATEGORIES · UNRANKED</small></div>'+
+    homeButton('BUILD YOUR GAME NIGHT ↗','duel','btn-ghost')+'</section>';
+}
+
+function renderPartySetup() {
+  screen="duel-setup";
+  clearInterval(intervalId);
+  const playerOptions=Array.from({length:PARTY_LIMITS.maxPlayers-PARTY_LIMITS.minPlayers+1},(_,i)=>i+PARTY_LIMITS.minPlayers)
+    .map(n=>'<option value="'+n+'" '+(partySetup.players===n?'selected':'')+'>'+n+' PLAYERS</option>').join('');
+  const gameOptions=Array.from({length:PARTY_LIMITS.maxGames},(_,i)=>i+1)
+    .map(n=>'<option value="'+n+'" '+(partySetup.games===n?'selected':'')+'>'+n+' '+(n===1?'GAME':'GAMES')+'</option>').join('');
+  const names=Array.from({length:partySetup.players},(_,i)=>{
+    const value=partySetup.names[i]??"PLAYER "+(i+1);
+    return '<label class="party-name-field" for="party-name-'+i+'"><span>PLAYER '+(i+1)+'</span>'+
+      '<input id="party-name-'+i+'" data-party-name="'+i+'" name="player-'+i+
+      '" type="text" maxlength="18" autocomplete="off" value="'+esc(value)+'" required></label>';
+  }).join('');
+  const chosen=partySetup.categories.length;
+  const topics=PARTY_TOPICS.map(topic=>{
+    const active=partySetup.categories.includes(topic.value);
+    return '<button type="button" class="party-topic '+(active?'selected':'')+'" data-action="party-topic"'+
+      ' data-topic="'+esc(topic.value)+'" aria-pressed="'+active+'">'+
+      '<span aria-hidden="true">'+esc(topic.icon)+'</span><strong>'+esc(topic.label)+'</strong>'+
+      '<small>'+(active?'IN THE MIX':'ADD TOPIC')+'</small></button>';
+  }).join('');
+  app.innerHTML='<section class="party-setup">'+
+    '<button type="button" class="back-link" data-action="home">← BACK TO OUTLIER</button>'+
+    '<div class="eyebrow">THE HOUSE RULES / LOCAL PARTY MODE</div>'+
+    '<h1>MAKE IT <span class="gradient-text">YOUR GAME.</span></h1>'+
+    '<p class="muted party-setup-intro">Bring the friends. You pick the lineup, series length and topics. '+
+    'Every player faces the same seven questions each game, with answers sealed until everyone finishes.</p>'+
+    '<form id="party-config-form">'+
+    '<div class="party-setup-row"><label for="party-player-count"><span>01 / NUMBER OF PLAYERS</span>'+
+      '<select id="party-player-count" class="answer-input" name="players">'+playerOptions+'</select></label>'+
+    '<label for="party-game-count"><span>02 / NUMBER OF GAMES</span>'+
+      '<select id="party-game-count" class="answer-input" name="games">'+gameOptions+'</select></label></div>'+
+    '<div class="party-setup-section"><h2>03 / NAME YOUR PLAYERS.</h2>'+
+      '<p class="small muted">Everyone gets their own turn. Names are only kept for this local session.</p>'+
+      '<div class="party-name-grid">'+names+'</div></div>'+
+    '<div class="party-setup-section"><div class="party-topic-heading"><div>'+
+      '<h2>04 / PICK YOUR CATEGORIES.</h2>'+
+      '<p class="small muted">Choose any combination of Stand Out categories. The three Fit In crowd questions per game stay mixed-topic.</p></div>'+
+      '<button type="button" class="party-all-topics" data-action="party-all">'+
+        (chosen?'USE ALL TOPICS':'ALL TOPICS ACTIVE')+'</button></div>'+
+      '<div class="party-topic-grid" role="group" aria-label="Choose rare-answer categories">'+topics+'</div>'+
+      '<div class="party-topic-status" role="status">'+(chosen?chosen+' SELECTED TOPICS':'SURPRISE MIX · ALL TOPICS')+'</div></div>'+
+    '<div class="party-setup-footer"><div><strong>'+partySetup.players+' PLAYERS · '+partySetup.games+' '+
+      (partySetup.games===1?'GAME':'GAMES')+'</strong>'+
+      '<span>4 Stand Out + 3 Fit In per game · 45 seconds/question · No official points</span></div>'+
+      '<button type="submit" class="btn btn-primary">START THE SHOWDOWN ↗</button></div></form></section>';
+  window.scrollTo(0,0);
 }
 function spotlightPanel() {
   const event=weeklySpotlight(today());
@@ -538,9 +589,12 @@ function newSession(mode,practiceGroup = 'surprise') {
     };
     if (existing?.complete || session.index >= 7) { renderResult(); return; }
   } else if (mode === "duel") {
-    session={mode:"duel",day:today(),questions:buildRound(today(),true,"surprise"),
+    const config=normalizePartyConfig(practiceGroup==="surprise"?partySetup:practiceGroup);
+    const games=buildPartyGames(config);
+    session={mode:"duel",day:today(),questions:games[0].questions,
       timerSeconds:45,answers:[],index:0,deadline:null,
-      duel:{playerIndex:0,players:[{name:"PLAYER 1",answers:null},{name:"PLAYER 2",answers:null}]}};
+      duel:{config,games,gameIndex:0,playerIndex:0,revealIndex:-1}};
+    return renderPartyReady();
   } else if (mode === "spotlight") {
     const event=weeklySpotlight(today());
     session={mode:"practice",day:today(),practiceGroup:event.category,practiceFormat:"weekly-spotlight",
@@ -593,7 +647,7 @@ function renderGame() {
     '<p class="retry-hint">Keep guessing until an approved answer is found. Rejected guesses never restart the timer.</p></form>';
   app.innerHTML = [
     '<div class="game-wrap"><div class="topbar"><button class="back-link" data-action="home" type="button">← BACK TO HOME</button>',
-    '<span class="session-pill">' + (session.mode === "daily" ? 'DAILY · ' + esc(session.day) : (session.duel ? "LOCAL DUEL · "+session.duel.players[session.duel.playerIndex].name : (session.weeklyEvent ? "WEEKLY SPOTLIGHT · " : "PRACTICE · ") + esc((session.practiceGroup||"surprise").toUpperCase()))) + '</span></div>',
+    '<span class="session-pill">' + (session.mode === "daily" ? 'DAILY · ' + esc(session.day) : (session.duel ? "GAME "+(session.duel.gameIndex+1)+"/"+session.duel.config.games+" · "+esc(session.duel.config.names[session.duel.playerIndex]) : (session.weeklyEvent ? "WEEKLY SPOTLIGHT · " : "PRACTICE · ") + esc((session.practiceGroup||"surprise").toUpperCase()))) + '</span></div>',
     '<div class="game-head"><div><div class="eyebrow" style="margin-bottom:10px">TODAY\'S FIELD TEST</div>',
     '<h2>Question ' + (session.index + 1) + ' <span class="muted">/ ' +session.questions.length+'</span></h2><p>Think sideways. Trust the weird stuff you know.</p></div>',
     session.duel ? '<div class="game-score"><div class="tiny muted">SEALED UNTIL FINISH</div><strong>•••</strong></div></div>' : '<div class="game-score" aria-label="Current game score"><div class="tiny muted">YOUR SCORE</div><strong>' + fmt(scoreOf(session.answers)) + '</strong></div></div>',
@@ -768,57 +822,163 @@ function renderFeedback() {
 }
 
 
+
+function renderPartyReady() {
+  if(!session?.duel)return renderHome();
+  screen="duel-ready";clearInterval(intervalId);
+  const d=session.duel;
+  app.innerHTML='<section class="v13-duel-screen party-interstitial"><div class="v13-duel-stamp">✳</div>'+
+    '<div class="eyebrow">THE SHOWDOWN / GAME '+(d.gameIndex+1)+' OF '+d.config.games+'</div>'+
+    '<h1>GAME ON.</h1><p>'+d.config.players+' players. Seven fresh questions. Same slate for everyone.</p>'+
+    '<div class="v13-duel-secret">'+esc(d.config.names[0])+' · TAKE THE DEVICE</div>'+
+    homeButton('BEGIN GAME '+(d.gameIndex+1)+' ↗','duel-begin','btn-primary')+'</section>';
+  window.scrollTo(0,0);
+}
 function renderDuelLock() {
+  if(!session?.duel)return renderHome();
   screen="feedback";clearInterval(intervalId);
-  app.innerHTML='<div class="v13-duel-screen"><div class="v13-duel-stamp">✦</div>'+
-    '<div class="eyebrow">PLAYER '+(session.duel.playerIndex+1)+' / ROUND '+(session.index+1)+'</div>'+
-    '<h1>ANSWER SEALED.</h1><p>The answer and points will be revealed after both players finish.</p>'+
+  const d=session.duel;
+  app.innerHTML='<section class="v13-duel-screen party-interstitial"><div class="v13-duel-stamp">✦</div>'+
+    '<div class="eyebrow">GAME '+(d.gameIndex+1)+' · '+esc(d.config.names[d.playerIndex])+
+      ' · Q'+(session.index+1)+' / '+session.questions.length+'</div>'+
+    '<h1>ANSWER SEALED.</h1><p>That pick is locked. No points or accepted answers are shown until the reveal.</p>'+
     '<div class="v13-duel-secret">🔒 '+(session.index+1)+' / '+session.questions.length+' SAVED</div>'+
-    homeButton('NEXT SECRET QUESTION ↗','next','btn-primary')+'</div>';
+    homeButton('NEXT SECRET QUESTION ↗','next','btn-primary')+'</section>';
   window.scrollTo(0,0);
 }
 function renderDuelHandoff() {
+  if(!session?.duel)return renderHome();
   screen="duel-handoff";clearInterval(intervalId);
-  app.innerHTML='<div class="v13-duel-screen"><div class="v13-duel-stamp">↗</div>'+
-    '<div class="eyebrow">PLAYER 1 COMPLETE</div><h1>PASS THE DEVICE.</h1>'+
-    '<p>Player 2 gets the exact same seven questions. Do not share previous guesses.</p>'+
-    homeButton('START PLAYER TWO ↗','duel-handoff','btn-primary')+'</div>';
+  const d=session.duel;
+  const next=d.playerIndex+1;
+  app.innerHTML='<section class="v13-duel-screen party-interstitial"><div class="v13-duel-stamp">↗</div>'+
+    '<div class="eyebrow">GAME '+(d.gameIndex+1)+' / '+d.config.games+' · '+
+      esc(d.config.names[d.playerIndex])+' FINISHED</div>'+
+    '<h1>PASS THE DEVICE.</h1>'+
+    '<p>Keep those answers a secret. '+esc(d.config.names[next])+
+      ' gets the exact same seven questions.</p>'+
+    '<div class="v13-duel-secret">'+esc(d.config.names[next])+' · READY WHEN YOU ARE</div>'+
+    homeButton('START '+esc(d.config.names[next])+' ↗','duel-handoff','btn-primary')+'</section>';
+  window.scrollTo(0,0);
+}
+function renderPartyReveal() {
+  if(!session?.duel)return renderHome();
+  screen="duel-reveal";clearInterval(intervalId);
+  const d=session.duel,game=d.games[d.gameIndex];
+  const frame=partyRevealRound(game,d.revealIndex,d.config.names);
+  if(!frame){
+    app.innerHTML='<section class="party-reveal-intro">'+
+      '<div class="eyebrow">THE OUTLIER CLUB / GAME '+(d.gameIndex+1)+' OF '+d.config.games+'</div>'+
+      '<div class="party-reveal-symbol" aria-hidden="true">✹</div>'+
+      '<h1>LET THE REVEAL BEGIN.</h1>'+
+      '<p>'+d.config.players+' players. Seven mystery answers. The final scoreboard stays hidden until every question is revealed.</p>'+
+      homeButton('REVEAL QUESTION ONE ↗','duel-reveal-next','btn-primary')+'</section>';
+    window.scrollTo(0,0);
+    return;
+  }
+  const last=frame.index===game.questions.length-1;
+  const cards=frame.picks.map(p=>
+    '<div class="party-pick-card '+(frame.bestPickers.includes(p.playerIndex)?'star-pick':'')+'">'+
+    '<span class="party-pick-player">'+esc(p.name)+'</span>'+
+    '<strong>'+esc(p.answer)+'</strong>'+
+    '<span class="party-pick-score">'+(p.valid?'+':'')+fmt(p.points)+' PTS'+
+      (frame.bestPickers.includes(p.playerIndex)?' · TOP PICK':'')+'</span></div>').join('');
+  app.innerHTML='<section class="party-reveal">'+
+    '<div class="party-reveal-top"><span class="eyebrow">THE BIG REVEAL / GAME '+(d.gameIndex+1)+'</span>'+
+      '<span>ROUND '+(frame.index+1)+' / '+game.questions.length+'</span></div>'+
+    '<div class="party-reveal-progress">'+game.questions.map((_,i)=>
+      '<i class="'+(i<=frame.index?'lit':'')+'"></i>').join('')+'</div>'+
+    '<div class="party-reveal-prompt"><div class="eyebrow">'+
+      (frame.question.type==="rare"?'✦ STAND OUT':'◎ FIT IN')+' · '+esc(frame.question.category)+'</div>'+
+      '<h1>'+esc(frame.question.prompt)+'</h1></div>'+
+    '<div class="party-picks-grid">'+cards+'</div>'+
+    '<div class="party-reveal-footer"><p>Scores are kept secret until all seven rounds are revealed.</p>'+
+      homeButton(last?'SHOW GAME SCOREBOARD ↗':'REVEAL NEXT ROUND ↗','duel-reveal-next','btn-primary')+'</div></section>';
+  window.scrollTo(0,0);
+}
+function renderPartyGameResult() {
+  if(!session?.duel)return renderHome();
+  screen="duel-game-results";clearInterval(intervalId);
+  const d=session.duel,game=d.games[d.gameIndex];
+  const result=partyGameScores(game,d.config.players);
+  if(!result)return renderHome();
+  const winners=result.winners.map(i=>d.config.names[i]);
+  const rows=result.scores.map((points,index)=>({points,index,name:d.config.names[index]}))
+    .sort((a,b)=>b.points-a.points||a.index-b.index);
+  const winningText=winners.length===d.config.players?'EVERYONE TIES!':
+    winners.length>1?'SHARED VICTORY!':esc(winners[0])+' WINS GAME '+(d.gameIndex+1)+'!';
+  app.innerHTML='<section class="party-game-result">'+
+    '<div class="eyebrow">ALL SEVEN ANSWERS REVEALED · GAME '+(d.gameIndex+1)+' / '+d.config.games+'</div>'+
+    '<div class="party-winner-mark" aria-hidden="true">🏆</div>'+
+    '<h1>'+winningText+'</h1>'+
+    '<p>One game complete. '+(winners.length>1?
+      'Joint top scores earn a game win each.':'The highest score earns one game win.')+
+      ' Series champion: most game wins, with total points as the tiebreaker.</p>'+
+    '<div class="party-game-standings">'+rows.map((row,rank)=>
+      '<div class="'+(result.winners.includes(row.index)?'game-winner':'')+'">'+
+        '<span>'+String(rank+1).padStart(2,'0')+' · '+esc(row.name)+'</span><strong>'+fmt(row.points)+' PTS</strong>'+
+      '</div>').join('')+'</div>'+
+    '<div class="party-game-actions">'+
+      homeButton(d.gameIndex+1>=d.config.games?'REVEAL SERIES CHAMPION ↗':
+        'CONTINUE TO GAME '+(d.gameIndex+2)+' ↗',
+        d.gameIndex+1>=d.config.games?'duel-champion':'duel-next-game','btn-primary')+
+      '</div></section>';
   window.scrollTo(0,0);
 }
 function renderDuelResult() {
   if(!session?.duel)return renderHome();
-  screen="duel-results";clearInterval(intervalId);
-  const [one,two]=session.duel.players;
-  const a=one.answers||[],b=two.answers||[];
-  const score=duelSummary(a,b);
-  const headline=score.outcome==="tie"?"IT’S A DRAW!":score.outcome==="one"?"PLAYER 1 WINS!":"PLAYER 2 WINS!";
-  const rows=session.questions.map((q,i)=>{
-    const x=a[i]||{},y=b[i]||{};
-    return '<div class="v13-duel-round"><small>Q'+(i+1)+' · '+esc(q.category)+'</small>'+
-      '<div><span>'+esc(x.accepted||"No accepted answer")+' <b>'+fmt(x.points||0)+' pts</b></span>'+
-      '<span>'+esc(y.accepted||"No accepted answer")+' <b>'+fmt(y.points||0)+' pts</b></span></div></div>';
-  }).join("");
-  app.innerHTML='<div class="v13-duel-results"><div class="eyebrow">UNRANKED LOCAL DUEL</div>'+
-    '<h1>'+headline+'</h1><p>Same questions. Separate attempts. No scores revealed early.</p>'+
-    '<div class="v13-duel-final-grid"><div><small>PLAYER 1</small><strong>'+fmt(score.oneScore)+'</strong>'+
-      '<span>'+score.oneAccepted+' accepted</span></div>'+
-      '<div><small>PLAYER 2</small><strong>'+fmt(score.twoScore)+'</strong>'+
-      '<span>'+score.twoAccepted+' accepted</span></div></div>'+
-    '<div class="result-actions">'+homeButton('COPY DUEL RESULT ↗','share','btn-primary')+
-      homeButton('REMATCH ↻','duel','btn-ghost')+homeButton('BACK HOME','home','btn-ghost')+'</div>'+
-    '<div class="card v13-duel-ledger"><h2>THE SEVEN-ROUND RECEIPT.</h2>'+
-      '<p class="small muted">PLAYER 1 LEFT · PLAYER 2 RIGHT</p>'+rows+'</div></div>';
+  const d=session.duel,summary=partyStandings(d.config,d.games);
+  if(!summary.complete)return renderPartyGameResult();
+  screen="duel-champion";clearInterval(intervalId);
+  const names=summary.champions.map(row=>row.name);
+  const headline=names.length>1?"CO-CHAMPIONS!":esc(names[0])+" IS THE CHAMPION!";
+  app.innerHTML='<section class="party-series-result">'+
+    '<div class="eyebrow">THE GRAND FINALE / '+d.config.games+' '+
+      (d.config.games===1?'GAME':'GAMES')+' COMPLETE</div>'+
+    '<div class="party-winner-mark" aria-hidden="true">♛</div>'+
+    '<h1>'+headline+'</h1>'+
+    '<p>Best of the series: most game wins, then total points. Exact ties share the crown.</p>'+
+    '<div class="party-series-table" aria-label="Final party standings">'+
+    '<div class="party-series-header"><span>PLAYER</span><span>GAME WINS</span><span>TOTAL PTS</span></div>'+
+    summary.table.map((row,index)=>
+      '<div class="'+(summary.champions.some(w=>w.index===row.index)?'series-champion':'')+'">'+
+      '<span>'+(index===0?'👑 ':'')+esc(row.name)+'</span><b>'+row.wins+'</b>'+
+      '<strong>'+fmt(row.points)+'</strong></div>').join('')+'</div>'+
+    '<details class="party-series-history"><summary>SEE ALL GAME SCORES</summary>'+
+    d.games.map((game,index)=>{
+      const scores=partyGameScores(game,d.config.players);
+      return '<div class="party-series-history-game"><h3>GAME '+(index+1)+'</h3>'+
+        d.config.names.map((name,i)=>
+          '<span>'+esc(name)+' · '+fmt(scores.scores[i])+' pts'+
+          (scores.winners.includes(i)?' · GAME WIN':'')+'</span>').join('')+'</div>';
+    }).join('')+'</details>'+
+    '<div class="party-grand-actions">'+homeButton('COPY THE FINAL RESULT ↗','share','btn-primary')+
+      homeButton('RUN IT BACK ↻','duel-rematch','btn-ghost')+
+      homeButton('CHANGE HOUSE RULES','duel','btn-ghost')+
+      homeButton('BACK HOME','home','btn-outline')+'</div>'+
+    '<p class="small muted">Party games are unranked and saved only for this session.</p>'+
+    '</section>';
   window.scrollTo(0,0);
 }
-
+function partyNextGame() {
+  if(screen!=="duel-game-results"||!session?.duel)return;
+  const d=session.duel;
+  if(d.gameIndex+1>=d.config.games)return renderDuelResult();
+  d.gameIndex++;d.playerIndex=0;d.revealIndex=-1;
+  session.questions=d.games[d.gameIndex].questions;
+  session.answers=[];session.index=0;session.deadline=null;
+  session.retryQuestionIndex=-1;feedback=null;
+  renderPartyReady();
+}
 function nextRound() {
   if (screen !== "feedback" || !session) return;
   session.index += 1;
   feedback = null;
   if (session.index >= session.questions.length) {
     if(session.duel){
-      session.duel.players[session.duel.playerIndex].answers=session.answers.slice();
-      return session.duel.playerIndex===0?renderDuelHandoff():renderDuelResult();
+      const d=session.duel;
+      d.games[d.gameIndex].answersByPlayer[d.playerIndex]=session.answers.slice();
+      return d.playerIndex+1<d.config.players?renderDuelHandoff():renderPartyReveal();
     }
     return renderResult();
   }
