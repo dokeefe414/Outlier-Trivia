@@ -9,7 +9,7 @@ set search_path=public,private,pg_temp as $$
 declare v_at timestamptz;
 begin
   update public.profiles set
-    crowd_opted_at=case when p_enabled then clock_timestamp() else null end
+    crowd_opted_at=case when p_enabled then coalesce(crowd_opted_at,clock_timestamp()) else null end
   where user_id=p_user
   returning crowd_opted_at into v_at;
   if not found then raise exception 'profile_not_found'; end if;
