@@ -358,6 +358,44 @@ async function runWeeklyAndLocalDuel() {
   assert.equal(Object.keys(stored.days||{}).length,0,
     "party duel must never change official daily records");
 
+  // v1.7: secret final wagers and a 90-second timer survive full handoffs.
+  await p.locator('button[data-action="duel"]').first().click();
+  await p.locator('#party-player-count').selectOption("2");
+  await p.locator('#party-game-count').selectOption("1");
+  await p.locator('#party-timer').selectOption("90");
+  await p.locator('#party-wager').check();
+  await p.locator('[data-party-name="0"]').fill("Ada");
+  await p.locator('[data-party-name="1"]').fill("Bea");
+  await p.locator('#party-config-form button[type=submit]').click();
+  await p.locator('button[data-action="duel-begin"]').click();
+  for(let player=0;player<2;player++){
+    for(let round=1;round<=6;round++){
+      await p.locator('.question-card').waitFor();
+      if(round===1)assert.match(await p.locator("#timer").innerText(),/1:30|1:29/);
+      await p.locator('button[data-action="skip"]').click();
+      await p.locator('button[data-action="next"]').click();
+    }
+    await p.locator(".party-wager-screen").waitFor();
+    assert.equal(await p.locator(".question-prompt").count(),0,
+      "the final prompt must not be exposed before a player chooses a stake");
+    await p.locator('button[data-action="duel-wager"][data-stake="'+
+      (player===0?"100":"500")+'"]').click();
+    await p.locator(".question-card").waitFor();
+    await p.locator('button[data-action="skip"]').click();
+    await p.locator('button[data-action="next"]').click();
+    if(player===0)await p.locator('button[data-action="duel-handoff"]').click();
+  }
+  await p.locator(".party-reveal-intro").waitFor();
+  for(let round=1;round<=7;round++)await p.locator('button[data-action="duel-reveal-next"]').click();
+  assert.equal(await p.locator(".party-wager-result").count(),2,
+    "wagers become public only at the final-round reveal");
+  await p.locator('button[data-action="duel-reveal-next"]').click();
+  assert.match(await p.locator(".party-game-standings").innerText(),/-100|-500/);
+  await p.locator('button[data-action="duel-champion"]').click();
+  await p.locator(".party-series-result").waitFor();
+  await p.screenshot({path:"artifacts/editorial/v17-party-champion-mobile.png",fullPage:true});
+  console.log("PASS v1.7 named avatars, 90-second question timer and hidden finale wagers");
+
   // Regression: a small phone can still use the custom configuration.
   const narrow=await ctx.newPage();
   await narrow.setViewportSize({width:320,height:740});
