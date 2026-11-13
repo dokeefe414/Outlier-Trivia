@@ -195,8 +195,17 @@ export function buildArcadeRound(day=utcDay(), group="surprise", format="classic
 // Free unranked Big List mode: seven archive-backed open-answer prompts.
 export function buildOpenAtlasRound(random=Math.random) {
   const pool=rareQuestions.filter(q=>q.arcadeOnly&&q.bigPool);
-  if(pool.length<7)throw new Error("Insufficient open-atlas questions");
-  return shuffled(pool,random).slice(0,7).map((q,index)=>({...q,type:"rare",index}));
+  const groups=new Map();
+  for(const question of pool){
+    if(!groups.has(question.poolGroup))groups.set(question.poolGroup,[]);
+    groups.get(question.poolGroup).push(question);
+  }
+  if(groups.size<7)throw new Error("Insufficient Big List topic diversity");
+  // Every seven-round run samples seven DIFFERENT topics, so adding a huge
+  // sports/media dataset cannot drown out science, food or other categories.
+  const selected=shuffled([...groups.keys()],random).slice(0,7)
+    .map(group=>shuffled(groups.get(group),random)[0]);
+  return shuffled(selected,random).map((q,index)=>({...q,type:"rare",index}));
 }
 
 export function arcadeMaximum(questions) {

@@ -415,8 +415,8 @@ function openAtlasPanel() {
   return '<section class="open-atlas-panel" aria-labelledby="open-atlas-title">'+
     '<div><div class="eyebrow">NEW / THE BIG LIST</div>'+
     '<h2 id="open-atlas-title">THOUSANDS OF ANSWERS. SEVEN SHOTS.</h2>'+
-    '<p>A new seven-question Stand Out challenge drawn from '+fmt(openAtlasCatalog.sourceEntries)+
-      ' archived city, county and dinosaur names. Find the unexpected correct pick.</p>'+
+    '<p>Movies. Music. Athletes. Video games. Science. History. Food. Geography. '+
+    'Seven source-backed Stand Out questions across the full expanded trivia universe.</p>'+
     '<small>ALL STAND OUT · 45 SECONDS EACH · FREE & UNRANKED</small></div>'+
     homeButton('PLAY THE BIG LIST ↗','open-atlas','btn-primary')+'</section>';
 }
@@ -570,12 +570,15 @@ function renderPracticeSelect() {
       '<span class="arcade-format-icon">'+format.icon+'</span><strong>'+format.title+'</strong>'+
       '<span>'+format.description+'</span><small>'+format.rounds+' ROUNDS · '+format.seconds+' SEC EACH</small></button>').join('')+
       '</div><div class="practice-grid">' + practiceCategoryOptions.map(option => {
-      const matches=rareQuestions.filter(q=>q.bigPool && q.poolGroup===option.value);
+      const matches=rareQuestions.filter(q=>q.bigPool &&
+        (option.value==="surprise"||q.poolGroup===option.value));
+      const slots=matches.reduce((n,q)=>n+q.answers.length,0);
       return '<button type="button" data-action="start-practice" data-group="'+esc(option.value)+'" class="practice-option '+(option.value==="surprise"?"featured":"")+'">'+
         '<span class="practice-art">'+option.icon+'</span><strong>'+esc(option.label)+'</strong>'+
         '<span class="practice-description">'+esc(option.detail)+'</span>'+
-        '<span class="practice-count">'+(option.value==="surprise"?"ALL CATEGORIES":matches.length+" RARE PROMPTS")+' <b>↗</b></span></button>';
-    }).join("")+'</div><p class="practice-footnote">Practice is free during beta testing. It never affects official daily or lifetime leaderboards. The $4.99 lifetime unlock is not active yet.</p></section>';
+        '<span class="practice-count">'+(option.value==="surprise"?"ALL CATEGORIES · "+fmt(slots)+" ANSWER SLOTS":
+          matches.length+" RARE PROMPTS · "+fmt(slots)+" ANSWER SLOTS")+' <b>↗</b></span></button>';
+    }).join("")+'</div><p class="practice-footnote">Practice uses archived reference lists with many valid names, but not every real-world answer is in every list. Answer-slot counts include repeats across questions. It never affects official daily or lifetime leaderboards. The $4.99 lifetime unlock is not active yet.</p></section>';
   window.scrollTo(0,0);
 }
 
@@ -635,6 +638,21 @@ function roundDots() {
       return '<span class="round-dot ' + q.type + ' ' + state + '" title="Question ' + (index+1) + ': ' + q.type + '"></span>';
     }).join("") + '</div>';
 }
+function questionSourceLink(question) {
+  if(!question?.arcadeOnly)return "";
+  let url="",label="";
+  if(question.id.startsWith("open-v16-mlb-")){
+    url="https://github.com/chadwickbureau/register";
+    label="SOURCE: CHADWICK BASEBALL BUREAU · ODC-BY 1.0";
+  }else if(question.id.startsWith("open-v16-cc0-")){
+    url="https://github.com/dariusk/corpora";
+    label="SOURCE: CC0 CORPORA HISTORICAL DATA";
+  }else if(question.id.startsWith("open-v16-")){
+    url="https://github.com/Flightmussy/filmmap-dataset";
+    label="SOURCE: WIKIDATA / CC0 FILMMAP SNAPSHOT";
+  }
+  return url?'<a class="question-source" href="'+url+'" target="_blank" rel="noopener noreferrer">'+label+' ↗</a>':"";
+}
 function renderGame() {
   if (!session) return renderHome();
   const q = currentQuestion();
@@ -675,6 +693,7 @@ function renderGame() {
     '<div class="question-category">' + esc(q.category) + ' · ROUND ' + (session.index+1) + '</div>',
     '<h2 class="question-prompt">' + esc(q.prompt) + '</h2>',
     '<p class="question-detail">' + esc(fit ? "Six options. Only one is the crowd favorite. Pick the answer you think most people would choose." : q.detail) + '</p>',
+    questionSourceLink(q),
     optionContent,
     '<div class="question-foot"><span class="question-legend ' + q.type + '"><i></i>' + (fit ? "Highest crowd match = 1,000 pts" : "Rarer approved answers = more points") + '</span>',
     '<button type="button" class="skip" data-action="skip">Skip this question</button></div>',

@@ -1248,3 +1248,13 @@ a{color:var(--lime)}
   .open-atlas-panel{padding:22px}
   .open-atlas-panel .btn{width:100%}
 }
+
+/* Source attribution on the 2026 universal guest reference bank. */
+.question-source{
+  display:inline-block;margin:0 0 18px;
+  font:600 10px/1.5 'DM Mono',monospace;
+  letter-spacing:.035em;text-decoration:underline;
+  text-underline-offset:3px;color:inherit;opacity:.86;
+  overflow-wrap:anywhere;
+}
+.question-source:hover,.question-source:focus-visible{opacity:1;text-decoration-thickness:2px}
