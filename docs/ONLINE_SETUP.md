@@ -271,3 +271,36 @@ and supports spoiler-free challenge invitations. Unfinished days, raw
 answers, private question keys and account email addresses are never
 returned. This feature remains offline until Supabase is configured;
 do not represent it as a public multiplayer launch before live testing.
+
+## v1.3 — Crowd consent, competition and discovery
+
+Apply `supabase/migrations/20261112001700_v13_crowd_consent.sql` **after**
+all prior migrations, including v1.1 rivalry migration 016. Deploy the updated
+`outlier` Edge Function and then set public URL/anon key as before.
+
+New authenticated routes:
+
+- `POST ?action=crowd-consent` body `{"enabled":true|false}`: explicitly opt in/out.
+  Disabling immediately removes old responses from research results; opting in
+  again starts a NEW eligibility window, not retrospective consent.
+- `GET ?action=crowd-pulse&question=...`: only reveals anonymized aggregate
+  *Fit In* choices after the requesting user has completed that exact official
+  question. Results include counts only after at least 30 eligible responses
+  completed on prior UTC days. Otherwise counts and sample sizes are hidden.
+- Profile now returns `crowdOptIn`, used for the owner-neutral consent control.
+
+The default is **off**. A future published privacy notice and support/account
+deletion policy must describe these optional research aggregates. This
+does not authorize publishing individuals' responses or modifying frozen
+scoring keys. Versioned observed popularity boards for future questions
+would require a separate review and seeding policy.
+
+The friend-league Weekly Cup display reuses the existing membership-restricted
+`league-standings` API and cannot alter server scores. Its pairings are
+provisional alphabetical account-ID exhibitions, not a locked knockout bracket.
+Test with two and three accounts across a UTC week boundary. Do not infer
+that online infrastructure is live simply because source code exists.
+
+Run the CI SQL privacy smoke test
+`psql -v ON_ERROR_STOP=1 -f test/v13-crowd-smoke.sql`
+inside the disposable CI schema, **never** against a live Supabase project.

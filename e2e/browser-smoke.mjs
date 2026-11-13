@@ -242,6 +242,48 @@ async function runNarrowEditorial() {
   console.log("PASS editorial art direction at 320px portrait and earned print-skin palette");
 }
 
+
+async function runWeeklyAndLocalDuel() {
+  const ctx=await browser.newContext({viewport:{width:390,height:844},reducedMotion:"reduce"});
+  const p=await ctx.newPage();
+  p.setDefaultTimeout(12000);
+  await p.addInitScript(()=>{
+    localStorage.setItem("outlier-prototype-v1",JSON.stringify({
+      days:{},arcade:{},sound:false,beta:{tutorial:true},theme:"nebula"
+    }));
+  });
+  await p.goto(url);
+  await p.locator('button[data-action="weekly-event"]').first().click();
+  for(let round=1;round<=10;round++){
+    await p.locator(".question-card.rare").waitFor();
+    await p.locator('button[data-action="skip"]').click();
+    await p.locator('button[data-action="next"]').click();
+  }
+  await p.locator(".v13-debrief").waitFor();
+  assert.match(await p.locator(".result-max").innerText(),/10,000/);
+  await p.goto(url);
+  await p.locator('button[data-action="duel"]').first().click();
+  for(let player=0;player<2;player++){
+    for(let round=1;round<=7;round++){
+      await p.locator(".question-card").waitFor();
+      assert.equal((await p.locator(".game-score strong").innerText()).trim(),"•••",
+        "duel scores must stay hidden until both finish");
+      await p.locator('button[data-action="skip"]').click();
+      await p.locator(".v13-duel-screen").waitFor();
+      assert.equal(await p.locator(".feedback-points").count(),0,
+        "duel should not reveal scores early");
+      await p.locator('button[data-action="next"]').click();
+    }
+    if(player===0) await p.locator('button[data-action="duel-handoff"]').click();
+  }
+  await p.locator(".v13-duel-results").waitFor();
+  assert.match(await p.locator(".v13-duel-results h1").innerText(),/DRAW/);
+  assert.equal(await p.locator(".v13-duel-final-grid>div").count(),2);
+  const saved=await p.evaluate(()=>JSON.parse(localStorage.getItem("outlier-prototype-v1")||"{}"));
+  assert.equal(Object.keys(saved.days||{}).length,0,"duel must not write official dailies");
+  await ctx.close();
+  console.log("PASS seeded weekly event and sealed local duel without official scoring");
+}
 async function runAdminSafety() {
   await page.goto(new URL("admin.html",url).toString());
   await page.locator("#connection").waitFor();
@@ -257,6 +299,7 @@ try {
   await runMobile();
   await runSyntheticIdentity();
   await runNarrowEditorial();
+  await runWeeklyAndLocalDuel();
   await runAdminSafety();
 } finally {
   await browser.close();

@@ -1,6 +1,7 @@
 import {rarityTier} from "./answer-intelligence.js";
 import {readLeagueInvite,leagueInviteLink,removeLeagueInvite,officialShareMessage,comparisonLabel} from "./community.js";
 import { ONLINE_ENABLED, SUPABASE_URL, SUPABASE_ANON_KEY } from "./online-config.js";
+import { dailyDebrief, weeklyCup } from "./v13-discovery.js";
 
 const escape = value => String(value ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const number = value => Number(value ?? 0).toLocaleString("en-US");
@@ -125,7 +126,13 @@ function profilePanel() {
      '<div><strong>'+number(s.best)+'</strong><small>PERSONAL BEST</small></div></div>'+
      '<form class="online-name-form" data-form="name"><label for="online-display">DISPLAY NAME</label>'+
      '<div class="answer-row"><input class="answer-input" id="online-display" name="name" maxlength="24" required value="'+escape(state.profile.name||"")+'">'+
-     '<button class="btn btn-ghost" type="submit">SAVE NAME</button></div></form></div>';
+     '<button class="btn btn-ghost" type="submit">SAVE NAME</button></div></form>'+
+     '<div class="v13-crowd-consent"><div class="eyebrow">OPT-IN CROWD RESEARCH</div>'+
+     '<p class="small muted">Let your completed official Fit In predictions and Stand Out picks made AFTER you opt in contribute anonymously to historical comparisons. Only groups with 30+ responses appear. Withdrawing excludes all your prior submissions from future crowd results.</p>'+
+     '<button class="btn btn-ghost" type="button" data-online="crowd-consent" data-enabled="'+
+       (state.profile.crowdOptIn?"false":"true")+'">'+
+       (state.profile.crowdOptIn?"WITHDRAW CROWD RESEARCH CONSENT":"OPT IN TO CROWD RESEARCH")+'</button>'+
+     '<span class="small muted"> CURRENTLY '+(state.profile.crowdOptIn?"OPTED IN":"OFF")+'</span></div></div>';
 }
 
 function myReviewsPanel() {
@@ -173,6 +180,29 @@ function leaguesPanel() {
       '<button class="btn btn-ghost" type="submit">JOIN FRIENDS</button></form></div>'+
       '<p class="small muted">Friend leagues are free and never change your daily score. Share invite codes only with people you want in your group.</p></div>';
 }
+
+function weeklyCupPanel() {
+  if(!["week","last-week"].includes(state.leaguePeriod))return "";
+  const cup=weeklyCup(state.leaguePlayers,state.leaguePeriod);
+  const rows=cup.matchups.map((match,index)=>{
+    const status=match.draw?"TIED":match.winner?
+      "LEADING: "+escape(match.winner.name):"NOT YET PLAYED";
+    return '<div class="v13-cup-match"><small>MATCH '+(index+1)+'</small>'+
+      '<div><span>'+escape(match.a.name)+' <b>'+number(match.a.score)+'</b></span>'+
+      '<em>VS</em><span>'+escape(match.b.name)+' <b>'+number(match.b.score)+'</b></span></div>'+
+      '<strong>'+status+'</strong></div>';
+  }).join("");
+  return '<section class="v13-cup" aria-label="Weekly Cup matchups">'+
+    '<div class="eyebrow">🏆 '+(cup.final?"LAST WEEK’S":"THIS WEEK’S")+' FRIEND LEAGUE CUP</div>'+
+    '<h3>WEEKLY HEAD-TO-HEAD.</h3>'+
+    '<p class="small muted">An exhibition matchup from the verified weekly scoreboard. '+
+      'Play your one official daily to help your weekly total. '+
+      (cup.final?"Last week’s totals are final.":"This week’s totals remain provisional until Sunday 23:59 UTC.")+'</p>'+
+    (rows||'<p class="small muted">Invite another player to create your first weekly matchup.</p>')+
+    (cup.bye?'<p class="small muted">✦ '+escape(cup.bye.name)+' has a bye in the current pairing.</p>':'')+
+    '<p class="small muted">'+escape(cup.note)+'</p></section>';
+}
+
 function showLeague() {
   stopTimer();
   if(!state.activeLeague)return showMenu();
@@ -204,6 +234,7 @@ function showLeague() {
       '<strong>👑 '+escape(state.leaguePlayers[0].name)+'</strong>'+
       '<span>'+number(state.leaguePlayers[0].score)+' verified points</span></div>':'')+
     (rows||'<div class="board-empty"><p class="muted">Nobody has completed an official game yet.</p></div>')+
+    weeklyCupPanel()+
     '<div class="league-code"><span>INVITE CODE: <strong>'+escape(league.code)+'</strong></span>'+
     act("league-copy","COPY INVITE CODE","btn-ghost")+'</div></div></div>');
 }
@@ -381,6 +412,66 @@ function showFeedback() {
     act("next",state.game.complete?"SEE FINAL RESULTS →":"NEXT QUESTION →",isFit?"btn-teal btn-wide feedback-next":"btn-primary btn-wide feedback-next")+
     '</div>');
 }
+
+function onlineDebriefPanel(answers) {
+  const d=dailyDebrief([],answers);
+  return '<section class="card v13-debrief">'+
+    '<div class="eyebrow">AFTER THE BUZZER / OFFICIAL RECAP</div>'+
+    '<h2>YOUR DAILY DEBRIEF.</h2>'+
+    '<p class="small muted">'+d.accepted+' of '+d.rounds+' accepted responses. Editorial scores are not crowd surveys.</p>'+
+    '<div class="v13-debrief-cards">'+
+    '<div><small>✦ DEEPEST CUT</small><strong>'+escape(d.bestRare?.accepted||"No approved pick")+'</strong>'+
+      '<span>'+number(d.bestRare?.points||0)+' editorial points</span></div>'+
+    '<div><small>◎ STRONGEST CROWD CALL</small><strong>'+escape(d.bestFit?.accepted||"No prediction")+'</strong>'+
+      '<span>'+number(d.bestFit?.points||0)+' points</span></div>'+
+    '<div><small>↗ NEXT CHALLENGE</small><strong>'+d.missed.length+' rounds missed</strong>'+
+      '<span>Try another unranked session to practice your knowledge.</span></div></div>'+
+    '<details class="v13-category-ledger"><summary>EXPLORE YOUR CATEGORY LEDGER</summary>'+
+    d.categories.map(c=>'<div class="v13-category-row"><span>'+escape(c.name)+'</span><b>'+
+      number(c.points)+' / '+number(c.rounds*1000)+'</b></div>').join("")+'</details></section>';
+}
+function crowdPulsePanel(answers) {
+  if(state.game?.mode!=="daily")return "";
+  const picks=answers.filter(a=>a.type==="fit" && a.questionId);
+  if(!picks.length)return "";
+  const rows=picks.map(a=>{
+    const pulse=state.crowdPulses?.[a.questionId];
+    const response=pulse?.available?
+      '<div class="v13-pulse-board">'+pulse.answers.slice(0,6).map(item=>
+        '<div class="v13-category-row"><span>'+escape(item.name)+'</span>'+
+        '<strong>'+number(item.picks)+' picks · '+number(item.percent)+'%</strong></div>').join("")+'</div>':
+      '<p class="small muted">'+(pulse?"Not enough opted-in prior-day responses yet (30 required).":
+        "Checking opted-in historical responses…")+'</p>';
+    return '<article class="v13-pulse-item"><h4>'+escape(a.category||"FIT IN")+
+      ' · '+escape(a.accepted||"No pick")+'</h4>'+
+      (pulse?.available?'<small>OBSERVED OPT-IN SAMPLE · '+number(pulse.sampleSize)+' PRIOR-DAY PICKS</small>':'')+
+      response+'</article>';
+  }).join("");
+  return '<section class="card v13-crowd-pulse"><div class="eyebrow">◎ WHAT THE OPTED-IN CROWD PICKED</div>'+
+    '<h2>THE REAL CROWD PULSE.</h2>'+
+    '<p class="small muted">Only previous completed verified dailies after explicit opt-in. '+
+    'Samples below 30 are hidden. Observations never change today’s frozen score.</p>'+
+    rows+'</section>';
+}
+function loadCrowdPulses() {
+  const g=state.game;
+  if(g?.mode!=="daily"||!g.complete||state.crowdLoadingFor===g.id||state.crowdLoadedFor===g.id)return;
+  const ids=[...new Set((g.answers||[]).filter(a=>a.type==="fit"&&a.questionId).map(a=>a.questionId))];
+  if(!ids.length)return;
+  state.crowdLoadingFor=g.id;
+  Promise.all(ids.map(async id=>{
+    try {
+      const response=await invoke("crowd-pulse",{query:"question="+encodeURIComponent(id)});
+      return [id,response.pulse];
+    } catch {return [id,{available:false,reason:"unavailable"}];}
+  })).then(results=>{
+    if(state.game?.id!==g.id)return;
+    state.crowdPulses=Object.fromEntries(results);
+    state.crowdLoadedFor=g.id;
+    if(state.view==="results")showResults();
+  }).finally(()=>{if(state.crowdLoadingFor===g.id)state.crowdLoadingFor=null;});
+}
+
 function showResults() {
   stopTimer();
   state.view="results";
@@ -401,10 +492,12 @@ function showResults() {
     (state.profile?.unlimited ? act("practice","PLAY AGAIN ↻","btn-teal"):"")+'</div></div>'+
     '<div class="card result-modes"><div class="mode-stat rare"><span>💎 STAND OUT</span><strong>'+number(rare)+'</strong>'+
     '</div><div class="mode-stat fit"><span>◎ FIT IN</span><strong>'+number(fit)+'</strong></div></div>'+
+    onlineDebriefPanel(answers)+crowdPulsePanel(answers)+
     '<div class="card result-breakdown"><h3>Round by round</h3>'+rows+'</div>'+
     '<p class="small muted text-center" style="margin-top:20px">'+
     (g.mode==="daily"?"One official attempt per UTC day. Practice never counts toward the public leaderboards.":
      "This practice result does not affect your lifetime rankings.")+'</p>');
+  loadCrowdPulses();
 }
 function showRetryWarning(message="That answer isn't in our accepted library. Try another answer before time runs out!") {
   const warning=container.querySelector("#online-answer-validation");
@@ -492,6 +585,19 @@ async function handleClick(event) {
   const action=button.dataset.online;
   if (action==="back") {stopTimer();container.onclick=null;container.onsubmit=null;window.removeEventListener("keydown",onKeydown);onBack();return;}
   if (busy) return;
+  if (action==="crowd-consent") {
+    busy=true;
+    try {
+      const enabled=button.dataset.enabled==="true";
+      await invoke("crowd-consent",{method:"POST",payload:{enabled}});
+      await reloadProfile();
+      state.message=enabled?"Your opt-in applies to future completed official guesses.":
+        "Consent withdrawn. Your previous guesses are excluded from future aggregates.";
+      state.error=null;showMenu();
+    }catch(e){showError(e,"Could not change crowd consent")}
+    finally{busy=false;}
+    return;
+  }
   if (action==="dismiss-invite") {
     state.pendingInvite=null;
     window.history.replaceState(null,"",removeLeagueInvite(window.location.href));
@@ -594,7 +700,7 @@ async function handleClick(event) {
   }
   if (action==="logout") {
     await supabase.auth.signOut();
-    state.user=null;state.profile=null;state.game=null;
+    state.user=null;state.profile=null;state.game=null;state.crowdPulses={};state.crowdLoadedFor=null;
     showMenu();
   }
 }
@@ -681,6 +787,7 @@ export async function mountOnline(element, back) {
   container=element;onBack=back;
   state={view:"loading",board:"daily",players:[],user:null,profile:null,capabilities:null,game:null,feedback:null,rejected:null,
     leagues:[],activeLeague:null,leaguePlayers:[],leaguePeriod:"week",rivalId:null,rivalry:null,
+    crowdPulses:{},crowdLoadingFor:null,crowdLoadedFor:null,
     pendingInvite:readLeagueInvite(window.location.search),
     error:null,message:null,sent:false};
   showBusy();

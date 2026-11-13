@@ -143,7 +143,7 @@ async function enforceBudget(userId: string, action: string) {
   const limits: Record<string,[number,number]> = {
     "start":[20,3600],"answer":[240,3600],"advance":[45,3600],
     "league-create":[5,86400],"league-join":[12,3600],
-    "review":[5,86400],"checkout":[5,3600],"name":[8,3600]
+    "review":[5,86400],"checkout":[5,3600],"name":[8,3600],"crowd-consent":[8,86400]
   };
   const [max,windowSeconds] = limits[action] ?? [20,3600];
   const permitted=await rpc("outlier_request_budget",{
@@ -158,13 +158,14 @@ function adminAuthorized(req: Request): boolean {
 async function profile(user: User) {
   const [stats,people,paid,history] = await Promise.all([
     rpc("outlier_player_stats",{p_user:user.id}),
-    database("/profiles?user_id=eq." + encodeURIComponent(user.id) + "&select=display_name&limit=1"),
+    database("/profiles?user_id=eq." + encodeURIComponent(user.id) + "&select=display_name,crowd_opted_at&limit=1"),
     entitlement(user.id),
     rpc("outlier_player_history",{p_user:user.id,p_limit:35})
   ]);
   const reviews=await rpc("outlier_review_my_tickets",{p_user:user.id,p_limit:20});
   return {userId:user.id,email:user.email,name:Array.isArray(people) ? people[0]?.display_name : "",
-    stats,history,reviews,unlimited:paid};
+    stats,history,reviews,unlimited:paid,
+    crowdOptIn:Boolean(Array.isArray(people) && people[0]?.crowd_opted_at)};
 }
 async function stripeCheckout(user: User): Promise<string> {
   if(!billingConfiguration().ready)throw new ApiError(503,"checkout_not_configured");
@@ -332,10 +333,26 @@ async function handle(req: Request): Promise<Response> {
     const mutationBudget: Record<string,string> = {
       "profile":"name","start":"start","answer":"answer","advance":"advance",
       "league-create":"league-create","league-join":"league-join",
-      "review":"review","checkout":"checkout"
+      "review":"review","checkout":"checkout","crowd-consent":"crowd-consent"
     };
     if ((req.method==="POST" || req.method==="PATCH") && mutationBudget[action]) {
       await enforceBudget(user.id,mutationBudget[action]);
+    }
+    if (action === "crowd-consent" && req.method === "POST") {
+      const input=await bodyJson(req);
+      if(typeof input.enabled!=="boolean")throw new ApiError(400,"invalid_crowd_consent");
+      const enabled=await rpc("outlier_crowd_consent",{
+        p_user:user.id,p_enabled:input.enabled
+      });
+      return json({enabled:enabled===true},200,origin);
+    }
+    if (action === "crowd-pulse" && req.method === "GET") {
+      const question=safeStr(url.searchParams.get("question"),110);
+      if(!question || question.length>100)throw new ApiError(400,"invalid_question_id");
+      const pulse=await rpc("outlier_crowd_pulse",{
+        p_user:user.id,p_question:question
+      });
+      return json({pulse},200,origin);
     }
     if (action === "profile" && req.method === "GET") {
       return json(await profile(user),200,origin);

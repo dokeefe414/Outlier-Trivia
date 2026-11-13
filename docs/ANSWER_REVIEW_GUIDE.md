@@ -73,3 +73,19 @@ assigned arbitrarily.
 **No automatic retroactive rescore.** Changing an already-finished daily
 after seeing the leaderboard would be unfair. Document the error and
 publish a corrected version for future days.
+
+## v1.3 owner-side review CLI
+
+Run `npm run review:answer -- pack-people-celeb-nz Zendaya`.
+The tool inspects the **public prototype** finite approved list and prints
+`already_accepted`, `ambiguous`, `needs_evidence`, or
+`unknown_question`. This is triage, not factual verification: a celebrity
+being famous does **not** establish that they occur in the archived
+source list named by a specific prompt.
+
+For [reported Zendaya issue #1](https://github.com/dokeefe414/Outlier-Trivia/issues/1),
+inspect the precise dated celebrity reference, canonical label, relevant
+source license and approved constraints. If absent, explain that result
+transparently or propose a *new explicitly defined* future question set.
+Never silently alter published ranked question answers or mark an unverified
+report accepted. Preserve the answer-review ticket until a documented decision.
