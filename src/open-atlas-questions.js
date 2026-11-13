@@ -18,6 +18,8 @@ const abbreviations=Object.fromEntries(
    "Wisconsin:WI|Wyoming:WY").split("|").map(text=>text.split(":"))
 );
 const norm=normalizeAnswer;
+const stateNames=Object.fromEntries(Object.entries(abbreviations).map(([state,abbr])=>[abbr,state]));
+const countyBaseName=name=>String(name).replace(/ (County|Parish|Census Area|Municipality|Borough|City and Borough|City)$/i,"").trim();
 const counts=values=>{
   const map=new Map();
   for(const value of values){const key=norm(value);map.set(key,(map.get(key)||0)+1);}
@@ -28,10 +30,11 @@ const cities=placeAtlasSnapshot.cities.map(([city,state,population],index)=>({
   city,state,population,index,label:city+", "+state
 }));
 const cityNames=counts(cities.map(row=>row.city));
-const counties=placeAtlasSnapshot.counties.map(([county,state])=>({
-  county,state,label:county+", "+state
+const counties=placeAtlasSnapshot.counties.map(([county,abbr])=>({
+  county,short:countyBaseName(county),state:stateNames[abbr]||abbr,abbr,
+  label:county+", "+(stateNames[abbr]||abbr)
 }));
-const countyNames=counts(counties.map(row=>row.county));
+const countyNames=counts(counties.map(row=>row.short));
 const famousDinos=new Map([
   ["Tyrannosaurus",120],["Triceratops",150],["Velociraptor",170],
   ["Stegosaurus",160],["Brachiosaurus",190],["Diplodocus",270],
@@ -83,7 +86,7 @@ export function makeSourceQuestion({id,category,group,prompt,records,name,score,
     answers};
 }
 const sourceCities="archived 2016 U.S. city-population collection";
-const sourceCounties="archived U.S. counties-by-state list";
+const sourceCounties="archived Census-derived U.S. county FIPS list";
 const sourceDinos="archived CC0 dinosaur-name catalog";
 const cityAliases=row=>{
   const list=[row.city+", "+(abbreviations[row.state]||row.state)];
@@ -91,11 +94,9 @@ const cityAliases=row=>{
   return list;
 };
 const countyAliases=row=>{
-  const suffix=row.state==="Louisiana"?"Parish":row.state==="Alaska"?"Borough":"County";
-  const full=row.county+" "+suffix;
-  const list=[full+", "+row.state,row.county+", "+(abbreviations[row.state]||row.state),
-    full+", "+(abbreviations[row.state]||row.state)];
-  if(countyNames.get(norm(row.county))===1)list.push(row.county,full);
+  const list=[row.county+", "+row.abbr,
+    row.short+", "+row.state,row.short+", "+row.abbr];
+  if(countyNames.get(norm(row.short))===1)list.push(row.county,row.short);
   return list;
 };
 // Population is only a broad editorial notability proxy (2016), NOT how
@@ -104,8 +105,8 @@ const cityScore=row=>row.index<20?150:row.index<100?340:
   row.index<300?520:row.index<650?720:900;
 const countyScore=row=>{
   const familiar=/^(cook|orange|king|los angeles|miami-dade|queens|harris|fulton|suffolk|maricopa)$/i;
-  return familiar.test(row.county)?340:row.county.length<7?610:
-    row.county.length<12?770:920;
+  return familiar.test(row.short)?340:row.short.length<7?610:
+    row.short.length<12?770:920;
 };
 const dinosaurScore=name=>famousDinos.get(name)||
   (String(name).length<9?650:String(name).length<14?810:940);
@@ -126,10 +127,10 @@ for(const state of ["California","Texas","Florida"]){
 
 const countyBase={category:"GEOGRAPHY",group:"geo",records:counties,name:x=>x.label,
   score:countyScore,alias:countyAliases,source:sourceCounties};
-add({...countyBase,id:"us-county-all",prompt:"Name a U.S. county or county-equivalent division in our archived list. Add its state if the name is shared."});
-add({...countyBase,id:"us-county-am",prompt:"Name a U.S. county beginning A–M in our archived counties-by-state list.",filter:x=>am(x.county)});
-add({...countyBase,id:"us-county-nz",prompt:"Name a U.S. county beginning N–Z in our archived counties-by-state list.",filter:x=>nz(x.county)});
-add({...countyBase,id:"us-county-long",prompt:"Name a U.S. county with a name of ten letters or more in our archived list.",filter:x=>long(x.county)});
+add({...countyBase,id:"us-county-all",prompt:"Name a U.S. county or county-equivalent division from our archived Census-derived FIPS list. Add the state if the name is shared."});
+add({...countyBase,id:"us-county-am",prompt:"Name a U.S. county or county-equivalent beginning A–M in our archived FIPS list.",filter:x=>am(x.short)});
+add({...countyBase,id:"us-county-nz",prompt:"Name a U.S. county or county-equivalent beginning N–Z in our archived FIPS list.",filter:x=>nz(x.short)});
+add({...countyBase,id:"us-county-long",prompt:"Name a U.S. county or county-equivalent with ten or more letters in its name from our archived FIPS list.",filter:x=>long(x.short)});
 for(const state of ["Texas","California","Pennsylvania"]){
   add({...countyBase,id:"us-county-"+abbreviations[state].toLowerCase(),
     prompt:"Name a county in "+state+" from our archived county list.",
