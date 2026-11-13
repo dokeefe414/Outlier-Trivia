@@ -16,6 +16,19 @@
   --line:rgba(235,244,218,.22);--purple:var(--orange);--teal:var(--lime);
   --yellow:#f6d27a;--danger:#ff826d;--shadow:none;
 }
+/* Existing earned skins retain their own press-ink combinations. */
+:root[data-skin="aurora"]{
+  --lime:#8feddc;--orange:#f2bb7c;--panel:#1e302b;--panel2:#284239;
+  --yellow:#fae4a4;
+}
+:root[data-skin="sunset"]{
+  --lime:#ffce83;--orange:#f48c9c;--panel:#2f2726;--panel2:#47312d;
+  --yellow:#ffebba;
+}
+:root[data-skin="champion"]{
+  --lime:#f0d184;--orange:#9ed5ae;--panel:#2c3028;--panel2:#3b4331;
+  --yellow:#ffe5a1;
+}
 html{scroll-behavior:smooth}
 body{
   background:var(--bg);color:var(--text);
