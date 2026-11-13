@@ -135,3 +135,17 @@ export function partyRevealRound(game,index,names) {
   return {question,index,picks,high,
     bestPickers:high>0?picks.filter(p=>p.points===high).map(p=>p.playerIndex):[]};
 }
+
+export function partyRevealBeat(game,index,names) {
+  const frame=partyRevealRound(game,index,names);
+  if(!frame)return null;
+  if(index===6) {
+    const anyWager=frame.picks.some(p=>p.wager>0);
+    return anyWager?"FINAL BETS HAVE LANDED. THE SCOREBOARD DECIDES THE CROWN.":
+      "SEVEN ANSWERS. ONE CHAMPION REVEAL REMAINS.";
+  }
+  if(frame.high<=0)return "THE ROOM GOES QUIET. NOBODY SCORES THIS ROUND.";
+  if(frame.bestPickers.length>1)return "A DEAD HEAT ON THIS QUESTION.";
+  const leader=names[frame.bestPickers[0]];
+  return String(leader).toUpperCase()+" TAKES THE TOP PICK THIS ROUND.";
+}
