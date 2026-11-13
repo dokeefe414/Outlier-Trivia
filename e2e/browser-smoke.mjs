@@ -415,7 +415,7 @@ async function runEvidenceReviewAndMastery() {
   const p=await ctx.newPage();
   p.setDefaultTimeout(12000);
   await p.addInitScript(()=>{
-    localStorage.setItem("outlier-prototype-v1",JSON.stringify({
+    if(!localStorage.getItem("outlier-prototype-v1"))localStorage.setItem("outlier-prototype-v1",JSON.stringify({
       days:{},arcade:{},sound:false,beta:{tutorial:true},theme:"nebula"
     }));
     window.open=(link)=>{window.__reviewOpenedLink=link;return null;};
