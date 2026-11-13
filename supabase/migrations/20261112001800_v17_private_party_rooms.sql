@@ -154,8 +154,8 @@ begin
 end $$;
 
 create or replace function public.outlier_party_state(p_user uuid,p_room uuid)
-returns jsonb language plpgsql stable security definer
-set search_path=public,private,pg_temp as $$
+returns jsonb language plpgsql volatile security definer
+set search_path=public,private,pg_temp as $
 declare
   v_room public.outlier_party_rooms%rowtype;
   v_now timestamptz:=clock_timestamp();
@@ -337,3 +337,31 @@ grant execute on function public.outlier_party_join(uuid,text) to service_role;
 grant execute on function public.outlier_party_start(uuid,uuid) to service_role;
 grant execute on function public.outlier_party_state(uuid,uuid) to service_role;
 grant execute on function public.outlier_party_answer(uuid,uuid,integer,text) to service_role;
+
+-- Rate-limit actions must be explicitly allowed by the underlying RPC.
+-- Extend the original allowlist to cover private-room actions and v1.3
+-- opt-in consent without weakening existing per-user budgets.
+create or replace function public.outlier_request_budget(
+  p_user uuid,p_action text,p_max integer,p_window_seconds integer
+) returns boolean language plpgsql security definer
+set search_path=public,private,pg_temp as $$
+declare v_hits integer; v_bucket bigint;
+begin
+  if p_action not in (
+    'start','answer','advance','league-create','league-join','review','checkout',
+    'name','crowd-consent','party-create','party-join','party-start','party-answer'
+  ) or p_max not between 1 and 300 or p_window_seconds not between 30 and 86400 then
+    raise exception 'invalid_rate_limit_config';
+  end if;
+  v_bucket:=floor(extract(epoch from clock_timestamp())/p_window_seconds)::bigint;
+  insert into private.request_budgets(user_id,action,window_bucket,hits)
+    values(p_user,p_action,v_bucket,1)
+    on conflict(user_id,action,window_bucket)
+    do update set hits=private.request_budgets.hits+1
+    returning hits into v_hits;
+  return v_hits<=p_max;
+end $$;
+revoke all on function public.outlier_request_budget(uuid,text,integer,integer)
+  from public,anon,authenticated;
+grant execute on function public.outlier_request_budget(uuid,text,integer,integer)
+  to service_role;
