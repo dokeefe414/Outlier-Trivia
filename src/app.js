@@ -10,6 +10,8 @@ import {scoreHistory,weekSummary,nextGoal,versusHistory,utcResetRemaining} from 
 import { readFriendChallenge, challengeLink, challengeOutcome, categoryInsights } from "./social.js";
 import {dailyDebrief,weeklySpotlight,weeklySpotlightRound} from "./v13-discovery.js";
 import {openAtlasCatalog} from "./open-atlas-questions.js";
+import {personalMastery} from "./mastery.js";
+import {validateReviewDraft,reviewIssueLink,recordReviewLinkOpened,reviewTicketSummary,attachReviewIssue} from "./review-queue.js";
 import {PARTY_LIMITS,PARTY_TOPICS,PARTY_TIMERS,PARTY_WAGERS,normalizePartyConfig,buildPartyGames,partyGameScores,partyStandings,partyRevealRound} from "./party-duel.js";
 
 const STORAGE_KEY = "outlier-prototype-v1";
@@ -22,6 +24,7 @@ function loadStore() {
     const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
     return { days: raw.days && typeof raw.days === "object" ? raw.days : {},
       arcade: raw.arcade && typeof raw.arcade === "object" ? raw.arcade : {},
+      reviewLinks:Array.isArray(raw.reviewLinks)?raw.reviewLinks.slice(0,40):[],
       sound: Boolean(raw.sound),
       beta: raw.beta && typeof raw.beta === "object" ? raw.beta : {},
       theme: typeof raw.theme === "string" ? raw.theme : "nebula",
@@ -29,7 +32,7 @@ function loadStore() {
         ? {title:String(raw.player.title||""),frame:String(raw.player.frame||"")}
         : {title:"",frame:""} };
   } catch {
-    return { days: {}, arcade: {}, sound: false, beta: {}, theme: "nebula",
+    return { days: {}, arcade: {}, reviewLinks:[], sound: false, beta: {}, theme: "nebula",
       player:{title:"",frame:""} };
   }
 }
@@ -187,6 +190,68 @@ function deepKnowledgePanel() {
     '<p class="tiny muted">This is a local browser-only profile, not a claim about worldwide knowledge rankings.</p></section>';
 }
 
+function masteryPreviewPanel() {
+  const m=personalMastery(storage.days);
+  const featured=m.categories.slice(0,3);
+  return '<section class="card mastery-card"><div class="section-heading"><div>'+
+    '<span class="eyebrow">THE SKILL TREE / VERIFIED DAILY RESULTS</span>'+
+    '<h3>TURN KNOWLEDGE INTO MASTERY.</h3>'+
+    '<p class="muted small">Earn subject XP, trophies and personal records from completed official daily rounds. Practice and parties stay unranked.</p></div>'+
+    '<span class="pill pill-purple">'+m.trophyCount+' / '+m.trophies.length+' TROPHIES</span></div>'+
+    '<div class="mastery-hero"><span>💎 <b>'+fmt(m.deepCuts)+'</b> DEEP CUTS</span>'+
+    '<span>✦ <b>'+fmt(m.distinctRare)+'</b> RARE FINDS</span>'+
+    '<span>🏆 <b>'+fmt(m.personalBest)+'</b> PERSONAL BEST</span></div>'+
+    (featured.length?'<div class="mastery-levels">'+featured.map(topic=>
+      '<div class="mastery-level"><div><strong>'+esc(topic.name)+'</strong>'+
+        '<span>'+esc(topic.icon)+' '+esc(topic.level)+' · '+fmt(topic.xp)+' XP</span></div>'+
+      '<div class="mastery-track"><span style="width:'+topic.progress+'%"></span></div>'+
+      '<small>'+(topic.remaining?fmt(topic.remaining)+' XP TO NEXT LEVEL':'MAX LEVEL')+'</small></div>').join('')+
+      '</div>':'<p class="muted small">Your mastery journey begins with a completed daily game.</p>')+
+    '<div class="mastery-trophies">'+m.trophies.map(t=>
+      '<div class="mastery-trophy '+(t.unlocked?'is-earned':'is-locked')+'">'+
+        '<span>'+esc(t.icon)+'</span><strong>'+esc(t.title)+'</strong>'+
+        '<small>'+esc(t.description)+'</small>'+
+        '<em>'+(t.unlocked?'✓ EARNED':fmt(t.value)+' / '+t.goal)+'</em></div>').join('')+'</div>'+
+    '</section>';
+}
+function answerReviewTracker() {
+  const summary=reviewTicketSummary(storage.reviewLinks);
+  if(!summary.opened)return '<section class="card review-tracker"><div class="eyebrow">SOURCE-CHECKED ANSWERS</div>'+
+    '<h3>MAKE THE LIBRARY SMARTER.</h3><p class="small muted">Know a correct answer we missed? Use the Review Answer link after a Stand Out question and include a credible source.</p></section>';
+  return '<section class="card review-tracker"><div class="eyebrow">YOUR ANSWER REVIEW LINKS</div>'+
+    '<h3>HELP US FILL THE GAPS.</h3><p class="small muted">Saved in this browser. Opening an issue link does not prove it was submitted, reviewed, or approved. Existing scores never change.</p>'+
+    summary.items.slice(0,10).map((item,i)=>
+      '<div class="review-tracker-row"><div><b>'+esc(item.answer)+'</b>'+
+        '<small>'+esc(item.questionId)+' · '+(item.issueUrl?'ISSUE LINK ATTACHED':'ISSUE LINK OPENED · UNCONFIRMED')+'</small></div>'+
+      (item.issueUrl?'<a href="'+esc(item.issueUrl)+'" target="_blank" rel="noopener noreferrer">VIEW ISSUE ↗</a>':
+        '<form data-form="review-link" data-index="'+i+'">'+
+          '<input class="answer-input" type="url" required placeholder="Paste your GitHub issue URL" aria-label="GitHub issue URL for '+esc(item.answer)+'">'+
+          '<button type="submit" class="btn btn-outline">ATTACH</button></form>')+
+      '</div>').join('')+'</section>';
+}
+function renderReviewForm() {
+  if(!feedback||feedback.question.type!=="rare")return renderHome();
+  screen="review";clearInterval(intervalId);
+  const q=feedback.question;
+  app.innerHTML='<section class="review-compose">'+
+    '<button class="back-link" type="button" data-action="review-back">← BACK TO QUESTION RESULT</button>'+
+    '<div class="eyebrow">PLAYER-SOURCED ANSWER REVIEW</div>'+
+    '<h1>YOU FOUND A GAP?</h1><p>Every reported answer needs evidence for the question\'s exact reference set. '+
+      'We will not guess, quietly change points, or alter old scores.</p>'+
+    '<div class="card"><strong>'+esc(q.prompt)+'</strong>'+
+      '<p class="small muted">QUESTION ID: '+esc(q.id)+'</p></div>'+
+    '<form id="review-composer">'+
+      '<label for="review-answer">THE ANSWER WE MISSED</label>'+
+      '<input class="answer-input" id="review-answer" maxlength="80" minlength="2" required value="'+esc(feedback.rejectedGuess||"")+'" placeholder="Canonical name">'+
+      '<label for="review-reason">WHY IT QUALIFIES UNDER THIS PROMPT</label>'+
+      '<textarea class="answer-input" id="review-reason" minlength="20" maxlength="500" rows="4" required placeholder="Explain using the source, date and eligibility rule"></textarea>'+
+      '<label for="review-source">RELIABLE HTTPS SOURCE</label>'+
+      '<input type="url" class="answer-input" id="review-source" required placeholder="https://example.org/reliable-reference">'+
+      '<p class="small muted">This opens a prefilled GitHub issue. You still need to submit the issue there. Your draft is recorded locally as link opened, not approved.</p>'+
+      '<p class="answer-validation" role="alert" id="review-error" hidden></p>'+
+      '<button class="btn btn-primary" type="submit">OPEN EVIDENCE REVIEW ISSUE ↗</button></form></section>';
+  window.scrollTo(0,0);
+}
 function badgeCabinet() {
   const badges = earnedBadges(storage.days);
   return '<div class="card badge-section"><div class="section-heading"><div><h3>Your badge cabinet</h3>' +
@@ -877,10 +942,10 @@ function renderFeedback() {
     answerExplorer(q),
     !fit?'<div class="answer-suggestion"><div><strong>KNOW ANOTHER VALID ANSWER?</strong>'+
       '<p class="small muted">Our finite approved lists improve through source-checked suggestions. Help us catch omissions.</p></div>'+
-      homeButton('SUGGEST A VERIFIED ANSWER ↗','suggest-answer','btn-outline')+'</div>':'',
-    (!result.valid && !fit && feedback.rejectedGuess) ?
-      '<div class="answer-report"><span>Think your answer should count?</span>'+
-      homeButton('REQUEST AN ANSWER REVIEW ↗','report-answer','btn-outline')+'</div>' : '',
+      homeButton('SUGGEST A VERIFIED ANSWER ↗','review-open','btn-outline')+'</div>':'',
+    (!fit && feedback.rejectedGuess) ?
+      '<div class="answer-report"><span>Think your missing answer qualifies?</span>'+
+      homeButton('REVIEW WITH A SOURCE ↗','review-open','btn-outline')+'</div>' : '',
     '<p class="insight">' + (fit ?
       'These percentages are fixed example values for the prototype, NOT survey data or live player votes. Everyone gets the same score for the same pick.' :
       'Stand Out scores are curated prototype rarity tiers, NOT actual frequencies from other players. Answers are checked against a finite validated list.') + '</p>',
@@ -1143,7 +1208,7 @@ function renderResult() {
       '<div class="mode-stat fit"><span>◎ FIT IN</span><strong>' + fmt(fitScore) + '<small> / '+fmt(fitMax)+'</small></strong>' +
       '<div class="bar-bg"><div class="bar-fg" style="width:' + (fitMax ? fitScore/fitMax*100 : 0) + '%"></div></div></div></div>',
     debriefPanel(session.questions,session.answers),
-    daily ? missionBoard() + playerCardPreview() : '',
+    daily ? missionBoard() + playerCardPreview() + masteryPreviewPanel() : '',
     unlockedToday.length ? '<div class="card unlocked-today"><span class="eyebrow">NEW ACHIEVEMENT</span>' +
       unlockedToday.map(b=>'<div class="achievement-reveal"><span>' + esc(b.icon) + '</span><div><strong>' + esc(b.title) +
         '</strong><p>' + esc(b.detail) + '</p></div></div>').join("") + '</div>' : '',
@@ -1198,6 +1263,8 @@ function renderLeaderboard() {
     '<div class="board-note">Only official daily games count. Unlimited practice never changes these numbers. Scores are stored locally on this device, not synced between devices.</div>',
     '</div>',
     personalJourneyPanel(),
+    masteryPreviewPanel(),
+    answerReviewTracker(),
     missionBoard(),
     playerIdentityPanel(),
     seasonPanel(),
@@ -1331,6 +1398,8 @@ document.addEventListener("click", event => {
     case "fit-answer": submitAnswer(control.dataset.answer); break;
     case "skip": submitAnswer(null); break;
     case "next": nextRound(); break;
+    case "review-open": if(screen==="feedback"&&feedback?.question?.type==="rare")renderReviewForm();break;
+    case "review-back": if(screen==="review")renderFeedback();break;
     case "suggest-answer": {
       if(screen==="feedback"&&feedback?.question?.type==="rare") {
         const params=new URLSearchParams({
@@ -1440,6 +1509,35 @@ document.addEventListener("change",event=>{
 });
 
 document.addEventListener("submit", event => {
+  if(event.target?.id==="review-composer"){
+    event.preventDefault();
+    if(screen!=="review"||!feedback)return;
+    const data={questionId:feedback.question.id,question:feedback.question.prompt,
+      answer:document.getElementById("review-answer")?.value,
+      reason:document.getElementById("review-reason")?.value,
+      source:document.getElementById("review-source")?.value};
+    const validation=validateReviewDraft(data);
+    const warning=document.getElementById("review-error");
+    if(!validation.ok){if(warning){warning.textContent=validation.errors.join(" ");warning.hidden=false;}return;}
+    try{
+      const link=reviewIssueLink(data);
+      storage.reviewLinks=recordReviewLinkOpened(storage.reviewLinks,data);
+      saveStore();
+      window.open(link,"_blank","noopener,noreferrer");
+      toast("Review form opened. Submit your issue on GitHub; points remain unchanged.");
+      renderFeedback();
+    }catch(e){if(warning){warning.textContent=e.message;warning.hidden=false;}}
+    return;
+  }
+  if(event.target?.dataset.form==="review-link"){
+    event.preventDefault();
+    const index=Number(event.target.dataset.index);
+    try{
+      storage.reviewLinks=attachReviewIssue(storage.reviewLinks,index,event.target.querySelector("input")?.value);
+      saveStore();renderLeaderboard();toast("Issue link saved locally. Approval is not automatic.");
+    }catch(e){toast(e.message);}
+    return;
+  }
   if(event.target?.id==="party-config-form"){
     event.preventDefault();
     if(screen!=="duel-setup")return;
