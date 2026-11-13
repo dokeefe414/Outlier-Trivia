@@ -170,7 +170,7 @@ end $$;
 
 create or replace function public.outlier_party_state(p_user uuid,p_room uuid)
 returns jsonb language plpgsql volatile security definer
-set search_path=public,private,pg_temp as $
+set search_path=public,private,pg_temp as $$
 declare
   v_room public.outlier_party_rooms%rowtype;
   v_now timestamptz:=clock_timestamp();
