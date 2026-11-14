@@ -2,6 +2,8 @@
 
 **A playable, mobile-friendly daily general-knowledge game.** Seven questions, two mindsets: find a rare correct answer in **Stand Out**, then predict the most popular answer in **Fit In**.
 
+> **v1.8 RELIABLE GAME NIGHTS & SMARTER ANSWERS:** Pass & Play now saves and resumes after refresh at every handoff, keeps its original running timer, remembers the last 12 local championships and supports same-rules rematches. Safer additional approved-name spellings, offline human-only review triage, smoother reduced-motion-friendly reveals and a private, anonymous playtest-report workflow are included. Server-backed private rooms now retain authenticated recovery pointers through transient network issues and have their own question-bank readiness independent of official daily rankings. **Hosted multiplayer remains inactive until Supabase and a separately verified private room catalog are configured.** [Release, privacy, QA, and beta checklist](docs/V18_RELIABLE_GAME_NIGHT.md).
+
 > **v1.7 GAME NIGHT & KNOWLEDGE MASTERY:** Better source-evidence answer reporting, 2–8 player Pass & Play with selectable 20–90s timers, optional secret final-question stakes, player portraits, series standings and dramatic reveals; new official-daily-only category mastery, trophies and personal bests. A separately secured 2–4 account private online room service is included as **deployable source only**; it requires a Supabase deployment and a separately reviewed private room bank. [Full v1.7 gameplay and activation notes](docs/V17_GAMEPLAY_MULTIPLAYER.md).
 
 > **v1.6 Universal Answer Atlas — 235 Stand Out questions and 107,588 approved answer slots.** Added 80 deep-source prompts across all twelve topics: thousands of movies and TV shows, historical MLB players, music, books, science, sports, people, animals, food, games, and more. THE BIG LIST now samples seven different topic groups. [See sources, counts, and exact answer rules](docs/V16_UNIVERSAL_ANSWER_ATLAS.md).
@@ -38,6 +40,18 @@ The browser must load the site over HTTP, not the file protocol, because the gam
 4. Once GitHub finishes deploying, the expected URL is **https://dokeefe414.github.io/Outlier-Trivia/**.
 
 GitHub Pages deployments are verified through the repository's Actions workflow. Check the latest deployment run if you are testing a newly merged release.
+
+## v1.8 — Your Game Night Saves Itself
+
+**Local Pass & Play now resumes after refresh:** after configuring 2–8 players and 1–7 games, every sealed answer, pending final-round stake, player handoff, and seven-step reveal can be restored from a compact versioned local checkpoint. It references the exact question IDs instead of copying the giant answer bank, and does **not reset an already-started question clock**. Finished championships save a bounded local leaderboard with a same-rules rematch option. Official daily history is untouched.
+
+**Safer approved-name recognition** now recognizes a few more verified equivalent proper-name formats such as initial `The`, `St.` vs `Saint`, `Mt.` vs `Mount`, terminal `Jr.` vs `Junior`, and two-field `Last, First` order—but only if an exact current approved answer matches **unambiguously**. Unknown names still never score. `npm run audit:proposals -- proposals.json` organizes sourced review candidates for a human; nothing is automatically approved.
+
+**Visuals and beta:** tactile reveal animations with reduced-motion support, clearer keyboard focus and responsive history cards; a **COPY ANONYMOUS PLAYTEST SUMMARY** champion action and a separate Game Night Issue Form help real testers report problems without exposing names or guesses. No gameplay analytics are sent automatically.
+
+**Online private rooms:** reconnect pointers are authenticated and per-user, retries handle temporary outages without resetting the *server's* 315-second match clock, and `capabilities.partyReady` is based on a **separate private-room bank**. Migration 019 and Edge deployment are included, **but live rooms are still disabled until an owner provisions Supabase and human-reviewed private questions**. Real 10–20 player testing has not happened.
+
+See [the v1.8 release and beta guide](docs/V18_RELIABLE_GAME_NIGHT.md) for detailed safety rules, deployment, test targets and runbooks.
 
 ## v1.7 — Game Night, source-based review, mastery and private rooms
 
