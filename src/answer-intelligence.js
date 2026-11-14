@@ -87,6 +87,42 @@ function closeCandidates(index,query) {
   }
   return [...found.values()];
 }
+// Deterministic spelling alternates of an existing, submitted approved name.
+// Transformations NEVER add facts. We accept only if one canonical record in
+// the current question already has an exact approved key for an alternate.
+export function approvedNameSpellings(raw) {
+  const name=String(raw??"").trim().replace(/\s+/g," ");
+  if(name.length<3||name.length>100)return [];
+  const options=new Set([name]);
+  const transform=value=>{
+    const variants=[];
+    if(/^the\s+/i.test(value))variants.push(value.replace(/^the\s+/i,""));
+    else variants.push("The "+value);
+    const prefix=value.match(/^(the\s+)?(st|saint|mt|mount|ft|fort)\.?\s+(.+)$/i);
+    if(prefix){
+      const dictionary={st:"saint",saint:"st",mt:"mount",mount:"mt",ft:"fort",fort:"ft"};
+      variants.push((prefix[1]||"")+dictionary[prefix[2].toLowerCase()]+" "+prefix[3]);
+    }
+    const suffix=value.match(/^(.+)\s+(jr|junior|sr|senior)\.?$/i);
+    if(suffix){
+      const swap={jr:"junior",junior:"jr",sr:"senior",senior:"sr"};
+      variants.push(suffix[1]+" "+swap[suffix[2].toLowerCase()]);
+    }
+    const lastFirst=value.match(/^([^,]{2,60}),\s+([^,]{2,60})$/);
+    if(lastFirst)variants.push(lastFirst[2]+" "+lastFirst[1]);
+    return variants;
+  };
+  // Two passes let "The St. Louis" equal "Saint Louis" without creating
+  // arbitrary meaning-changing synonyms or a costly fuzzy search.
+  for(let pass=0;pass<2;pass++){
+    const current=[...options];
+    for(const item of current)for(const value of transform(item)){
+      if(options.size<24)options.add(value);
+    }
+  }
+  const base=normalizeAnswer(name);
+  return [...new Set([...options].map(normalizeAnswer).filter(key=>key&&key!==base))].slice(0,23);
+}
 export function inspectRareGuess(question,raw) {
   const query=normalizeAnswer(raw);
   if(!query)return {status:"empty",match:null};
@@ -94,6 +130,11 @@ export function inspectRareGuess(question,raw) {
   const index=indexQuestion(question),names=index.exact.get(query);
   if(names?.length===1)return {status:"accepted",match:names[0]};
   if(names?.length>1)return {status:"ambiguous",match:null};
+  const spellings=approvedNameSpellings(raw);
+  const equivalent=spellings.flatMap(key=>index.exact.get(key)||[]);
+  const equivalentOwners=new Set(equivalent.map(entry=>entry.label));
+  if(equivalentOwners.size>1)return {status:"ambiguous",match:null};
+  if(equivalent.length)return {status:"accepted",match:{...equivalent[0],matchKind:"equivalent"}};
   if(query.length<5)return {status:"unrecognized",match:null};
   const close=closeCandidates(index,query);
   const owners=new Set(close.map(x=>x.label));

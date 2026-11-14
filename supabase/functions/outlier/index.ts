@@ -290,10 +290,16 @@ async function handle(req: Request): Promise<Response> {
   try {
     if (action === "webhook" && req.method === "POST") return json(await processWebhook(req),200,origin);
     if (action === "capabilities" && req.method === "GET") {
-      const readiness=await rpc("outlier_launch_readiness",{});
+      const [readiness,roomReadiness]=await Promise.all([
+        rpc("outlier_launch_readiness",{}),
+        rpc("outlier_party_readiness",{})
+      ]);
       const info=readiness as {ready?:boolean;privateQuestions?:number};
+      const party=roomReadiness as {ready?:boolean;rareQuestions?:number;fitQuestions?:number};
       const billing=billingConfiguration();
       return json({rankedReady:info?.ready === true,
+        partyReady:party?.ready===true,
+        roomQuestionCounts:{rare:party?.rareQuestions??0,fit:party?.fitQuestions??0},
         paymentReady:info?.ready===true && billing.ready,
         paymentMode:info?.ready===true?billing.mode:"disabled",
         privateQuestionCount:info?.privateQuestions??0},200,origin);

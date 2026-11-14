@@ -126,14 +126,21 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f test/v13-crowd-smoke.sql
       - name: Apply v1.7 server-verified private party rooms
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261112001800_v17_private_party_rooms.sql
+      - name: Apply v1.8 independent online room readiness
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261112001900_v18_party_readiness.sql
       - name: Verify private party question bank is empty before CI fixtures
         run: |
           COUNT=$(psql -Atc 'select count(*) from private.outlier_party_question_bank')
           [ "$COUNT" = "0" ] || (echo "Room answer keys may not be shipped in public migrations" && exit 1)
+      - name: Verify production room catalog is not considered playable yet
+        run: |
+          psql -v ON_ERROR_STOP=1 -Atc "select (public.outlier_party_readiness()->>'ready')='false'" | grep -qx t
       - name: Import CI-only private party question fixture
         run: psql -v ON_ERROR_STOP=1 -f test/v17-private-room-fixture.sql
       - name: Verify synchronized shared questions, room authorization and score secrecy
         run: psql -v ON_ERROR_STOP=1 -f test/v17-party-room-smoke.sql
+      - name: Simulate four separate authenticated room participants and timeout recovery
+        run: psql -v ON_ERROR_STOP=1 -f test/v18-multiplayer-capacity-smoke.sql
 
   browser-e2e:
     name: Desktop and mobile browser smoke

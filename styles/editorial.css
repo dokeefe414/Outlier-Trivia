@@ -1375,3 +1375,67 @@ a{color:var(--lime)}
   .online-party-finale,.online-party-final-scores,.online-party-final-reveal{padding:20px}
   .online-party-panel .btn{width:100%}
 }
+
+/* OUTLIER 1.8 — recoverable game nights, tactile reveals, mobile-first history */
+.party-continuity{margin:24px 0;padding:clamp(20px,3vw,32px);border:2px solid var(--lime)}
+.party-continuity h2{font:400 clamp(23px,3.5vw,38px)/1.12 'Archivo Black',sans-serif;margin:10px 0 19px}
+.party-continue-now{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:22px;
+  background:var(--panel2);padding:18px;border:1px solid var(--line);margin-bottom:22px}
+.party-continue-now strong{display:block;font:700 14px 'DM Mono',monospace;color:var(--lime)}
+.party-continue-now p,.party-continue-now small{font:500 11px/1.5 'DM Mono',monospace}
+.party-continue-now small{color:var(--muted)}
+.party-continue-now>div:last-child{display:flex;flex-direction:column;gap:9px}
+.party-history-list h3{font:700 12px 'DM Mono',monospace;margin:15px 0 7px;letter-spacing:.05em}
+.party-history-row{display:flex;justify-content:space-between;align-items:center;gap:16px;
+  border-bottom:1px solid var(--line);padding:15px 0}
+.party-history-row>div{display:flex;flex-direction:column;min-width:0;gap:5px}
+.party-history-row b{font:700 16px 'Archivo Black',sans-serif;overflow-wrap:anywhere}
+.party-history-row span{font:500 12px 'DM Mono',monospace;overflow-wrap:anywhere}
+.party-history-row small{font:500 10px 'DM Mono',monospace;color:var(--muted)}
+.party-history-row .btn{flex-shrink:0}
+.party-reveal-prompt h1,.party-game-result h1,.party-series-result h1{
+  text-wrap:balance;overflow-wrap:anywhere}
+.party-pick-card{transition:transform .16s ease,border-color .16s ease;min-width:0}
+.party-pick-card.star-pick{border-color:var(--lime)}
+.party-wager-screen{background-image:radial-gradient(circle at 50% 0%,rgba(217,239,105,.11),transparent 53%)}
+.party-reveal .party-pick-card,.party-commentary,.party-game-result .party-winner-mark,
+.party-series-result .party-winner-mark{animation:outlier-reveal-enter .4s cubic-bezier(.2,.7,.2,1) both}
+.party-reveal .party-pick-card:nth-child(2){animation-delay:.08s}
+.party-reveal .party-pick-card:nth-child(3){animation-delay:.15s}
+.party-reveal .party-pick-card:nth-child(4){animation-delay:.2s}
+.party-reveal .party-pick-card:nth-child(5){animation-delay:.26s}
+.party-reveal .party-pick-card:nth-child(6){animation-delay:.32s}
+.party-reveal .party-pick-card:nth-child(7){animation-delay:.38s}
+.party-reveal .party-pick-card:nth-child(8){animation-delay:.44s}
+.party-commentary{animation-delay:.32s}
+.party-game-result .party-winner-mark,.party-series-result .party-winner-mark{
+  animation-name:outlier-winner-rise;animation-duration:.7s}
+@keyframes outlier-reveal-enter{
+  from{opacity:0;transform:translateY(15px) scale(.985)}
+  to{opacity:1;transform:translateY(0) scale(1)}
+}
+@keyframes outlier-winner-rise{
+  0%{opacity:0;transform:translateY(22px) rotate(-9deg) scale(.75)}
+  65%{opacity:1;transform:translateY(-4px) rotate(3deg) scale(1.08)}
+  100%{transform:translateY(0) rotate(0) scale(1)}
+}
+.party-continuity .btn:focus-visible,.party-reveal .btn:focus-visible,
+.party-interstitial .btn:focus-visible,.online-party-room-actions .btn:focus-visible{
+  outline:3px solid var(--orange);outline-offset:4px}
+.party-continuity .small{line-height:1.6}
+@media(max-width:700px){
+  .party-continue-now{grid-template-columns:1fr}
+  .party-continue-now>div:last-child{align-items:stretch}
+  .party-continue-now .btn{width:100%;white-space:normal}
+  .party-history-row{align-items:flex-start}
+  .party-history-row .btn{white-space:normal;max-width:120px}
+}
+@media(max-width:340px){
+  .party-history-row{flex-direction:column}
+  .party-history-row .btn{width:100%;max-width:none}
+}
+@media(prefers-reduced-motion:reduce){
+  .party-reveal .party-pick-card,.party-commentary,.party-game-result .party-winner-mark,
+  .party-series-result .party-winner-mark{animation:none!important}
+  .party-pick-card{transition:none!important}
+}

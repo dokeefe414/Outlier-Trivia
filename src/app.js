@@ -13,6 +13,7 @@ import {openAtlasCatalog} from "./open-atlas-questions.js";
 import {personalMastery} from "./mastery.js";
 import {validateReviewDraft,reviewIssueLink,recordReviewLinkOpened,reviewTicketSummary,attachReviewIssue} from "./review-queue.js";
 import {PARTY_LIMITS,PARTY_TOPICS,PARTY_TIMERS,PARTY_WAGERS,normalizePartyConfig,buildPartyGames,partyGameScores,partyStandings,partyRevealRound,partyRevealBeat} from "./party-duel.js";
+import {PARTY_SAVE_KEY,serializeParty,restoreParty,summarizePartyArchive,addPartyArchive,anonymousPartyBetaSummary} from "./party-persistence.js";
 
 const STORAGE_KEY = "outlier-prototype-v1";
 const app = document.getElementById("app");
@@ -25,6 +26,7 @@ function loadStore() {
     return { days: raw.days && typeof raw.days === "object" ? raw.days : {},
       arcade: raw.arcade && typeof raw.arcade === "object" ? raw.arcade : {},
       reviewLinks:Array.isArray(raw.reviewLinks)?raw.reviewLinks.slice(0,40):[],
+      partyHistory:Array.isArray(raw.partyHistory)?raw.partyHistory.slice(0,12):[],
       sound: Boolean(raw.sound),
       beta: raw.beta && typeof raw.beta === "object" ? raw.beta : {},
       theme: typeof raw.theme === "string" ? raw.theme : "nebula",
@@ -32,7 +34,7 @@ function loadStore() {
         ? {title:String(raw.player.title||""),frame:String(raw.player.frame||"")}
         : {title:"",frame:""} };
   } catch {
-    return { days: {}, arcade: {}, reviewLinks:[], sound: false, beta: {}, theme: "nebula",
+    return { days: {}, arcade: {}, reviewLinks:[], partyHistory:[], sound: false, beta: {}, theme: "nebula",
       player:{title:"",frame:""} };
   }
 }
@@ -64,6 +66,89 @@ function saveDaily() {
     startedAt: storage.days[session.day]?.startedAt || Date.now()
   };
   saveStore();
+}
+function readPartyCheckpoint() {
+  try{
+    const data=localStorage.getItem(PARTY_SAVE_KEY);
+    if(!data)return null;
+    const revived=restoreParty(JSON.parse(data),[...rareQuestions,...fitQuestions]);
+    if(!revived){localStorage.removeItem(PARTY_SAVE_KEY);return null;}
+    return revived;
+  }catch{return null;}
+}
+function focusPartyStage() {
+  window.requestAnimationFrame(()=>{
+    if(!session?.duel||screen==="game")return;
+    const heading=app.querySelector("section h1,section h2");
+    if(heading){heading.setAttribute("tabindex","-1");heading.focus({preventScroll:true});}
+  });
+}
+function savePartyCheckpoint() {
+  if(session?.mode!=="duel"||!session.duel)return;
+  const data=serializeParty(session,screen,session.duel.createdAt);
+  if(!data)return;
+  focusPartyStage();
+  try{localStorage.setItem(PARTY_SAVE_KEY,JSON.stringify(data));}
+  catch{ /* Without localStorage, play continues normally. */ }
+}
+function clearPartyCheckpoint() {
+  try{localStorage.removeItem(PARTY_SAVE_KEY);}catch{}
+}
+function storePartyChampion() {
+  const archived=summarizePartyArchive(session);
+  if(!archived)return;
+  storage.partyHistory=addPartyArchive(storage.partyHistory,archived);
+  saveStore();clearPartyCheckpoint();
+}
+function resumePartyCheckpoint() {
+  const recovered=readPartyCheckpoint();
+  if(!recovered){toast("That game is unavailable or expired. Start a new showdown.");renderHome();return;}
+  session=recovered.session;
+  partySetup={...session.duel.config,names:[...session.duel.config.names]};
+  feedback=null;
+  const stage=recovered.stage;
+  if(stage==="duel-ready")return renderPartyReady();
+  if(stage==="duel-handoff")return renderDuelHandoff();
+  if(stage==="duel-wager")return renderPartyWager();
+  if(stage==="duel-reveal")return renderPartyReveal();
+  if(stage==="duel-game-results")return renderPartyGameResult();
+  if(stage==="duel-champion")return renderDuelResult();
+  if(stage==="feedback")return renderDuelLock();
+  if(stage==="game")return renderGame();
+  renderHome();
+}
+function partyContinuityPanel() {
+  const saved=readPartyCheckpoint();
+  const history=Array.isArray(storage.partyHistory)?storage.partyHistory.slice(0,5):[];
+  if(!saved&&!history.length)return "";
+  const d=saved?.session?.duel;
+  let status="";
+  if(saved){
+    if(saved.stage==="duel-ready")status="NEXT GAME READY";
+    else if(saved.stage==="duel-handoff")status="PASS TO NEXT PLAYER";
+    else if(saved.stage==="duel-reveal")status="ANSWER REVEAL IN PROGRESS";
+    else if(saved.stage==="duel-game-results")status="GAME RESULT UNLOCKED";
+    else if(saved.stage==="duel-wager")status="FINAL WAGER AWAITS";
+    else if(saved.stage==="game")status="QUESTION "+(saved.session.index+1)+" / 7";
+    else status="SEALED GAME IN PROGRESS";
+  }
+  return '<section class="card party-continuity" aria-labelledby="party-continuity-heading">'+
+    '<div class="eyebrow">THE GAME NIGHT ARCHIVE / THIS BROWSER ONLY</div>'+
+    '<h2 id="party-continuity-heading">YOUR SHOWDOWN LIVES ON.</h2>'+
+    (saved?'<div class="party-continue-now"><div>'+
+      '<strong>'+esc(status)+'</strong><p>'+d.config.players+' PLAYERS · GAME '+(d.gameIndex+1)+' / '+d.config.games+
+      ' · '+d.config.timerSeconds+' SECOND TIMER</p><small>Private answers stay hidden until the original reveal. A running question timer never restarts.</small></div>'+
+      '<div>'+homeButton('RESUME GAME NIGHT ↗','duel-resume','btn-primary')+
+      homeButton('DISCARD UNFINISHED GAME','duel-discard','btn-outline')+'</div></div>':'')+
+    (history.length?'<div class="party-history-list"><h3>PREVIOUS CHAMPIONSHIPS</h3>'+
+      history.map(item=>'<div class="party-history-row"><div><b>'+
+        esc(item.champions?.join(" & ")||"CO-CHAMPIONS")+'</b>'+
+        '<span>'+esc(item.config?.names?.join(" · ")||"Players")+'</span>'+
+        '<small>'+esc(new Date(item.completedAt).toLocaleDateString("en-US"))+
+        ' · '+esc(item.config?.games??0)+' '+(item.config?.games===1?'GAME':'GAMES')+'</small></div>'+
+        homeButton('REMATCH ↻','duel-rematch-saved','btn-ghost').replace('data-action="duel-rematch-saved"','data-action="duel-rematch-saved" data-party-id="'+esc(item.id)+'"')+
+      '</div>').join("")+'</div>':'')+
+    '<p class="small muted">This history is local to this browser. It does not affect daily rankings, accounts, or mastery.</p></section>';
 }
 function fmt(number) { return Number(number || 0).toLocaleString("en-US"); }
 function esc(input) {
@@ -372,6 +457,7 @@ function betaPanel() {
       (task.done?'✓':'○')+' '+esc(task.label)+'</span>').join('')+'</div>'+
     '<strong class="beta-count">'+done+' OF '+checklist.length+' COMPLETED</strong></div>'+
     '<div class="beta-actions">'+homeButton('SEND GAME FEEDBACK ↗','feedback','btn-teal')+
+    homeButton('REPORT A GAME NIGHT ISSUE ↗','party-beta-feedback','btn-ghost')+
     homeButton('REPLAY TUTORIAL','tour','btn-ghost')+'</div></div>';
 }
 function openTour(page=0) {
@@ -427,6 +513,30 @@ function sound(frequency = 600, duration = .12) {
     oscillator.start();
     oscillator.stop(soundContext.currentTime + duration);
   } catch { /* Sound is optional. */ }
+}
+// Original, short synthetic UI cues. They are not music or sound assets.
+function partySoundCue(kind) {
+  if(!storage.sound)return;
+  try{
+    soundContext=soundContext||new (window.AudioContext||window.webkitAudioContext)();
+    if(soundContext.state==="suspended")void soundContext.resume();
+    const cues={
+      wager:[[410,0,.11],[300,.14,.14]],
+      reveal:[[560,0,.08],[810,.105,.13]],
+      champion:[[470,0,.11],[640,.13,.13],[880,.29,.18]]
+    };
+    const now=soundContext.currentTime;
+    for(const [hz,delay,duration] of cues[kind]||[]){
+      const osc=soundContext.createOscillator(),vol=soundContext.createGain();
+      osc.type="triangle";
+      osc.frequency.setValueAtTime(hz,now+delay);
+      vol.gain.setValueAtTime(.0001,now+delay);
+      vol.gain.exponentialRampToValueAtTime(.028,now+delay+.018);
+      vol.gain.exponentialRampToValueAtTime(.0001,now+delay+duration);
+      osc.connect(vol);vol.connect(soundContext.destination);
+      osc.start(now+delay);osc.stop(now+delay+duration+.02);
+    }
+  }catch{ /* Sounds are always optional; silence never blocks gameplay. */ }
 }
 function renderSound() {
   const button = document.querySelector('[data-action="sound"]');
@@ -620,6 +730,7 @@ function renderHome() {
     spotlightPanel(),
     openAtlasPanel(),
     duelPanel(),
+    partyContinuityPanel(),
     '<div class="stats-strip">',
     stat("CURRENT STREAK", currentStreak(storage.days,today()) + " 🔥"),
     stat("LIFETIME AVERAGE", fmt(stats.average)),
@@ -645,7 +756,7 @@ function renderPracticeSelect() {
   screen="practice-select";
   clearInterval(intervalId);
   const total=rareQuestions.filter(q=>q.bigPool).length;
-  app.innerHTML='<section class="practice-select">' + spotlightPanel() + openAtlasPanel() + duelPanel() +
+  app.innerHTML='<section class="practice-select">' + spotlightPanel() + openAtlasPanel() + duelPanel() + partyContinuityPanel() +
     '<button type="button" class="back-link" data-action="home">← BACK TO HOME</button>' +
     '<div class="practice-heading"><span class="eyebrow">THE KNOWLEDGE ARCADE</span>' +
     '<h1>PICK YOUR <span class="gradient-text">PLAYGROUND.</span></h1>' +
@@ -691,11 +802,13 @@ function newSession(mode,practiceGroup = 'surprise') {
     };
     if (existing?.complete || session.index >= 7) { renderResult(); return; }
   } else if (mode === "duel") {
+    if(readPartyCheckpoint()&&!window.confirm("A saved game night is unfinished. Start over and replace it?"))return;
     const config=normalizePartyConfig(practiceGroup==="surprise"?partySetup:practiceGroup);
     const games=buildPartyGames(config);
     session={mode:"duel",day:today(),questions:games[0].questions,
       timerSeconds:config.timerSeconds,answers:[],index:0,deadline:null,
-      duel:{config,games,gameIndex:0,playerIndex:0,revealIndex:-1}};
+      duel:{id:window.crypto?.randomUUID?.()||"party-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2),
+        createdAt:Date.now(),config,games,gameIndex:0,playerIndex:0,revealIndex:-1}};
     return renderPartyReady();
   } else if (mode === "open-atlas") {
     session={mode:"practice",day:today(),practiceGroup:"surprise",
@@ -753,6 +866,7 @@ function renderGame() {
   }
   if (!session.deadline) session.deadline = Date.now() + (session.timerSeconds||QUESTION_SECONDS) * 1000;
   saveDaily();
+  savePartyCheckpoint();
   const fit = q.type === "fit";
   const optionContent = fit ?
     '<div class="answer-label">WHICH ANSWER WOULD WIN THE CROWD?</div><div class="fit-options">' +
@@ -961,7 +1075,7 @@ function renderFeedback() {
 
 function renderPartyReady() {
   if(!session?.duel)return renderHome();
-  screen="duel-ready";clearInterval(intervalId);
+  screen="duel-ready";clearInterval(intervalId);savePartyCheckpoint();
   const d=session.duel;
   app.innerHTML='<section class="v13-duel-screen party-interstitial"><div class="v13-duel-stamp">✳</div>'+
     '<div class="eyebrow">THE SHOWDOWN / GAME '+(d.gameIndex+1)+' OF '+d.config.games+'</div>'+
@@ -973,7 +1087,7 @@ function renderPartyReady() {
 }
 function renderDuelLock() {
   if(!session?.duel)return renderHome();
-  screen="feedback";clearInterval(intervalId);
+  screen="feedback";clearInterval(intervalId);savePartyCheckpoint();
   const d=session.duel;
   app.innerHTML='<section class="v13-duel-screen party-interstitial"><div class="v13-duel-stamp">✦</div>'+
     '<div class="eyebrow">GAME '+(d.gameIndex+1)+' · '+esc(d.config.names[d.playerIndex])+
@@ -985,7 +1099,7 @@ function renderDuelLock() {
 }
 function renderDuelHandoff() {
   if(!session?.duel)return renderHome();
-  screen="duel-handoff";clearInterval(intervalId);
+  screen="duel-handoff";clearInterval(intervalId);savePartyCheckpoint();
   const d=session.duel;
   const next=d.playerIndex+1;
   app.innerHTML='<section class="v13-duel-screen party-interstitial"><div class="v13-duel-stamp">↗</div>'+
@@ -1000,7 +1114,7 @@ function renderDuelHandoff() {
 }
 function renderPartyWager() {
   if(!session?.duel)return renderHome();
-  screen="duel-wager";clearInterval(intervalId);
+  screen="duel-wager";clearInterval(intervalId);savePartyCheckpoint();
   const d=session.duel;
   app.innerHTML='<section class="party-reveal-intro party-wager-screen">'+
     '<div class="eyebrow">THE FINAL ROUND / GAME '+(d.gameIndex+1)+'</div>'+
@@ -1017,7 +1131,7 @@ function renderPartyWager() {
 }
 function renderPartyReveal() {
   if(!session?.duel)return renderHome();
-  screen="duel-reveal";clearInterval(intervalId);
+  screen="duel-reveal";clearInterval(intervalId);savePartyCheckpoint();
   const d=session.duel,game=d.games[d.gameIndex];
   const frame=partyRevealRound(game,d.revealIndex,d.config.names);
   if(!frame){
@@ -1058,7 +1172,7 @@ function renderPartyReveal() {
 }
 function renderPartyGameResult() {
   if(!session?.duel)return renderHome();
-  screen="duel-game-results";clearInterval(intervalId);
+  screen="duel-game-results";clearInterval(intervalId);savePartyCheckpoint();
   const d=session.duel,game=d.games[d.gameIndex];
   const result=partyGameScores(game,d.config.players);
   if(!result)return renderHome();
@@ -1089,7 +1203,7 @@ function renderDuelResult() {
   if(!session?.duel)return renderHome();
   const d=session.duel,summary=partyStandings(d.config,d.games);
   if(!summary.complete)return renderPartyGameResult();
-  screen="duel-champion";clearInterval(intervalId);
+  screen="duel-champion";clearInterval(intervalId);storePartyChampion();
   const names=summary.champions.map(row=>row.name);
   const headline=names.length>1?"CO-CHAMPIONS!":esc(names[0])+" IS THE CHAMPION!";
   app.innerHTML='<section class="party-series-result">'+
@@ -1113,12 +1227,15 @@ function renderDuelResult() {
           (scores.winners.includes(i)?' · GAME WIN':'')+'</span>').join('')+'</div>';
     }).join('')+'</details>'+
     '<div class="party-grand-actions">'+homeButton('COPY THE FINAL RESULT ↗','share','btn-primary')+
+      homeButton('COPY ANONYMOUS PLAYTEST SUMMARY','duel-beta-copy','btn-ghost')+
+      homeButton('REPORT GAME NIGHT FEEDBACK ↗','party-beta-feedback','btn-ghost')+
       homeButton('RUN IT BACK ↻','duel-rematch','btn-ghost')+
       homeButton('CHANGE HOUSE RULES','duel','btn-ghost')+
       homeButton('BACK HOME','home','btn-outline')+'</div>'+
-    '<p class="small muted">Party games are unranked and saved only for this session.</p>'+
+    '<p class="small muted">Party games are unranked. Your championship summary is saved locally in this browser. The anonymous playtest summary never includes player names or answers.</p>'+
     '</section>';
   window.scrollTo(0,0);
+  focusPartyStage();
 }
 function partyNextGame() {
   if(screen!=="duel-game-results"||!session?.duel)return;
@@ -1351,6 +1468,17 @@ document.addEventListener("click", event => {
     case "weekly-event": newSession("spotlight"); break;
     case "open-atlas": newSession("open-atlas"); break;
     case "duel": renderPartySetup(); break;
+    case "duel-resume": resumePartyCheckpoint();break;
+    case "duel-discard":
+      if(window.confirm("Discard the unfinished local game night? This does not erase past championships.")){
+        clearPartyCheckpoint();renderHome();
+      }break;
+    case "duel-rematch-saved": {
+      const item=storage.partyHistory.find(row=>row.id===control.dataset.partyId);
+      if(!item)return;
+      try{newSession("duel",item.config);}catch(error){toast(error?.message||"Unable to rematch.");}
+      break;
+    }
     case "party-topic": {
       if(screen!=="duel-setup")return;
       const topic=control.dataset.topic;
@@ -1371,7 +1499,7 @@ document.addEventListener("click", event => {
       if(!PARTY_WAGERS.includes(stake))return;
       const d=session.duel;
       d.games[d.gameIndex].wagersByPlayer[d.playerIndex]=stake;
-      renderGame();break;
+      partySoundCue("wager");renderGame();break;
     }
     case "duel-handoff": {
       if(screen!=="duel-handoff"||!session?.duel)return;
@@ -1384,15 +1512,31 @@ document.addEventListener("click", event => {
       if(screen!=="duel-reveal"||!session?.duel)return;
       const d=session.duel;
       if(d.revealIndex>=session.questions.length-1){renderPartyGameResult();break;}
-      d.revealIndex++;sound(690,.12);renderPartyReveal();break;
+      d.revealIndex++;partySoundCue("reveal");renderPartyReveal();break;
     }
     case "duel-next-game": partyNextGame();break;
     case "duel-champion":
-      if(screen==="duel-game-results"&&session?.duel?.gameIndex+1===session.duel.config.games)
-        renderDuelResult();
+      if(screen==="duel-game-results"&&session?.duel?.gameIndex+1===session.duel.config.games){
+        partySoundCue("champion");renderDuelResult();
+      }
       break;
     case "duel-rematch":
       if(screen==="duel-champion"&&session?.duel)newSession("duel",session.duel.config);
+      break;
+    case "duel-beta-copy": {
+      if(screen!=="duel-champion"||!session?.duel)return;
+      const entry=summarizePartyArchive(session);
+      const value=anonymousPartyBetaSummary(entry);
+      if(!value)return;
+      if(navigator.clipboard?.writeText)
+        navigator.clipboard.writeText(value).then(()=>toast("Anonymous playtest summary copied."),()=>copyFallback(value));
+      else copyFallback(value);
+      break;
+    }
+    case "party-beta-feedback":
+      window.open("https://github.com/dokeefe414/Outlier-Trivia/issues/new?template=game-night-playtest.yml",
+        "_blank","noopener,noreferrer");
+      toast("GitHub opens the playtest form; you choose what to submit.");
       break;
     case "online": showOnline(); break;
     case "result": newSession("daily"); break;

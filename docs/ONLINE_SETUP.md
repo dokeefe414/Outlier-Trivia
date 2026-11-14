@@ -1,5 +1,7 @@
 # OUTLIER — Hosted online league setup
 
+> **v1.8 room reconnection and readiness:** Apply `20261112001900_v18_party_readiness.sql` after 018 and deploy the current Edge Function. The separate room catalog controls `capabilities.partyReady`; official daily ranked readiness is independent. Signed-in clients can recover only their already-authorized private-room UUID after a browser reload or transient outage. Full setup and a non-simulated playtest checklist: [v1.8 guide](V18_RELIABLE_GAME_NIGHT.md).
+
 > **v1.7 private multiplayer rooms:** The seven-round online rooms use a distinct, owner-curated **private room question bank**, server-authoritative clocks and a separate migration 018. Refer to [the v1.7 deployment and security guide](V17_GAMEPLAY_MULTIPLAYER.md) before offering room play. GitHub Pages alone cannot operate authenticated room matches; production room keys and Supabase secrets are never committed.
 
 
