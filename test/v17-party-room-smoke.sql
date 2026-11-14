@@ -15,6 +15,13 @@ declare
   answer text;
   final jsonb;
 begin
+  if public.outlier_party_readiness()->>'ready'<>'true' then
+    raise exception 'Isolated CI room fixture should be ready for private matches';
+  end if;
+  if has_function_privilege('authenticated',
+    'public.outlier_party_readiness()','EXECUTE') then
+    raise exception 'Room readiness helper must not be callable from browser';
+  end if;
   if public.outlier_request_budget(u1,'party-answer',30,3600)<>true then
     raise exception 'Rate budget rejected legitimate private-room action';
   end if;
