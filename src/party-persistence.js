@@ -137,3 +137,26 @@ export function addPartyArchive(history=[],item){
   const valid=Array.isArray(history)?history:[];
   return [item,...valid.filter(row=>row?.id!==item.id)].slice(0,PARTY_ARCHIVE_LIMIT);
 }
+
+export function anonymousPartyBetaSummary(entry) {
+  if(!entry||!entry.config||!Array.isArray(entry.standings)||!Array.isArray(entry.gameScores))return null;
+  const n=entry.config.players,g=entry.config.games;
+  if(!inRange(n,2,8)||!inRange(g,1,7))return null;
+  const all=entry.gameScores.flat().map(Number).filter(Number.isFinite);
+  const spread=entry.standings.length?
+    Math.max(...entry.standings.map(x=>Number(x.points)||0))-
+    Math.min(...entry.standings.map(x=>Number(x.points)||0)):0;
+  // Intentionally omit player names, answer text, question IDs, invite codes,
+  // browser fingerprints and account identifiers. Copying is always optional.
+  return ["OUTLIER v1.8 — Anonymous Game Night Beta",
+    "Mode: Pass & Play (unranked)",
+    "Players: "+n,
+    "Games completed: "+g,
+    "Question timer: "+entry.config.timerSeconds+" seconds",
+    "Final-round wagers: "+(entry.config.finalWager?"enabled":"disabled"),
+    "Co-champions: "+(entry.champions?.length||0),
+    "Average points per completed game: "+(all.length?
+      Math.round(all.reduce((sum,x)=>sum+x,0)/all.length):0),
+    "Final point spread: "+spread,
+    "No player names, guesses, identities or codes included."].join("\n");
+}
