@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {normalizeAnswer,oneEditApart,inspectRareGuess,suggestedApprovedAnswers,auditQuestionAliases,rarityTier} from "../src/answer-intelligence.js";
+import {normalizeAnswer,oneEditApart,inspectRareGuess,suggestedApprovedAnswers,auditQuestionAliases,rarityTier,approvedNameSpellings} from "../src/answer-intelligence.js";
 import {matchRare,evaluate} from "../src/game.js";
 import {rareQuestions} from "../src/data.js";
 import {approvedAliases} from "../src/approved-aliases.js";
@@ -97,4 +97,32 @@ test("indexed one-edit matcher handles large catalogs and rejects ambiguous clos
   assert.equal(inspectRareGuess(q,"Zzxloooooname").status,"unrecognized");
   assert.deepEqual(suggestedApprovedAnswers(q,"Zzxloooooname"),[]);
   assert.equal(inspectRareGuess(q,"frog").status,"unrecognized");
+});
+
+test("approved descriptive name variants recognize equivalent names but not invented facts",()=>{
+  const q={answers:[
+    ["The St. Louis Blues",610],
+    ["Mount Rainier",820],
+    ["Fort Collins",720],
+    ["Robert Downey Jr.",450],
+    ["Ada Lovelace",900],
+    ["The Beatles",170]
+  ]};
+  assert.equal(inspectRareGuess(q,"Saint Louis Blues").match?.label,"The St. Louis Blues");
+  assert.equal(inspectRareGuess(q,"Mt. Rainier").match?.label,"Mount Rainier");
+  assert.equal(inspectRareGuess(q,"Ft Collins").match?.label,"Fort Collins");
+  assert.equal(inspectRareGuess(q,"Robert Downey Junior").match?.label,"Robert Downey Jr.");
+  assert.equal(inspectRareGuess(q,"Lovelace, Ada").match?.label,"Ada Lovelace");
+  assert.equal(inspectRareGuess(q,"Beatles").match?.label,"The Beatles");
+  assert.equal(inspectRareGuess(q,"Mount Kilimanjaro").status,"unrecognized");
+  assert.equal(inspectRareGuess(q,"Scientifically plausible answer").status,"unrecognized");
+  assert.ok(approvedNameSpellings("st louis blues").includes("thesaintlouisblues"));
+});
+test("approved name transformations never guess when two exact owners collide",()=>{
+  const q={answers:[["The Example",500],["Example",850],["The Cobalt",200]]};
+  assert.equal(inspectRareGuess(q,"Example").match?.label,"Example","exact unambiguous input wins");
+  const ambiguity={answers:[["St. Mary",500],["Saint Mary",750]]};
+  assert.equal(inspectRareGuess(ambiguity,"The St Mary").status,"ambiguous");
+  assert.equal(inspectRareGuess(ambiguity,"St. Mary").match?.label,"St. Mary");
+  assert.equal(inspectRareGuess(q,"Cobalt").match?.label,"The Cobalt");
 });
