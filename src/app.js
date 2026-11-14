@@ -13,7 +13,7 @@ import {openAtlasCatalog} from "./open-atlas-questions.js";
 import {personalMastery} from "./mastery.js";
 import {validateReviewDraft,reviewIssueLink,recordReviewLinkOpened,reviewTicketSummary,attachReviewIssue} from "./review-queue.js";
 import {PARTY_LIMITS,PARTY_TOPICS,PARTY_TIMERS,PARTY_WAGERS,normalizePartyConfig,buildPartyGames,partyGameScores,partyStandings,partyRevealRound,partyRevealBeat} from "./party-duel.js";
-import {PARTY_SAVE_KEY,serializeParty,restoreParty,summarizePartyArchive,addPartyArchive} from "./party-persistence.js";
+import {PARTY_SAVE_KEY,serializeParty,restoreParty,summarizePartyArchive,addPartyArchive,anonymousPartyBetaSummary} from "./party-persistence.js";
 
 const STORAGE_KEY = "outlier-prototype-v1";
 const app = document.getElementById("app");
@@ -137,7 +137,7 @@ function partyContinuityPanel() {
         esc(item.champions?.join(" & ")||"CO-CHAMPIONS")+'</b>'+
         '<span>'+esc(item.config?.names?.join(" · ")||"Players")+'</span>'+
         '<small>'+esc(new Date(item.completedAt).toLocaleDateString("en-US"))+
-        ' · '+item.config.games+' '+(item.config.games===1?'GAME':'GAMES')+'</small></div>'+
+        ' · '+esc(item.config?.games??0)+' '+(item.config?.games===1?'GAME':'GAMES')+'</small></div>'+
         homeButton('REMATCH ↻','duel-rematch-saved','btn-ghost').replace('data-action="duel-rematch-saved"','data-action="duel-rematch-saved" data-party-id="'+esc(item.id)+'"')+
       '</div>').join("")+'</div>':'')+
     '<p class="small muted">This history is local to this browser. It does not affect daily rankings, accounts, or mastery.</p></section>';
@@ -449,6 +449,7 @@ function betaPanel() {
       (task.done?'✓':'○')+' '+esc(task.label)+'</span>').join('')+'</div>'+
     '<strong class="beta-count">'+done+' OF '+checklist.length+' COMPLETED</strong></div>'+
     '<div class="beta-actions">'+homeButton('SEND GAME FEEDBACK ↗','feedback','btn-teal')+
+    homeButton('REPORT A GAME NIGHT ISSUE ↗','party-beta-feedback','btn-ghost')+
     homeButton('REPLAY TUTORIAL','tour','btn-ghost')+'</div></div>';
 }
 function openTour(page=0) {
@@ -1194,10 +1195,12 @@ function renderDuelResult() {
           (scores.winners.includes(i)?' · GAME WIN':'')+'</span>').join('')+'</div>';
     }).join('')+'</details>'+
     '<div class="party-grand-actions">'+homeButton('COPY THE FINAL RESULT ↗','share','btn-primary')+
+      homeButton('COPY ANONYMOUS PLAYTEST SUMMARY','duel-beta-copy','btn-ghost')+
+      homeButton('REPORT GAME NIGHT FEEDBACK ↗','party-beta-feedback','btn-ghost')+
       homeButton('RUN IT BACK ↻','duel-rematch','btn-ghost')+
       homeButton('CHANGE HOUSE RULES','duel','btn-ghost')+
       homeButton('BACK HOME','home','btn-outline')+'</div>'+
-    '<p class="small muted">Party games are unranked. Your championship summary is saved locally in this browser.</p>'+
+    '<p class="small muted">Party games are unranked. Your championship summary is saved locally in this browser. The anonymous playtest summary never includes player names or answers.</p>'+
     '</section>';
   window.scrollTo(0,0);
 }
@@ -1485,6 +1488,21 @@ document.addEventListener("click", event => {
       break;
     case "duel-rematch":
       if(screen==="duel-champion"&&session?.duel)newSession("duel",session.duel.config);
+      break;
+    case "duel-beta-copy": {
+      if(screen!=="duel-champion"||!session?.duel)return;
+      const entry=summarizePartyArchive(session);
+      const value=anonymousPartyBetaSummary(entry);
+      if(!value)return;
+      if(navigator.clipboard?.writeText)
+        navigator.clipboard.writeText(value).then(()=>toast("Anonymous playtest summary copied."),()=>copyFallback(value));
+      else copyFallback(value);
+      break;
+    }
+    case "party-beta-feedback":
+      window.open("https://github.com/dokeefe414/Outlier-Trivia/issues/new?template=game-night-playtest.yml",
+        "_blank","noopener,noreferrer");
+      toast("GitHub opens the playtest form; you choose what to submit.");
       break;
     case "online": showOnline(); break;
     case "result": newSession("daily"); break;
