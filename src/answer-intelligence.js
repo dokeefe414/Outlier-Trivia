@@ -132,8 +132,8 @@ export function inspectRareGuess(question,raw) {
   if(names?.length>1)return {status:"ambiguous",match:null};
   const spellings=approvedNameSpellings(raw);
   const equivalent=spellings.flatMap(key=>index.exact.get(key)||[]);
-  const owners=new Set(equivalent.map(entry=>entry.label));
-  if(owners.size>1)return {status:"ambiguous",match:null};
+  const equivalentOwners=new Set(equivalent.map(entry=>entry.label));
+  if(equivalentOwners.size>1)return {status:"ambiguous",match:null};
   if(equivalent.length)return {status:"accepted",match:{...equivalent[0],matchKind:"equivalent"}};
   if(query.length<5)return {status:"unrecognized",match:null};
   const close=closeCandidates(index,query);
