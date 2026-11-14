@@ -76,10 +76,18 @@ function readPartyCheckpoint() {
     return revived;
   }catch{return null;}
 }
+function focusPartyStage() {
+  window.requestAnimationFrame(()=>{
+    if(!session?.duel||screen==="game")return;
+    const heading=app.querySelector("section h1,section h2");
+    if(heading){heading.setAttribute("tabindex","-1");heading.focus({preventScroll:true});}
+  });
+}
 function savePartyCheckpoint() {
   if(session?.mode!=="duel"||!session.duel)return;
   const data=serializeParty(session,screen,session.duel.createdAt);
   if(!data)return;
+  focusPartyStage();
   try{localStorage.setItem(PARTY_SAVE_KEY,JSON.stringify(data));}
   catch{ /* Without localStorage, play continues normally. */ }
 }
@@ -505,6 +513,30 @@ function sound(frequency = 600, duration = .12) {
     oscillator.start();
     oscillator.stop(soundContext.currentTime + duration);
   } catch { /* Sound is optional. */ }
+}
+// Original, short synthetic UI cues. They are not music or sound assets.
+function partySoundCue(kind) {
+  if(!storage.sound)return;
+  try{
+    soundContext=soundContext||new (window.AudioContext||window.webkitAudioContext)();
+    if(soundContext.state==="suspended")void soundContext.resume();
+    const cues={
+      wager:[[410,0,.11],[300,.14,.14]],
+      reveal:[[560,0,.08],[810,.105,.13]],
+      champion:[[470,0,.11],[640,.13,.13],[880,.29,.18]]
+    };
+    const now=soundContext.currentTime;
+    for(const [hz,delay,duration] of cues[kind]||[]){
+      const osc=soundContext.createOscillator(),vol=soundContext.createGain();
+      osc.type="triangle";
+      osc.frequency.setValueAtTime(hz,now+delay);
+      vol.gain.setValueAtTime(.0001,now+delay);
+      vol.gain.exponentialRampToValueAtTime(.028,now+delay+.018);
+      vol.gain.exponentialRampToValueAtTime(.0001,now+delay+duration);
+      osc.connect(vol);vol.connect(soundContext.destination);
+      osc.start(now+delay);osc.stop(now+delay+duration+.02);
+    }
+  }catch{ /* Sounds are always optional; silence never blocks gameplay. */ }
 }
 function renderSound() {
   const button = document.querySelector('[data-action="sound"]');
@@ -1203,6 +1235,7 @@ function renderDuelResult() {
     '<p class="small muted">Party games are unranked. Your championship summary is saved locally in this browser. The anonymous playtest summary never includes player names or answers.</p>'+
     '</section>';
   window.scrollTo(0,0);
+  focusPartyStage();
 }
 function partyNextGame() {
   if(screen!=="duel-game-results"||!session?.duel)return;
@@ -1466,7 +1499,7 @@ document.addEventListener("click", event => {
       if(!PARTY_WAGERS.includes(stake))return;
       const d=session.duel;
       d.games[d.gameIndex].wagersByPlayer[d.playerIndex]=stake;
-      renderGame();break;
+      partySoundCue("wager");renderGame();break;
     }
     case "duel-handoff": {
       if(screen!=="duel-handoff"||!session?.duel)return;
@@ -1479,12 +1512,13 @@ document.addEventListener("click", event => {
       if(screen!=="duel-reveal"||!session?.duel)return;
       const d=session.duel;
       if(d.revealIndex>=session.questions.length-1){renderPartyGameResult();break;}
-      d.revealIndex++;sound(690,.12);renderPartyReveal();break;
+      d.revealIndex++;partySoundCue("reveal");renderPartyReveal();break;
     }
     case "duel-next-game": partyNextGame();break;
     case "duel-champion":
-      if(screen==="duel-game-results"&&session?.duel?.gameIndex+1===session.duel.config.games)
-        renderDuelResult();
+      if(screen==="duel-game-results"&&session?.duel?.gameIndex+1===session.duel.config.games){
+        partySoundCue("champion");renderDuelResult();
+      }
       break;
     case "duel-rematch":
       if(screen==="duel-champion"&&session?.duel)newSession("duel",session.duel.config);
