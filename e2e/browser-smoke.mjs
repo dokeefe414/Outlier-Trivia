@@ -454,6 +454,87 @@ async function runEvidenceReviewAndMastery() {
   await ctx.close();
   console.log("PASS v1.7 evidence-first issue link, truthful review tracker, mastery and mobile");
 }
+async function runPersistentPartyRecovery() {
+  const ctx=await browser.newContext({viewport:{width:390,height:844},reducedMotion:"reduce"});
+  const p=await ctx.newPage();p.setDefaultTimeout(14000);
+  await p.addInitScript(()=>{
+    if(!localStorage.getItem("outlier-prototype-v1"))
+      localStorage.setItem("outlier-prototype-v1",JSON.stringify({
+        days:{},arcade:{},beta:{tutorial:true},theme:"nebula",sound:false
+      }));
+  });
+  await p.goto(url);
+  await p.locator('button[data-action="duel"]').first().click();
+  await p.locator("#party-player-count").selectOption("2");
+  await p.locator("#party-game-count").selectOption("1");
+  await p.locator("#party-timer").selectOption("90");
+  await p.locator('[data-party-name="0"]').fill("Ava");
+  await p.locator('[data-party-name="1"]').fill("Brian");
+  await p.locator("#party-config-form button[type=submit]").click();
+  await p.locator(".party-interstitial").waitFor();
+  const first=await p.evaluate(()=>JSON.parse(localStorage.getItem("outlier-party-v2")||"null"));
+  assert.equal(first.stage,"duel-ready");
+  assert.equal(first.games.length,1);
+  assert.equal(first.games[0].questionIds.length,7);
+  assert.ok(JSON.stringify(first).length<10000,"checkpoint must store short IDs, not entire atlas");
+  await p.locator('button[data-action="duel-begin"]').click();
+  const deadline=await p.evaluate(()=>JSON.parse(localStorage.getItem("outlier-party-v2")).deadline);
+  assert.ok(deadline>Date.now());
+  await p.reload();
+  await p.locator('button[data-action="duel-resume"]').click();
+  await p.locator(".question-card").waitFor();
+  assert.equal(await p.evaluate(()=>JSON.parse(localStorage.getItem("outlier-party-v2")).deadline),deadline,
+    "resuming a running question must not grant a new timer");
+  await p.locator('button[data-action="skip"]').click();
+  await p.locator(".party-interstitial").waitFor();
+  await p.reload();
+  await p.locator('button[data-action="duel-resume"]').click();
+  assert.match(await p.locator(".party-interstitial h1").innerText(),/ANSWER SEALED/);
+  for(let round=2;round<=7;round++){
+    await p.locator('button[data-action="next"]').click();
+    await p.locator(".question-card").waitFor();
+    await p.locator('button[data-action="skip"]').click();
+    await p.locator(".party-interstitial").waitFor();
+  }
+  await p.locator('button[data-action="next"]').click();
+  await p.locator('button[data-action="duel-handoff"]').waitFor();
+  await p.reload();
+  await p.locator('button[data-action="duel-resume"]').click();
+  assert.match(await p.locator(".party-interstitial h1").innerText(),/PASS THE DEVICE/);
+  await p.locator('button[data-action="duel-handoff"]').click();
+  for(let round=1;round<=7;round++){
+    await p.locator(".question-card").waitFor();
+    await p.locator('button[data-action="skip"]').click();
+    await p.locator('button[data-action="next"]').click();
+  }
+  await p.locator(".party-reveal-intro").waitFor();
+  await p.reload();
+  await p.locator('button[data-action="duel-resume"]').click();
+  await p.locator(".party-reveal-intro").waitFor();
+  await p.locator('button[data-action="duel-reveal-next"]').click();
+  await p.locator(".party-pick-card").first().waitFor();
+  await p.reload();
+  await p.locator('button[data-action="duel-resume"]').click();
+  assert.match(await p.locator(".party-reveal-top").innerText(),/ROUND 1 \/ 7/);
+  for(let i=0;i<7;i++)await p.locator('button[data-action="duel-reveal-next"]').click();
+  await p.locator(".party-game-result").waitFor();
+  await p.locator('button[data-action="duel-champion"]').click();
+  await p.locator(".party-series-result").waitFor();
+  assert.equal(await p.evaluate(()=>localStorage.getItem("outlier-party-v2")),null);
+  await p.reload();
+  await p.locator(".party-history-list").waitFor();
+  assert.match(await p.locator(".party-history-list").innerText(),/Ava|Brian/);
+  const before=await p.evaluate(()=>JSON.parse(localStorage.getItem("outlier-prototype-v1")).partyHistory);
+  assert.equal(before.length,1);
+  assert.equal(before[0].config.timerSeconds,90);
+  await p.locator('button[data-action="duel-rematch-saved"]').click();
+  await p.locator(".party-interstitial").waitFor();
+  assert.match(await p.locator(".party-interstitial").innerText(),/2 players/i);
+  assert.equal(await p.evaluate(()=>JSON.parse(localStorage.getItem("outlier-prototype-v1")).partyHistory.length),1,
+    "rematch does not duplicate historic championships");
+  await ctx.close();
+  console.log("PASS v1.8 compact recovery across live timer, lock, handoff, reveal, crown and archive rematch");
+}
 async function runAdminSafety() {
   await page.goto(new URL("admin.html",url).toString());
   await page.locator("#connection").waitFor();
@@ -471,6 +552,7 @@ try {
   await runNarrowEditorial();
   await runWeeklyAndLocalDuel();
   await runEvidenceReviewAndMastery();
+  await runPersistentPartyRecovery();
   await runAdminSafety();
 } finally {
   await browser.close();
