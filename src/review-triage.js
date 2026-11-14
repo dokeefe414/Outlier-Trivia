@@ -17,7 +17,7 @@ export function triageAnswerCandidates(entries,max=250){
     const signature=id+"::"+candidate.normalize("NFKD").toLowerCase().replace(/[^\p{L}\p{N}]/gu,"");
     const duplicate=duplicates.has(signature);
     duplicates.add(signature);
-    const evidencePresent=verifiedUrl(source)&&reason.length>=20;
+    const evidencePresent=verifiedUrl(source)&&reason.length>=40;
     let state="missing_evidence";
     if(basic.status==="unknown_question")state="unknown_question";
     else if(basic.status==="empty")state="empty";
