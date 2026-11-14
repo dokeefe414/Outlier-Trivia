@@ -87,6 +87,34 @@ function closeCandidates(index,query) {
   }
   return [...found.values()];
 }
+// Small, explicit, semantics-preserving spellings of a submitted name.
+ // All candidates still MUST be present in the current question's approved
+ // answer/alias index. This never adds a new factual answer or a rarity tier.
+export function approvedNameSpellings(raw) {
+  const name=String(raw??"").trim().replace(/\\s+/g," ");
+  if(name.length<3||name.length>100)return [];
+  const options=new Set();
+  if(/^the\\s+/i.test(name))options.add(name.replace(/^the\\s+/i,""));
+  else options.add("The "+name);
+  const prefixes=[["st","saint"],["mt","mount"],["ft","fort"]];
+  for(const [short,long] of prefixes){
+    const exp=new RegExp("^"+short+"\\.?\\s+","i");
+    const full=new RegExp("^"+long+"\\s+","i");
+    if(exp.test(name))options.add(name.replace(exp,long+" "));
+    if(full.test(name))options.add(name.replace(full,short+" "));
+  }
+  for(const [short,long] of [["jr","junior"],["sr","senior"]]){
+    const exp=new RegExp("\\s"+short+"\\.?$","i");
+    const full=new RegExp("\\s"+long+"$","i");
+    if(exp.test(name))options.add(name.replace(exp," "+long));
+    if(full.test(name))options.add(name.replace(full," "+short));
+  }
+  // Only a two-field Last, First input: never invert arbitrary names.
+  const swapped=name.match(/^([^,]{2,60}),\\s+([^,]{2,60})$/);
+  if(swapped)options.add(swapped[2]+" "+swapped[1]);
+  const base=normalizeAnswer(name);
+  return [...new Set([...options].map(normalizeAnswer).filter(key=>key&&key!==base))].slice(0,8);
+}
 export function inspectRareGuess(question,raw) {
   const query=normalizeAnswer(raw);
   if(!query)return {status:"empty",match:null};
@@ -94,6 +122,11 @@ export function inspectRareGuess(question,raw) {
   const index=indexQuestion(question),names=index.exact.get(query);
   if(names?.length===1)return {status:"accepted",match:names[0]};
   if(names?.length>1)return {status:"ambiguous",match:null};
+  const spellings=approvedNameSpellings(raw);
+  const equivalent=spellings.flatMap(key=>index.exact.get(key)||[]);
+  const owners=new Set(equivalent.map(entry=>entry.label));
+  if(owners.size>1)return {status:"ambiguous",match:null};
+  if(equivalent.length)return {status:"accepted",match:{...equivalent[0],matchKind:"equivalent"}};
   if(query.length<5)return {status:"unrecognized",match:null};
   const close=closeCandidates(index,query);
   const owners=new Set(close.map(x=>x.label));
