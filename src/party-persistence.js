@@ -15,7 +15,9 @@ const safeAnswer=x=>isObj(x)&&Number.isInteger(x.points)&&x.points>=0&&x.points<
   typeof x.valid==="boolean"&&["rare","fit"].includes(x.type)&&
   (x.accepted==null||typeof x.accepted==="string")&&
   (x.response==null||typeof x.response==="string");
-const validAnswers=(rows,count)=>Array.isArray(rows)&&rows.length===count&&rows.every(safeAnswer);
+const validAnswers=(rows,count,questions=[])=>Array.isArray(rows)&&rows.length===count&&
+  rows.every((answer,i)=>safeAnswer(answer)&&(!questions.length||
+    (answer.questionId===questions[i]?.id&&answer.type===questions[i]?.type)));
 const compactAnswer=x=>({
   questionId:String(x.questionId||"").slice(0,110),type:x.type,
   category:String(x.category||"").slice(0,80),
@@ -31,13 +33,14 @@ export function serializeParty(session,stage,createdAt=Date.now(),now=Date.now()
   if(!Array.isArray(games)||games.length!==c.games||!inRange(gameIndex,0,c.games-1)||
     !inRange(playerIndex,0,c.players-1)||!inRange(revealIndex,-1,6))return null;
   if(!Array.isArray(session.answers)||session.answers.length>7||
-    !session.answers.every(safeAnswer)||!inRange(session.index,0,7))return null;
+    !validAnswers(session.answers,session.answers.length,session.questions)||
+    !inRange(session.index,0,7))return null;
   const entries=games.map(game=>{
     if(!Array.isArray(game.questions)||game.questions.length!==7||!Array.isArray(game.answersByPlayer)||
       game.answersByPlayer.length!==c.players)return null;
     const ids=game.questions.map(q=>q.id);
     if(ids.some(x=>typeof x!=="string")||new Set(ids).size!==7)return null;
-    if(!game.answersByPlayer.every(row=>row===null||validAnswers(row,7)))return null;
+    if(!game.answersByPlayer.every(row=>row===null||validAnswers(row,7,game.questions)))return null;
     const stakes=game.wagersByPlayer;
     if(!Array.isArray(stakes)||stakes.length!==c.players||
       stakes.some(v=>v!==null&&!PARTY_WAGERS.includes(v)))return null;
@@ -86,7 +89,8 @@ export function restoreParty(raw,questionBank,now=Date.now()){
         if(type!==(index%2===0?"rare":"fit"))return null;
         return {...q,type,index};
       });
-      if(questions.some(x=>!x))return null;
+      if(questions.some(x=>!x)||game.answersByPlayer.some(row=>
+        row!==null&&!validAnswers(row,7,questions)))return null;
       return {questions,answersByPlayer:game.answersByPlayer,
         wagersByPlayer:game.wagersByPlayer};
     });
@@ -95,6 +99,7 @@ export function restoreParty(raw,questionBank,now=Date.now()){
     // may be incomplete. No player can skip a turn. Keep scores sealed on
     // rehydration just as they were in the original local-only party game.
     const current=games[raw.gameIndex];
+    if(!validAnswers(raw.answers,raw.answers.length,current.questions))return null;
     if(raw.stage==="duel-reveal"||raw.stage==="duel-game-results"||
       raw.stage==="duel-champion"){
       if(current.answersByPlayer.some(row=>!row))return null;
