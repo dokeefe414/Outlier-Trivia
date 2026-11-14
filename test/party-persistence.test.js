@@ -66,6 +66,12 @@ test("corrupt version, unknown questions and malformed scores fail closed",()=>{
   assert.equal(restoreParty({...saved,games:[{...saved.games[0],questionIds:Array(7).fill("missing")},saved.games[1]]},bank,now),null);
   assert.equal(restoreParty({...saved,index:100},bank,now),null);
   assert.equal(restoreParty({...saved,deadline:now+500000},bank,now),null);
+  const fake=fixture();
+  fake.answers.push(makeAnswer(fake.questions[0]));
+  fake.index=1;
+  const stage=serializeParty(fake,"game",now,now);
+  assert.ok(stage);
+  assert.equal(restoreParty({...stage,answers:[{...stage.answers[0],questionId:"some-other-prompt"}]},bank,now),null);
 });
 test("championship archive contains ONLY summarized standings and is bounded with stable id",()=>{
   const s=fixture();
