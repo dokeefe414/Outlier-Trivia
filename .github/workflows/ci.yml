@@ -139,6 +139,8 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f test/v17-private-room-fixture.sql
       - name: Verify synchronized shared questions, room authorization and score secrecy
         run: psql -v ON_ERROR_STOP=1 -f test/v17-party-room-smoke.sql
+      - name: Simulate four separate authenticated room participants and timeout recovery
+        run: psql -v ON_ERROR_STOP=1 -f test/v18-multiplayer-capacity-smoke.sql
 
   browser-e2e:
     name: Desktop and mobile browser smoke
