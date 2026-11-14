@@ -2,12 +2,29 @@ import {rarityTier} from "./answer-intelligence.js";
 import {readLeagueInvite,leagueInviteLink,removeLeagueInvite,officialShareMessage,comparisonLabel} from "./community.js";
 import { ONLINE_ENABLED, SUPABASE_URL, SUPABASE_ANON_KEY } from "./online-config.js";
 import { dailyDebrief, weeklyCup } from "./v13-discovery.js";
-import {readRoomInvite,roomInviteUrl,roomSecondsRemaining,roomWinnerRows} from "./online-room.js";
+import {readRoomInvite,roomInviteUrl,roomSecondsRemaining,roomWinnerRows,
+  ROOM_RECOVERY_KEY,roomRecoveryRecord,readRoomRecovery,retryDelayMs,roomConnectivityError} from "./online-room.js";
 
 const escape = value => String(value ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const number = value => Number(value ?? 0).toLocaleString("en-US");
 let container, onBack, supabase, state, timer, busy = false;
 let partyPolling=null,partyTicker=null,partyRefreshing=false;
+function saveRoomRecovery() {
+  if(!state?.user?.id||!state.partyId)return;
+  try{localStorage.setItem(ROOM_RECOVERY_KEY,JSON.stringify(
+    roomRecoveryRecord(state.user.id,state.partyId)));}catch{}
+}
+function clearRoomRecovery() {
+  try{localStorage.removeItem(ROOM_RECOVERY_KEY);}catch{}
+}
+function loadRoomRecovery(userId) {
+  try{
+    const raw=JSON.parse(localStorage.getItem(ROOM_RECOVERY_KEY)||"null");
+    const roomId=readRoomRecovery(raw,userId);
+    if(!roomId&&raw)clearRoomRecovery();
+    return roomId;
+  }catch{return null;}
+}
 function stopPartyPolling() {
   if(partyPolling)clearInterval(partyPolling);
   if(partyTicker)clearInterval(partyTicker);
@@ -64,7 +81,7 @@ async function invoke(action,{method="GET",payload=null,auth=true,query=""}={}) 
 }
 async function reloadCapabilities() {
   try { state.capabilities=await invoke("capabilities",{auth:false}); }
-  catch(error){ state.capabilities={rankedReady:false,paymentReady:false};
+  catch(error){ state.capabilities={rankedReady:false,paymentReady:false,partyReady:false};
     state.message="The competitive server has not been verified as ready yet."; }
 }
 async function reloadProfile() {
@@ -289,7 +306,7 @@ function partyRoomPanel() {
   if(!state.user)return '<div class="card online-party-panel"><div class="eyebrow">PRIVATE ROOM COMPETITION</div>'+
     '<h3>PLAY FROM SEPARATE DEVICES.</h3>'+
     '<p class="small muted">Sign in to join a private 2–4 player seven-question match with synchronized server timers.</p></div>';
-  if(state.capabilities?.rankedReady!==true)return '<div class="card online-party-panel">'+
+  if(state.capabilities?.partyReady!==true)return '<div class="card online-party-panel">'+
     '<div class="eyebrow">PRIVATE ROOM COMPETITION · NOT ACTIVATED</div>'+
     '<h3>SERVER-VERIFIED MULTIPLAYER IS READY FOR SETUP.</h3>'+
     '<p class="small muted">A real Supabase project, reviewed private question bank, and deployment of migration 018 are required. Public guest matches remain playable.</p></div>';
@@ -324,27 +341,52 @@ async function refreshPartyRoom(force=false) {
     const signature=JSON.stringify([room.phase,room.players?.length,
       room.question?.index,room.question?.submitted,room.scores?.length,
       room.startedAt]);
+    const offlineWas=state.partyOffline;
     state.partyRoom=room;state.partyReceivedAt=Date.now();
+    state.partyOffline=false;state.partyFailureCount=0;state.partyError=null;
+    saveRoomRecovery();
     if(room.phase==="finished"&&state.partySignature&&!state.partySignature.includes("finished"))
       state.partyRevealStep=-1;
-    if(force||signature!==state.partySignature||state.view!=="party-room"){
+    if(force||offlineWas||signature!==state.partySignature||state.view!=="party-room"){
       state.partySignature=signature;showPartyRoom();
     }
     tickPartyClock();
   }catch(e){
-    stopPartyPolling();
-    state.partyId=null;state.partyRoom=null;
-    showError(e,"Could not refresh private room");
+    if(!roomConnectivityError(e)){
+      stopPartyPolling();clearRoomRecovery();
+      state.partyId=null;state.partyRoom=null;
+      showError(e,"This private room is unavailable or you are not a member");
+    }else{
+      state.partyOffline=true;
+      state.partyError="Connection interrupted. Your server-owned room and answers remain saved. Reconnecting automatically.";
+      state.partyFailureCount=(state.partyFailureCount||0)+1;
+      state.partyLastFailureAt=Date.now();
+      if(state.partyRoom)showPartyRoom();
+      else{
+        state.view="party-room";
+        setView('<div class="card online-party-offline" role="status"><h2>ROOM CONNECTION INTERRUPTED.</h2>'+
+          '<p class="muted">Your membership is kept on the server. OUTLIER will retry; the shared clock keeps running.</p>'+
+          act("party-refresh","TRY AGAIN","btn-primary")+
+          act("party-leave","BACK TO ONLINE HUB","btn-outline")+'</div>');
+      }
+    }
   }finally{partyRefreshing=false;}
 }
 function beginPartyPolling() {
   stopPartyPolling();
-  partyPolling=setInterval(()=>{if(!busy)void refreshPartyRoom();},3000);
+  partyPolling=setInterval(()=>{
+    if(busy||document.hidden||!state?.partyId)return;
+    if(state.partyOffline&&Date.now()-state.partyLastFailureAt<
+        retryDelayMs(state.partyFailureCount))return;
+    void refreshPartyRoom();
+  },3000);
   partyTicker=setInterval(tickPartyClock,200);
 }
 async function enterPartyRoom(id) {
   state.partyId=id;state.partyRoom=null;state.partySignature=null;
+  state.partyOffline=false;state.partyFailureCount=0;state.partyLastFailureAt=0;
   state.partyRevealStep=-1;
+  saveRoomRecovery();
   await refreshPartyRoom(true);
   if(state.partyId)beginPartyPolling();
 }
@@ -352,6 +394,8 @@ function showPartyRoom() {
   stopTimer();
   const r=state.partyRoom;if(!r)return showMenu();
   state.view="party-room";
+  const offlineBanner=state.partyOffline?
+    notice(state.partyError||"Reconnecting… Your room is still saved.","warning"):"";
   const header='<div class="online-party-head"><span class="eyebrow">OUTLIER · SERVER-VERIFIED PRIVATE SHOWDOWN</span>'+
     '<h2>THE INNER CIRCLE.</h2>'+
     '<p>Same seven questions for everyone. Your account is verified; individual scores stay sealed until the clock closes.</p></div>';
@@ -421,7 +465,7 @@ function showPartyRoom() {
     body='<div class="card">'+notice("This private room expired. Create a new room.","warning")+
       act("party-leave","BACK TO ONLINE HUB","btn-primary")+'</div>';
   }
-  setView(header+body+'<div class="online-party-room-actions">'+
+  setView(header+offlineBanner+body+'<div class="online-party-room-actions">'+
     act("party-refresh","REFRESH ROOM","btn-outline")+
     act("party-leave","LEAVE ROOM VIEW","btn-outline")+'</div>');
   tickPartyClock();
@@ -455,7 +499,7 @@ function showMenu() {
     '<span class="eyebrow">PRIVATE ROOM INVITATION</span>'+
     '<h3>YOUR FRIEND SENT A CHALLENGE.</h3>'+
     '<p class="small muted">Accepting a room invite requires a verified account. Nothing joins automatically.</p>'+
-    (signedIn&&rankedReady?act("party-accept-invite","JOIN PRIVATE GAME ↗","btn-primary"):
+    (signedIn&&state.capabilities?.partyReady===true?act("party-accept-invite","JOIN PRIVATE GAME ↗","btn-primary"):
       '<p class="small muted">Sign in and connect the private ranked bank to join.</p>')+
     act("party-dismiss-invite","IGNORE INVITE","btn-outline")+'</div>':"";
   const inviteBanner=state.pendingInvite?
@@ -816,7 +860,7 @@ async function handleClick(event) {
     await refreshPartyRoom(true);return;
   }
   if(action==="party-leave"){
-    stopPartyPolling();state.partyId=null;state.partyRoom=null;
+    stopPartyPolling();
     state.partyRevealStep=-1;showMenu();return;
   }
   if(action==="party-copy"){
@@ -935,7 +979,7 @@ async function handleClick(event) {
     showResults();
   }
   if (action==="logout") {
-    stopPartyPolling();await supabase.auth.signOut();
+    stopPartyPolling();clearRoomRecovery();await supabase.auth.signOut();
     state.user=null;state.profile=null;state.game=null;state.crowdPulses={};state.crowdLoadedFor=null;
     showMenu();
   }
@@ -1040,6 +1084,7 @@ export async function mountOnline(element, back) {
     pendingInvite:readLeagueInvite(window.location.search),
     pendingRoomCode:readRoomInvite(window.location.search),partyId:null,partyRoom:null,
     partyReceivedAt:0,partySignature:null,partyRevealStep:-1,
+    partyOffline:false,partyFailureCount:0,partyLastFailureAt:0,partyError:null,
     error:null,message:null,sent:false};
   showBusy();
   if (!ONLINE_ENABLED) {
@@ -1080,6 +1125,13 @@ export async function mountOnline(element, back) {
       params.delete("checkout");
       window.history.replaceState(null,"",
         window.location.pathname+(params.toString()?"?"+params:"")+window.location.hash);
+    }
+    if(state.user){
+      const previous=loadRoomRecovery(state.user.id);
+      if(previous){
+        await enterPartyRoom(previous);
+        if(state.partyId&&state.view==="party-room")return;
+      }
     }
     showMenu();
   } catch (e) {state.error="Connection is unavailable. Check the hosted API setup. "+(e?.message||"");showMenu();}
