@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {buildPartyGames,partyGameScores} from "../src/party-duel.js";
 import {rareQuestions,fitQuestions} from "../src/data.js";
-import {serializeParty,restoreParty,summarizePartyArchive,addPartyArchive,PARTY_SAVE_VERSION} from "../src/party-persistence.js";
+import {serializeParty,restoreParty,summarizePartyArchive,addPartyArchive,anonymousPartyBetaSummary,PARTY_SAVE_VERSION} from "../src/party-persistence.js";
 const now=Date.parse("2026-11-13T20:00:00Z");
 const config={players:2,games:2,categories:["sports"],names:["Ada","Bea"],timerSeconds:90,finalWager:true};
 const makeAnswer=(q,points=100)=>({
@@ -83,4 +83,18 @@ test("championship archive contains ONLY summarized standings and is bounded wit
   assert.equal(history.length,12);
   assert.equal(addPartyArchive(history,history[0]).length,12);
   assert.equal(addPartyArchive(history,history[0]).filter(x=>x.id===history[0].id).length,1);
+});
+
+test("privacy-first beta recap excludes all names, guesses and room identifiers",()=>{
+  const s=fixture();
+  for(const game of s.duel.games){
+    game.answersByPlayer=[game.questions.map(q=>makeAnswer(q,300)),
+      game.questions.map(q=>makeAnswer(q,200))];
+    game.wagersByPlayer=[0,0];
+  }
+  const history=summarizePartyArchive(s,now);
+  const summary=anonymousPartyBetaSummary(history);
+  assert.match(summary,/2\s*players|Players: 2/i);
+  assert.match(summary,/Final-round wagers: enabled/);
+  for(const secret of ["Ada","Bea","Example","match-id-abc123"])assert.equal(summary.includes(secret),false);
 });
