@@ -87,33 +87,41 @@ function closeCandidates(index,query) {
   }
   return [...found.values()];
 }
-// Small, explicit, semantics-preserving spellings of a submitted name.
- // All candidates still MUST be present in the current question's approved
- // answer/alias index. This never adds a new factual answer or a rarity tier.
+// Deterministic spelling alternates of an existing, submitted approved name.
+// Transformations NEVER add facts. We accept only if one canonical record in
+// the current question already has an exact approved key for an alternate.
 export function approvedNameSpellings(raw) {
-  const name=String(raw??"").trim().replace(/\\s+/g," ");
+  const name=String(raw??"").trim().replace(/\s+/g," ");
   if(name.length<3||name.length>100)return [];
-  const options=new Set();
-  if(/^the\\s+/i.test(name))options.add(name.replace(/^the\\s+/i,""));
-  else options.add("The "+name);
-  const prefixes=[["st","saint"],["mt","mount"],["ft","fort"]];
-  for(const [short,long] of prefixes){
-    const exp=new RegExp("^"+short+"\\.?\\s+","i");
-    const full=new RegExp("^"+long+"\\s+","i");
-    if(exp.test(name))options.add(name.replace(exp,long+" "));
-    if(full.test(name))options.add(name.replace(full,short+" "));
+  const options=new Set([name]);
+  const transform=value=>{
+    const variants=[];
+    if(/^the\s+/i.test(value))variants.push(value.replace(/^the\s+/i,""));
+    else variants.push("The "+value);
+    const prefix=value.match(/^(the\s+)?(st|saint|mt|mount|ft|fort)\.?\s+(.+)$/i);
+    if(prefix){
+      const dictionary={st:"saint",saint:"st",mt:"mount",mount:"mt",ft:"fort",fort:"ft"};
+      variants.push((prefix[1]||"")+dictionary[prefix[2].toLowerCase()]+" "+prefix[3]);
+    }
+    const suffix=value.match(/^(.+)\s+(jr|junior|sr|senior)\.?$/i);
+    if(suffix){
+      const swap={jr:"junior",junior:"jr",sr:"senior",senior:"sr"};
+      variants.push(suffix[1]+" "+swap[suffix[2].toLowerCase()]);
+    }
+    const lastFirst=value.match(/^([^,]{2,60}),\s+([^,]{2,60})$/);
+    if(lastFirst)variants.push(lastFirst[2]+" "+lastFirst[1]);
+    return variants;
+  };
+  // Two passes let "The St. Louis" equal "Saint Louis" without creating
+  // arbitrary meaning-changing synonyms or a costly fuzzy search.
+  for(let pass=0;pass<2;pass++){
+    const current=[...options];
+    for(const item of current)for(const value of transform(item)){
+      if(options.size<24)options.add(value);
+    }
   }
-  for(const [short,long] of [["jr","junior"],["sr","senior"]]){
-    const exp=new RegExp("\\s"+short+"\\.?$","i");
-    const full=new RegExp("\\s"+long+"$","i");
-    if(exp.test(name))options.add(name.replace(exp," "+long));
-    if(full.test(name))options.add(name.replace(full," "+short));
-  }
-  // Only a two-field Last, First input: never invert arbitrary names.
-  const swapped=name.match(/^([^,]{2,60}),\\s+([^,]{2,60})$/);
-  if(swapped)options.add(swapped[2]+" "+swapped[1]);
   const base=normalizeAnswer(name);
-  return [...new Set([...options].map(normalizeAnswer).filter(key=>key&&key!==base))].slice(0,8);
+  return [...new Set([...options].map(normalizeAnswer).filter(key=>key&&key!==base))].slice(0,23);
 }
 export function inspectRareGuess(question,raw) {
   const query=normalizeAnswer(raw);
