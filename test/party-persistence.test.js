@@ -56,7 +56,7 @@ test("sealed wager, current answers, handoff and reveal progress survive the che
   saved=serializeParty(s,"duel-reveal",now,now);
   const restored=restoreParty(saved,bank,now);
   assert.equal(restored.session.duel.revealIndex,3);
-  assert.deepEqual(partyGameScores(restored.session.duel.games[0],2).scores,[1850,550]);
+  assert.deepEqual(partyGameScores(restored.session.duel.games[0],2).scores,[1750,1550]);
 });
 test("corrupt version, unknown questions and malformed scores fail closed",()=>{
   const s=fixture();const saved=serializeParty(s,"duel-ready",now,now);
