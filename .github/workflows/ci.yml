@@ -153,8 +153,13 @@ jobs:
         run: |
           node scripts/prepare-exhibition-bank.mjs
           psql -v ON_ERROR_STOP=1 -f private/generated-exhibition-import.sql
-          psql -v ON_ERROR_STOP=1 -Atc "select count(*) from private.outlier_party_question_bank where id like 'exhibition_%'" | grep -qx 28
-          psql -v ON_ERROR_STOP=1 -Atc "select count(*) from private.outlier_party_question_bank where id like 'exhibition_%' and not private.outlier_ranked_row_valid(kind,answers,choices)" | grep -qx 0
+          TOTAL=$(psql -v ON_ERROR_STOP=1 -Atc "select count(*) from private.outlier_party_question_bank where id like 'exhibition_%'")
+          INVALID=$(psql -v ON_ERROR_STOP=1 -Atc "select count(*) from private.outlier_party_question_bank where id like 'exhibition_%' and not private.outlier_ranked_row_valid(kind,answers,choices)")
+          echo "Exhibition database validation: total=$TOTAL invalid=$INVALID (expected 28/0)"
+          if [ "$TOTAL" -ne 28 ] || [ "$INVALID" -ne 0 ]; then
+            psql -v ON_ERROR_STOP=1 -Atc "select id,kind from private.outlier_party_question_bank where id like 'exhibition_%' and not private.outlier_ranked_row_valid(kind,answers,choices)"
+            exit 1
+          fi
 
   browser-e2e:
     name: Desktop and mobile browser smoke
