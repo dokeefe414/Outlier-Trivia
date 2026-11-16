@@ -309,7 +309,7 @@ function partyCompetitionPanel() {
   const season=privateSeasonLeaders(state.partySeason);
   const lifetime=Array.isArray(state.partyLifetime)?state.partyLifetime:[];
   const period=state.partyPeriod||"month";
-  const filters=[["week","THIS WEEK"],["month","THIS MONTH"],["all","ALL TIME"]];
+  const filters=[["week","THIS WEEK"],["month","THIS MONTH"],["all","LAST 150"]];
   const tabs=filters.map(([key,label])=>
     act("party-period",label,"btn-outline"+(period===key?" active":""),
       'data-period="'+key+'" aria-pressed="'+(period===key)+'"')).join("");
@@ -318,7 +318,7 @@ function partyCompetitionPanel() {
   return '<section class="card private-season" aria-label="Verified private match history">'+
     '<div class="eyebrow">FRIENDS-ONLY / VERIFIED ROOM RESULTS</div>'+
     '<h3>THE INNER CIRCLE RECORD BOOK.</h3>'+
-    '<p class="small muted">Only rooms you actually joined count. Opponents, scores and wins are verified by the server. No answer keys, guest games, public global ranks or money involved.</p>'+
+    '<p class="small muted">Only rooms you actually joined count. Opponents, scores and wins are verified by the server. No answer keys, guest games, public global ranks or money involved. Long-range results use at most 150 recent matches.</p>'+
     '<div class="party-season-periods" role="group" aria-label="Match period">'+tabs+'</div>'+
     '<div class="private-season-standings"><div class="private-season-row heading">'+
       '<span>PLAYER</span><span>W</span><span>T</span><span>L</span><span>POINTS</span></div>'+
