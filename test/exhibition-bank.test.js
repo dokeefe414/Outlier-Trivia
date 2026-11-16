@@ -5,9 +5,9 @@ import {rareQuestions,fitQuestions} from "../src/data.js";
 import {auditQuestionAliases,normalizeAnswer} from "../src/answer-intelligence.js";
 test("separate exhibition pack uses only source-bounded archived arcade prompts",()=>{
   const bank=buildExhibitionBank();
-  assert.equal(bank.length,28);
-  assert.equal(bank.filter(q=>q.kind==="rare").length,18);
-  assert.equal(bank.filter(q=>q.kind==="fit").length,10);
+  assert.ok(bank.length>=100,`Only ${bank.length} exhibition questions`);
+  assert.ok(bank.filter(q=>q.kind==="rare").length>=58);
+  assert.ok(bank.filter(q=>q.kind==="fit").length>=42);
   assert.equal(new Set(bank.map(q=>q.id)).size,bank.length);
   for(const id of EXHIBITION_RARE_IDS){
     const q=rareQuestions.find(x=>x.id===id);
@@ -33,7 +33,8 @@ test("separate exhibition pack uses only source-bounded archived arcade prompts"
   }
 });
 test("exhibition weights never impersonate actual crowd survey percentages",()=>{
-  assert.equal(EXHIBITION_FIT_SAMPLES.length,10);
+  assert.ok(EXHIBITION_FIT_SAMPLES.length>=42);
   assert.ok(EXHIBITION_FIT_SAMPLES.every(q=>q.source.includes("editorial")));
   assert.ok(EXHIBITION_FIT_SAMPLES.every(q=>q.kind==="fit"));
+
 });
