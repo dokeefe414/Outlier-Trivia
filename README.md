@@ -2,6 +2,8 @@
 
 **A playable, mobile-friendly daily general-knowledge game.** Seven questions, two mindsets: find a rare correct answer in **Stand Out**, then predict the most popular answer in **Fit In**.
 
+> **v1.9.1 PUBLIC LAUNCH GATES & REAL BETA MEASUREMENT:** Builds on the already-implemented v1.9 ready-up rooms, unanimous rematches, private match history, friend rivalries, verified seasons, independently sourced exhibition-bank preparation and mobile/answer-quality tools. Adds an **honest no-network online deployment preflight** (`npm run preflight:online`), a **privacy-checked real-player beta assessor** (`npm run beta:report -- private/beta-observations.json`), and a four-player Postgres regression testing all-player consent, ties, outsider privacy, and rematch-state isolation. **No live Supabase deployment or real human beta has been performed by the repository update**; [read the full owner checklist and limitations](docs/V19_1_RELEASE_GATES.md).
+
 > **v1.9 THE INNER CIRCLE / VERIFIED GAME NIGHTS:** Source release for private 2–4 player online rooms with unanimous ready-up, recent-presence indicators, secure room exits, shared server timers, **every-player-votes rematches**, verified match history, friend-only seasonal W/T/L tables and head-to-head comparisons. A separate 28-prompt (18 CC0 archive Stand Out + 10 original editorial Fit In) exhibition-bank exporter helps prepare private hosted content without using future ranked daily answers. A **public-only answer-quality monitor** at [quality.html](quality.html) audits content slots, alias collisions, scores and source scopes, while owner review decisions remain private. **Live multiplayer still requires a deployed owner-configured Supabase project and real-player beta testing; no hosted connection or human playtest is claimed by this release.** [Complete v1.9 instructions](docs/V19_COMPETITION_QA.md).
 
 > **v1.8 RELIABLE GAME NIGHTS & SMARTER ANSWERS:** Pass & Play now saves and resumes after refresh at every handoff, keeps its original running timer, remembers the last 12 local championships and supports same-rules rematches. Safer additional approved-name spellings, offline human-only review triage, smoother reduced-motion-friendly reveals and a private, anonymous playtest-report workflow are included. Server-backed private rooms now retain authenticated recovery pointers through transient network issues and have their own question-bank readiness independent of official daily rankings. **Hosted multiplayer remains inactive until Supabase and a separately verified private room catalog are configured.** [Release, privacy, QA, and beta checklist](docs/V18_RELIABLE_GAME_NIGHT.md).
@@ -42,6 +44,15 @@ The browser must load the site over HTTP, not the file protocol, because the gam
 4. Once GitHub finishes deploying, the expected URL is **https://dokeefe414.github.io/Outlier-Trivia/**.
 
 GitHub Pages deployments are verified through the repository's Actions workflow. Check the latest deployment run if you are testing a newly merged release.
+
+## v1.9.1 — Launch and Playtest Readiness
+
+The v1.9 game features remain intact. This focused release hardens the **path from verified source code to genuine online multiplayer**, without claiming that a static GitHub Pages build is a deployed account server.
+
+- **Before live online play:** `npm run preflight:online` checks public Supabase configuration, expected protected Edge Function source and the required room migrations. It explicitly reports missing proof of actual Auth, endpoint, separate curated room bank and genuine cross-device testing. Use `--strict` to treat missing activation as a release blocker. **Keys and secrets are never printed.**
+- **Before claiming a tested beta:** `npm run beta:report -- private/beta-observations.json` validates manually collected anonymous results and enforces at least ten consenting testers and completed sessions, ≥90% completion, ≥80% replay intent and zero security/scoring integrity incidents. The [blank collection template](docs/beta-collection-template.json) contains *zero observations*. No player telemetry is silently collected.
+- **Before promoting server competition:** the database CI checks a four-person unanimous-ready lobby, tie classification, outsider privacy, unanimous rematch creation, repeat-vote idempotence, and that rematches inherit neither prior answers nor ready states. Existing 2–4 player browser/server code, friend seasons and source-backed answer tooling are preserved.
+- **Operational limitation:** Supabase URL and public anon key are not configured in the static repo; production rooms, independent Auth checks, real user recruitment and a player beta remain external setup. Refer to [v1.9.1 deployment, evaluation and acceptance guide](docs/V19_1_RELEASE_GATES.md).
 
 ## v1.9 — The Inner Circle: ready rooms, fair rematches and verified records
 
