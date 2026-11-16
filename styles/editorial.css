@@ -1439,3 +1439,55 @@ a{color:var(--lime)}
   .party-series-result .party-winner-mark{animation:none!important}
   .party-pick-card{transition:none!important}
 }
+
+/* OUTLIER 1.9 — online party preflight, verified friend seasons and replays.
+   These CSS rules are inert while the server feature is unconfigured. */
+.party-ready-counter{font:700 13px 'DM Mono',monospace;margin:16px 0;
+  padding:12px 16px;border:1px dashed var(--lime);color:var(--lime);text-align:center}
+.online-party-member{flex-wrap:wrap;min-width:0}
+.online-party-member .party-portrait{margin-right:0}
+.party-ready-tag{border:1px solid var(--line);padding:5px 8px;font:700 10px 'DM Mono',monospace;
+  margin-left:auto;white-space:nowrap}
+.party-ready-tag.is-ready{border-color:var(--lime);color:var(--lime)}
+.party-presence{font-size:9px!important;letter-spacing:.015em}
+.party-presence.is-online{color:var(--lime)!important}
+.party-presence.is-away{color:var(--muted)!important}
+.online-party-waiting>.btn{margin:9px 9px 9px 0;white-space:normal}
+.party-rematch-vote{border:2px solid var(--lime);padding:17px;margin:25px 0;text-align:left;
+  background:var(--panel2);display:grid;gap:12px}
+.party-rematch-vote h4{font:700 clamp(17px,3vw,23px) 'Archivo Black',sans-serif}
+.party-rematch-vote p{font-size:13px;line-height:1.55;margin:0}
+.party-rematch-vote .btn{justify-self:start;max-width:100%;white-space:normal}
+.private-season{margin:24px 0}
+.private-season h3{font:400 clamp(21px,4vw,31px) 'Archivo Black',sans-serif;line-height:1.12;margin:12px 0}
+.private-season h4{font:700 12px 'DM Mono',monospace;margin-top:22px}
+.party-season-periods{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 12px}
+.party-season-periods .btn{font-size:11px;padding:9px 12px;white-space:normal}
+.party-season-periods .btn.active{border:2px solid var(--lime);color:var(--lime)}
+.private-season-standings{overflow-x:auto}
+.private-season-row{display:grid;grid-template-columns:minmax(140px,2.6fr) repeat(3,minmax(35px,.4fr)) minmax(65px,.8fr);
+  gap:8px;align-items:center;min-width:335px;border-bottom:1px solid var(--line);
+  padding:12px 6px;font:500 11px 'DM Mono',monospace}
+.private-season-row.heading{font-weight:700;letter-spacing:.045em;color:var(--muted)}
+.private-season-row .btn{font:700 12px 'DM Mono',monospace;padding:8px;text-align:left;white-space:normal;overflow-wrap:anywhere}
+.private-history-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:14px;
+  align-items:center;padding:13px 5px;border-bottom:1px solid var(--line);
+  font:500 11px 'DM Mono',monospace}
+.private-history-outcome{font-weight:700;color:var(--lime)}
+.party-rivalry-verified{padding:16px;border:1px solid var(--lime);background:var(--panel2);margin:16px 0}
+.party-rivalry-verified p{font:500 12px 'DM Mono',monospace}
+.private-history-row span{min-width:0;overflow-wrap:anywhere}
+@media(max-width:660px){
+  .online-party-waiting>.btn,.party-rematch-vote .btn{width:100%;max-width:none}
+  .online-party-member .party-presence{width:100%;margin-left:48px}
+  .private-season-row{gap:5px}
+  .private-history-row{gap:8px;font-size:10px}
+}
+@media(max-width:360px){
+  .private-history-row{grid-template-columns:1fr auto;gap:6px}
+  .private-history-row strong{grid-column:2}
+  .online-party-head h2{overflow-wrap:anywhere}
+}
+@media(prefers-reduced-motion:reduce){
+  .party-ready-tag,.private-season-row,.party-rematch-vote{animation:none!important;transition:none!important}
+}
