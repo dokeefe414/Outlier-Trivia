@@ -76,6 +76,21 @@ npm run test:browser
 
 The browser suite requires Playwright and Chromium, and the Postgres smoke tests use a disposable CI PostgreSQL service. GitHub CI applies migrations through 021, runs historical v1.9 security checks, applies the v1.10 migration, exports/imports the source-backed exhibition catalog, and runs `test/v110-game-night-smoke.sql` using synthetic auth identities and simulated room timestamps. This validates deterministic server-clock behavior, rematch caps, membership isolation and permission revocation; it is **not evidence of real email delivery or cross-device play**.
 
+## v1.10.1 — Host-controlled roster size
+
+This additive patch closes the custom-player-count launch requirement without increasing the existing **four-member** safety cap. Migration `supabase/migrations/20261116000200_v1101_target_players.sql` adds `target_players integer not null default 2 check (target_players between 2 and 4)` to `public.outlier_party_rooms`. A backfill preserves any pre-existing waiting rooms that already contain three or four members. Existing finished matches and their scores do not change.
+
+- The **host** can choose exactly 2, 3 or 4 required players while the lobby remains open. The new `POST ?action=party-target` route accepts `{room,target}`; the Edge API verifies a real Auth session and invokes the restricted `outlier_party_target` RPC.
+- The database refuses a new target below the current joined roster count. Any accepted change resets all READY confirmations; changing the target cannot silently override player consent.
+- `outlier_party_join` rejects users after the configured roster is full (and still rejects unauthorized/expired rooms). `outlier_party_start` requires the **exact** target-player count plus existing unanimous READY, so the host cannot start a three-person lobby when only two have joined.
+- `outlier_party_state` includes `targetPlayers` for the lobby UI and a visible player-count badge. The copy/share actions remain invitation-only and do not silently enroll recipients.
+- A unanimous championship rematch inherits the target-player setting and the exact original roster while creating **fresh** readiness, votes and sealed responses.
+- `public.outlier_party_target` is `SECURITY DEFINER` with its own host check. Its `EXECUTE` permission is explicitly revoked from browser-facing `anon` and `authenticated`, and granted to the Edge `service_role` only. This does not add any new public table grants.
+
+The disposable SQL test `test/v1101-target-players-smoke.sql` checks the default two-player target, a three-player host configuration, premature-start denial, over-capacity denial, guest configuration denial, refusing a target below joined members, clearing READY on a rule change, a completed 3-player game, three unanimous rematch votes, preservation of the target roster through the rematch, and a separate four-player start that fails with only three present and succeeds when the fourth joins. The test uses fake accounts **only inside GitHub Actions**. It is not a substitute for actual three- and four-player cross-device QA.
+
+**Upgrade order:** Apply the additive v1.10.1 migration to the existing Supabase project after the v1.10 migration, deploy the updated `outlier` Edge Function, then publish the frontend. Existing 130 validated unranked exhibition prompts remain unchanged. Roll back the Edge+static code if necessary; avoid removing the column while user rooms might reference it.
+
 ## Verified deployment record — November 16, 2026
 
 The owner-linked Supabase project `ljmqtdwcwpatyecxtues` successfully applied migration `outlier_20261116000100_v110_game_night` and deployed the `outlier` Edge Function as **active version 2**. The room catalog was expanded in owner-controlled SQL transactions, without committing the generated SQL or private answers to GitHub. Verified production content totals: **88 Stand Out questions, 42 Fit In, 46,797 rare-answer slots; all rows satisfy the server's validator**. `outlier_party_readiness()` reports `ready=true`.

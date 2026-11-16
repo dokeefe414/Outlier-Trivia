@@ -169,6 +169,10 @@ jobs:
           fi
       - name: Test v1.10 timers, theme votes, series and private mastery
         run: psql -v ON_ERROR_STOP=1 -f test/v110-game-night-smoke.sql
+      - name: Apply v1.10.1 host-selected room capacities
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261116000200_v1101_target_players.sql
+      - name: Verify player targets, roster isolation and championship rematches
+        run: psql -v ON_ERROR_STOP=1 -f test/v1101-target-players-smoke.sql
 
   browser-e2e:
     name: Desktop and mobile browser smoke
