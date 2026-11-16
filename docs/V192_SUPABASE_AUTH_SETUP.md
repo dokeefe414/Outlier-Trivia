@@ -69,3 +69,10 @@ Expected `false,false,false,false,true`. Supabase's security advisor may report 
 Additional Auth docs: [Supabase passwordless email login](https://supabase.com/docs/guides/auth/auth-email-passwordless), [Edge Function authorization headers](https://supabase.com/docs/guides/functions/auth-headers), [Securing the Data API](https://supabase.com/docs/guides/api/securing-your-api).
 
 **State of this release:** Backend schema and Edge function deployed; public client integration committed; browser flows protected; owner Dashboard redirect URLs and real test email still require human action. Real hosted API responses and cross-device sign-in were not independently verified from this environment.
+
+
+## Current activation addendum — November 16, 2026
+
+The historical "empty bank" statements above describe the original v1.9.2 deployment, not the current server state. On November 16 the owner-linked Supabase project's existing **private.outlier_party_question_bank** was populated with the same 18 source-scoped rare and 10 original editorial Fit In prompts specified by `src/exhibition-bank.js`. The rare list includes 9,748 approved slots; no ranked daily bank was imported. One player is registered in Supabase Auth; the user reports signing in. A rolled-back room-create and room-state check passed against the live database, leaving zero test rooms. The security boundary (deny direct table access, check Auth in the Edge Function) remains unchanged.
+
+**Still not verified:** a real signed-in second account on another device; correct browser redirect configuration from a controlled sign-in test; seven fully timed shared rounds; final scoring, match-history and rematch behavior; real-player beta targets. Do not claim those gates passed until actual testing. See [the hosted activation checklist](V193_HOSTED_EXHIBITION_ACTIVATION.md).
