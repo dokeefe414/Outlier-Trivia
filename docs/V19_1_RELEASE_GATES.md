@@ -8,6 +8,7 @@ This is a focused follow-on to the full **v1.9 Inner Circle** feature release. T
 - A **real, anonymous beta-release assessment** (`npm run beta:report -- private/beta-observations.json`) with schema checks, explicit sample sizes, completion and return-intent rates, incident tallies and blocking criteria. This tool cannot manufacture real-world results, validate account uniqueness, or upload telemetry.
 - A **new four-person server security regression** covering unanimous ready-up, all-player ties, outsider access isolation, rematch voting, repeat-vote idempotence, a fresh waiting room, and no leaked previous answer/question state.
 - Updated README, setup links, release documentation and CI gates.
+- An online hub **availability fix**: authenticated users can still see previous verified, membership-scoped room history/season stats even when the independent exhibition room bank is temporarily unready. Ranked daily readiness and private-room availability are shown as separate warnings; neither silently erases historical results.
 
 ## Online multiplayer deployment — not completed by public source code
 
