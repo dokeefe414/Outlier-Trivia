@@ -2,6 +2,8 @@
 
 **A playable, mobile-friendly daily general-knowledge game.** Seven questions, two mindsets: find a rare correct answer in **Stand Out**, then predict the most popular answer in **Fit In**.
 
+> **v1.9.2 SUPABASE AUTH CONNECTED:** The existing **Outlier-Trivia** Supabase project now has all 38 application migrations installed, and the authenticated `outlier` Edge Function is deployed. The GitHub Pages frontend now uses the real project URL and its **public publishable key**, never a service-role secret. The online hub verifies players with Supabase Auth, clears protected data on sign-out, and sends account/private-room requests through server-verified, membership-guarded routes. The guest game remains free and available without an account. **Before testing emailed sign-in, the owner must authorize the Pages callback in Supabase Auth → URL Configuration; private cross-device matches also require the separately reviewed exhibition question bank, which is still empty.** [Complete setup and security instructions](docs/V192_SUPABASE_AUTH_SETUP.md).
+
 > **v1.9.1 PUBLIC LAUNCH GATES & REAL BETA MEASUREMENT:** Builds on the already-implemented v1.9 ready-up rooms, unanimous rematches, private match history, friend rivalries, verified seasons, independently sourced exhibition-bank preparation and mobile/answer-quality tools. Adds an **honest no-network online deployment preflight** (`npm run preflight:online`), a **privacy-checked real-player beta assessor** (`npm run beta:report -- private/beta-observations.json`), and a four-player Postgres regression testing all-player consent, ties, outsider privacy, and rematch-state isolation. **No live Supabase deployment or real human beta has been performed by the repository update**; [read the full owner checklist and limitations](docs/V19_1_RELEASE_GATES.md).
 
 > **v1.9 THE INNER CIRCLE / VERIFIED GAME NIGHTS:** Source release for private 2–4 player online rooms with unanimous ready-up, recent-presence indicators, secure room exits, shared server timers, **every-player-votes rematches**, verified match history, friend-only seasonal W/T/L tables and head-to-head comparisons. A separate 28-prompt (18 CC0 archive Stand Out + 10 original editorial Fit In) exhibition-bank exporter helps prepare private hosted content without using future ranked daily answers. A **public-only answer-quality monitor** at [quality.html](quality.html) audits content slots, alias collisions, scores and source scopes, while owner review decisions remain private. **Live multiplayer still requires a deployed owner-configured Supabase project and real-player beta testing; no hosted connection or human playtest is claimed by this release.** [Complete v1.9 instructions](docs/V19_COMPETITION_QA.md).
@@ -44,6 +46,14 @@ The browser must load the site over HTTP, not the file protocol, because the gam
 4. Once GitHub finishes deploying, the expected URL is **https://dokeefe414.github.io/Outlier-Trivia/**.
 
 GitHub Pages deployments are verified through the repository's Actions workflow. Check the latest deployment run if you are testing a newly merged release.
+
+## v1.9.2 — Connected Supabase Auth & Server-Protected Routes
+
+OUTLIER's hosted mode is now wired to the owner's actual US East Supabase project. The backend includes **38 applied migrations**, an active `outlier` Edge Function, verified user identity before the online hub opens an account-specific screen, and locked-down RPC permissions for profiles, games, friend leagues, and multiplayer rooms. The only key shipped in static JavaScript is the deliberately public Supabase publishable key.
+
+**Account-protected functionality:** email sign-in via Supabase Auth/PKCE (callback configuration is the remaining dashboard step), private room membership and host-only actions, server-authoritative scores and seasons, and account-specific records. The frontend isn't a security boundary: protected HTTP actions check the Supabase user token; private SQL permissions prevent direct browser data reads. `admin.html` continues to require its independent owner token for sensitive reviews. **Public guest gameplay does not require Auth.**
+
+**Not yet claimed as live multiplayer:** the independent exhibition room bank remains empty and `partyReady=false` until its source-checked content is imported, and the official hosted ranked daily bank is separately gated. Stripe remains disabled without its private secrets. No emailed sign-in, live two-device session, or real beta was simulated or claimed as verified. Read [the exact Supabase Auth callback, security and database verification guide](docs/V192_SUPABASE_AUTH_SETUP.md).
 
 ## v1.9.1 — Launch and Playtest Readiness
 
