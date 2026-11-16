@@ -147,6 +147,8 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261112002000_v19_room_competition.sql
       - name: Verify verified match history, friend-only seasons and no unauthorized rematches
         run: psql -v ON_ERROR_STOP=1 -f test/v19-competition-smoke.sql
+      - name: Preserve distinct programming-language aliases in hosted scoring
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261112002100_v19_exhibition_normalization.sql
       - name: Generate and validate a disposable source-backed 28-prompt exhibition import
         run: |
           node scripts/prepare-exhibition-bank.mjs
