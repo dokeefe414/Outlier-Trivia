@@ -6,20 +6,20 @@ declare
  first uuid:='b2222222-2222-4222-8222-222222222222';
  second uuid:='b3333333-3333-4333-8333-333333333333';
  fourth uuid:='b4444444-4444-4444-8444-444444444444';
- room jsonb; room_id uuid; state jsonb; proposed jsonb; followup uuid;
+ room jsonb; v_room uuid; state jsonb; proposed jsonb; followup uuid;
 begin
  insert into auth.users(id,email) values
   (host,'v1101-host@example.test'),(first,'v1101-guest1@example.test'),
   (second,'v1101-guest2@example.test'),(fourth,'v1101-guest3@example.test');
- room:=public.outlier_party_create(host);room_id:=(room->>'id')::uuid;
- select public.outlier_party_state(host,room_id) into state;
+ room:=public.outlier_party_create(host);v_room:=(room->>'id')::uuid;
+ select public.outlier_party_state(host,v_room) into state;
  if state->>'targetPlayers'<>'2' then raise exception 'Wrong default target';end if;
- perform public.outlier_party_target(host,room_id,3);
+ perform public.outlier_party_target(host,v_room,3);
  perform public.outlier_party_join(first,room->>'code');
- perform public.outlier_party_ready(host,room_id,true);
- perform public.outlier_party_ready(first,room_id,true);
+ perform public.outlier_party_ready(host,v_room,true);
+ perform public.outlier_party_ready(first,v_room,true);
  begin
-  perform public.outlier_party_start(host,room_id);
+  perform public.outlier_party_start(host,v_room);
   raise exception 'Started below player target';
  exception when others then
   if sqlerrm='Started below player target'
@@ -34,35 +34,35 @@ begin
     or position('party_room_full' in sqlerrm)=0 then raise;end if;
  end;
  begin
-  perform public.outlier_party_target(first,room_id,4);
+  perform public.outlier_party_target(first,v_room,4);
   raise exception 'Guest changed target';
  exception when others then
   if sqlerrm='Guest changed target'
     or position('party_host_only' in sqlerrm)=0 then raise;end if;
  end;
  begin
-  perform public.outlier_party_target(host,room_id,2);
+  perform public.outlier_party_target(host,v_room,2);
   raise exception 'Host shrank below joined roster';
  exception when others then
   if sqlerrm='Host shrank below joined roster'
     or position('party_target_below_roster' in sqlerrm)=0 then raise;end if;
  end;
- perform public.outlier_party_target(host,room_id,3);
- if exists(select 1 from public.outlier_party_members where room_id=room_id and ready)
+ perform public.outlier_party_target(host,v_room,3);
+ if exists(select 1 from public.outlier_party_members where room_id=v_room and ready)
  then raise exception 'Changing target must reset ready';end if;
- perform public.outlier_party_ready(host,room_id,true);
- perform public.outlier_party_ready(first,room_id,true);
- perform public.outlier_party_ready(second,room_id,true);
- select public.outlier_party_start(host,room_id) into state;
+ perform public.outlier_party_ready(host,v_room,true);
+ perform public.outlier_party_ready(first,v_room,true);
+ perform public.outlier_party_ready(second,v_room,true);
+ select public.outlier_party_start(host,v_room) into state;
  if state->>'phase'<>'countdown' or state->>'targetPlayers'<>'3'
  then raise exception 'Started 3-person room incorrectly';end if;
  update public.outlier_party_rooms set starts_at=clock_timestamp()-interval '320 seconds'
- where id=room_id;
- select public.outlier_party_state(host,room_id) into state;
+ where id=v_room;
+ select public.outlier_party_state(host,v_room) into state;
  if state->>'phase'<>'finished' then raise exception 'Room did not finish';end if;
- perform public.outlier_party_vote_rematch(host,room_id);
- perform public.outlier_party_vote_rematch(first,room_id);
- select public.outlier_party_vote_rematch(second,room_id) into proposed;
+ perform public.outlier_party_vote_rematch(host,v_room);
+ perform public.outlier_party_vote_rematch(first,v_room);
+ select public.outlier_party_vote_rematch(second,v_room) into proposed;
  followup:=(proposed->>'roomId')::uuid;
  select public.outlier_party_state(host,followup) into state;
  if state->>'targetPlayers'<>'3' or state->>'phase'<>'waiting'
