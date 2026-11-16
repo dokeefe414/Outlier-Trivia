@@ -76,6 +76,14 @@ npm run test:browser
 
 The browser suite requires Playwright and Chromium, and the Postgres smoke tests use a disposable CI PostgreSQL service. GitHub CI applies migrations through 021, runs historical v1.9 security checks, applies the v1.10 migration, exports/imports the source-backed exhibition catalog, and runs `test/v110-game-night-smoke.sql` using synthetic auth identities and simulated room timestamps. This validates deterministic server-clock behavior, rematch caps, membership isolation and permission revocation; it is **not evidence of real email delivery or cross-device play**.
 
+## Verified deployment record — November 16, 2026
+
+The owner-linked Supabase project `ljmqtdwcwpatyecxtues` successfully applied migration `outlier_20261116000100_v110_game_night` and deployed the `outlier` Edge Function as **active version 2**. The room catalog was expanded in owner-controlled SQL transactions, without committing the generated SQL or private answers to GitHub. Verified production content totals: **88 Stand Out questions, 42 Fit In, 46,797 rare-answer slots; all rows satisfy the server's validator**. `outlier_party_readiness()` reports `ready=true`.
+
+A live Supabase SQL transaction created a one-account private room, changed its round timer to 30 seconds and series to three games, recorded a SCIENCE theme ballot, and checked the returned private state. The transaction was rolled back, leaving **zero persistent test rooms**. Privacy checks confirmed direct browser reads of the new vote table are denied to `anon` and `authenticated`, while only the Edge server role can call the new private RPCs. The Supabase health advisor reported no findings; its RLS-without-policy INFO notices are expected for deny-by-default tables. No Auth user, score or private match record was altered by this smoke.
+
+The v1.10 pull request [#18](https://github.com/dokeefe414/Outlier-Trivia/pull/18) was merged after all four CI jobs passed. The merge SHA is `a198ce02c459f94daa4ab2f2610b906334b073ed`, and [GitHub Pages successfully deployed that merge](https://github.com/dokeefe414/Outlier-Trivia/actions/runs/43974726553). Main-branch CI for the merge is separately monitored. External HTTP `capabilities` responses and real second-device Auth/login/gameplay were **not independently observed**, so do not claim fully player-tested online multiplayer. The next required acceptance task remains [Issue #17](https://github.com/dokeefe414/Outlier-Trivia/issues/17).
+
 ## Deployment order and compatibility
 
 1. Merge only after CI is green and the migration/source diffs have been reviewed.
