@@ -45,5 +45,6 @@ test("private identifying fields, guesses and corrupt observations are rejected"
   const report={testerCount:10,sessions:[{...good(),email:"tester@host.test",answer:"Secret"}]};
   assert.ok(validateBetaReport(report).some(x=>x.includes("disallowed")));
   assert.equal(evaluateBetaReport(report).valid,false);
+  assert.equal(evaluateBetaReport({testerCount:10,sessions:[good()],contactEmail:"secret@example.test"}).valid,false);
   assert.equal(evaluateBetaReport({testerCount:10,sessions:[{...good(),started:false}]}).valid,false);
 });
