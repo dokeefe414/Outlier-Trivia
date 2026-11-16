@@ -535,6 +535,22 @@ async function runPersistentPartyRecovery() {
   await ctx.close();
   console.log("PASS v1.8 compact recovery across live timer, lock, handoff, reveal, crown and archive rematch");
 }
+async function runPublicQualityDashboard() {
+  const qa=await browser.newContext({viewport:{width:390,height:844},reducedMotion:"reduce"});
+  const p=await qa.newPage();p.setDefaultTimeout(22000);
+  await p.goto(new URL("quality.html",url).toString());
+  await p.locator("#qa-status").getByText("Public catalog audit complete", {exact:false}).waitFor();
+  const totals=await p.locator("#qa-summary strong").allInnerTexts();
+  assert.equal(totals.length,4,"QA dashboard should show all four actual bank metrics");
+  assert.ok(Number(totals[1].replaceAll(",",""))>100000,"answer slots are source-based");
+  assert.match(await p.locator("#qa-warnings").innerText(),/PASS|alias collision/);
+  assert.ok(await p.locator("#qa-categories tr").count()>=12,"all categories must be present");
+  const dimensions=await p.evaluate(()=>({w:window.innerWidth,scroll:document.documentElement.scrollWidth}));
+  assert.ok(dimensions.scroll<=dimensions.w+2,"QA dashboard cannot overflow a 390px phone");
+  await p.screenshot({path:"artifacts/editorial/v19-public-quality-mobile.png",fullPage:true});
+  await qa.close();
+  console.log("PASS public-only answer-quality dashboard, 100k+ approved slots and mobile layout");
+}
 async function runAdminSafety() {
   await page.goto(new URL("admin.html",url).toString());
   await page.locator("#connection").waitFor();
@@ -553,6 +569,7 @@ try {
   await runWeeklyAndLocalDuel();
   await runEvidenceReviewAndMastery();
   await runPersistentPartyRecovery();
+  await runPublicQualityDashboard();
   await runAdminSafety();
 } finally {
   await browser.close();
