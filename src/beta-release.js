@@ -14,6 +14,8 @@ const flag=n=>typeof n==="boolean";
 export function validateBetaReport(input){
   const errors=[];
   if(!isRecord(input))return ["Expected a JSON object with testerCount and sessions."];
+  for(const key of Object.keys(input))if(!["testerCount","sessions"].includes(key))
+    errors.push("Unexpected top-level field "+key+"; do not include identifying information.");
   if(!isCount(input.testerCount)||input.testerCount>1000)
     errors.push("testerCount must be an integer between 0 and 1000; count distinct consenting people offline.");
   if(!Array.isArray(input.sessions)||input.sessions.length>1000)
