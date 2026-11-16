@@ -1,5 +1,4 @@
 {
-  "_instructions": "Remove this _instructions field before running the beta report. Count real consenting testers offline; enter no names, emails, IDs, invite codes or answers. Add actual anonymous session objects only after a test has occurred.",
   "testerCount": 0,
   "sessions": []
 }
