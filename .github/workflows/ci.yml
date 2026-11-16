@@ -17,6 +17,8 @@ jobs:
         run: npm run audit:content
       - name: Validate independently sourced exhibition prompt sample
         run: npm run audit:exhibition
+      - name: Confirm server deployment requires actual owner setup
+        run: npm run preflight:online
 
   edge-function:
     name: Hosted API type checks
@@ -147,6 +149,8 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261112002000_v19_room_competition.sql
       - name: Verify verified match history, friend-only seasons and no unauthorized rematches
         run: psql -v ON_ERROR_STOP=1 -f test/v19-competition-smoke.sql
+      - name: Validate four-player all-ready, tie scoring and rematch integrity
+        run: psql -v ON_ERROR_STOP=1 -f test/v19-release-gates-smoke.sql
       - name: Preserve distinct programming-language aliases in hosted scoring
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261112002100_v19_exhibition_normalization.sql
       - name: Generate and validate a disposable source-backed 28-prompt exhibition import
