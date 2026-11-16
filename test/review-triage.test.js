@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {triageAnswerCandidates} from "../src/review-triage.js";
+import {triageAnswerCandidates,firstLetterEligibility} from "../src/review-triage.js";
 const source="https://example.org/reference-entry";
 test("bulk triage makes no editorial approval and flags evidence gates",()=>{
   const batch=[
@@ -28,4 +28,17 @@ test("malicious URLs and oversized bulk inputs never qualify as evidence",()=>{
   }]);
   assert.equal(output.items[0].state,"missing_evidence");
   assert.throws(()=>triageAnswerCandidates(Array(251).fill({})));
+});
+
+test("dated source eligibility rejects out-of-range initial before alias acceptance",()=>{
+  const noSource={questionId:"pack-sports-teams-am",answer:"Utah Jazz",
+    reason:"The team is known, but the category is restricted to A through M.",
+    source:"https://example.org/archive"};
+  const r=triageAnswerCandidates([noSource]);
+  assert.equal(r.items[0].state,"eligibility_conflict");
+  assert.match(r.items[0].eligibilityWarning,/outside A–M/);
+  assert.equal(firstLetterEligibility("pack-music-artists-am","The Avril Lavigne"),null);
+  assert.match(firstLetterEligibility("pack-people-celeb-nz","Albert Einstein"),/outside N–Z/);
+  assert.equal(firstLetterEligibility("pack-movies-am","Cars"),null);
+  assert.equal(firstLetterEligibility("pack-movies-am","Cinderella Man"),null);
 });

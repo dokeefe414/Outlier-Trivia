@@ -2,6 +2,7 @@ import {rarityTier} from "./answer-intelligence.js";
 import {readLeagueInvite,leagueInviteLink,removeLeagueInvite,officialShareMessage,comparisonLabel} from "./community.js";
 import { ONLINE_ENABLED, SUPABASE_URL, SUPABASE_ANON_KEY } from "./online-config.js";
 import { dailyDebrief, weeklyCup } from "./v13-discovery.js";
+import {privateTitle,privateSeasonLeaders,cleanRivalryTimeline} from "./party-competition.js";
 import {readRoomInvite,roomInviteUrl,roomSecondsRemaining,roomWinnerRows,
   ROOM_RECOVERY_KEY,roomRecoveryRecord,readRoomRecovery,retryDelayMs,roomConnectivityError} from "./online-room.js";
 
@@ -302,6 +303,63 @@ function showRivalry() {
 }
 
 
+function partyCompetitionPanel() {
+  if(!state.user||state.capabilities?.partyReady!==true)return "";
+  const rows=Array.isArray(state.partyHistory)?state.partyHistory.slice(0,8):[];
+  const season=privateSeasonLeaders(state.partySeason);
+  const lifetime=Array.isArray(state.partyLifetime)?state.partyLifetime:[];
+  const period=state.partyPeriod||"month";
+  const filters=[["week","THIS WEEK"],["month","THIS MONTH"],["all","LAST 150"]];
+  const tabs=filters.map(([key,label])=>
+    act("party-period",label,"btn-outline"+(period===key?" active":""),
+      'data-period="'+key+'" aria-pressed="'+(period===key)+'"')).join("");
+  const rivalry=state.partyRivalry;
+  const recent=cleanRivalryTimeline(rivalry?.recent);
+  return '<section class="card private-season" aria-label="Verified private match history">'+
+    '<div class="eyebrow">FRIENDS-ONLY / VERIFIED ROOM RESULTS</div>'+
+    '<h3>THE INNER CIRCLE RECORD BOOK.</h3>'+
+    '<p class="small muted">Only rooms you actually joined count. Opponents, scores and wins are verified by the server. No answer keys, guest games, public global ranks or money involved. Long-range results use at most 150 recent matches.</p>'+
+    '<div class="party-season-periods" role="group" aria-label="Match period">'+tabs+'</div>'+
+    '<div class="private-season-standings"><div class="private-season-row heading">'+
+      '<span>PLAYER</span><span>W</span><span>T</span><span>L</span><span>POINTS</span></div>'+
+      (season.length?season.slice(0,20).map((p,i)=>
+        '<div class="private-season-row"><span>'+
+          (p.id===state.user.id?'<strong>YOU</strong>':act("party-rival",escape(p.name),"btn-ghost",
+            'data-opponent="'+escape(p.id)+'" aria-label="Your verified rivalry with '+escape(p.name)+'"'))+
+          (p.seasonLeader?'<small class="season-top-tag">★ PERIOD LEADER</small>':'')+
+          '<small class="season-title">'+escape(privateTitle(lifetime.find(x=>x.id===p.id)?.wins||0).name)+'</small>'+
+          '</span><strong>'+number(p.wins)+'</strong><span>'+number(p.ties)+'</span>'+
+          '<span>'+number(p.losses)+'</span><strong>'+number(p.points)+'</strong></div>').join(""):
+      '<p class="small muted">No finished private games in this period yet.</p>')+'</div>'+
+    (rivalry?'<div class="party-rivalry-verified" role="status"><strong>YOUR ROOM RIVALRY</strong>'+
+      '<p>'+number(rivalry.wins)+' WINS · '+number(rivalry.ties)+' TIES · '+
+      number(rivalry.losses)+' LOSSES · '+number(rivalry.shared)+' SHARED MATCHES</p>'+
+      (recent.length?'<h5>RECENT VERIFIED HEAD-TO-HEAD MATCHES</h5>'+
+        recent.map(item=>'<div class="party-rivalry-day"><span>'+
+          escape(new Date(item.startedAt).toLocaleDateString("en-US"))+'</span><b>'+
+          number(item.you)+' — '+number(item.them)+'</b><strong>'+
+          escape(item.outcome.toUpperCase())+'</strong></div>').join(""):'')+'</div>':'')+
+    '<h4>MATCH JOURNAL</h4>'+
+    (rows.length?rows.map(row=>
+      '<div class="private-history-row"><span>'+escape(new Date(row.startedAt).toLocaleDateString("en-US"))+
+      ' · '+number(row.players)+' PLAYERS</span><b class="private-history-outcome">'+
+      escape(String(row.outcome||"").toUpperCase())+'</b><strong>'+
+      number(row.yourScore)+' PTS</strong></div>').join(""):
+      '<p class="small muted">Your verified private championships will appear here after the shared seven-round timer finishes.</p>')+
+    '<p class="small muted">These records are scoped to your authenticated room memberships; changing devices requires the same signed-in account.</p>'+
+    '</section>';
+}
+async function reloadPartyCompetition() {
+  if(!state.user||state.capabilities?.partyReady!==true)return;
+  const [history,season,allTime]=await Promise.all([
+    invoke("party-history"),
+    invoke("party-season",{query:"period="+encodeURIComponent(state.partyPeriod||"month")}),
+    invoke("party-season",{query:"period=all"})
+  ]);
+  state.partyHistory=Array.isArray(history.history)?history.history:[];
+  state.partySeason=Array.isArray(season.standings)?season.standings:[];
+  state.partyLifetime=Array.isArray(allTime.standings)?allTime.standings:[];
+}
 function partyRoomPanel() {
   if(!state.user)return '<div class="card online-party-panel"><div class="eyebrow">PRIVATE ROOM COMPETITION</div>'+
     '<h3>PLAY FROM SEPARATE DEVICES.</h3>'+
@@ -309,7 +367,7 @@ function partyRoomPanel() {
   if(state.capabilities?.partyReady!==true)return '<div class="card online-party-panel">'+
     '<div class="eyebrow">PRIVATE ROOM COMPETITION · NOT ACTIVATED</div>'+
     '<h3>SERVER-VERIFIED MULTIPLAYER IS READY FOR SETUP.</h3>'+
-    '<p class="small muted">A real Supabase project, reviewed private question bank, and deployment of migration 018 are required. Public guest matches remain playable.</p></div>';
+    '<p class="small muted">A configured Supabase project, the separate sourced exhibition question bank, and migrations through 020 are required. Public guest matches remain playable.</p></div>';
   return '<section class="card online-party-panel"><div class="eyebrow">NEW / PRIVATE SHOWDOWN</div>'+
     '<h3>FRIENDS. SEPARATE SCREENS. SAME CLOCK.</h3>'+
     '<p class="small muted">2–4 signed-in players answer seven shared questions. Every round lasts 45 seconds from a single server timer. No scores until the match is over. Unranked, free.</p>'+
@@ -338,9 +396,9 @@ async function refreshPartyRoom(force=false) {
   try{
     const response=await invoke("party-state",{query:"room="+encodeURIComponent(state.partyId)});
     const room=response.room;
-    const signature=JSON.stringify([room.phase,room.players?.length,
+    const signature=JSON.stringify([room.phase,room.players?.map(p=>[p.id,p.ready,p.active]),
       room.question?.index,room.question?.submitted,room.scores?.length,
-      room.startedAt]);
+      room.rematch?.votes,room.rematch?.roomId,room.startedAt]);
     const offlineWas=state.partyOffline;
     state.partyRoom=room;state.partyReceivedAt=Date.now();
     state.partyOffline=false;state.partyFailureCount=0;state.partyError=null;
@@ -403,16 +461,31 @@ function showPartyRoom() {
     escape(String(m.name||"P").slice(0,1).toUpperCase())+'</span>'+
     '<strong>'+escape(m.name||"Player")+'</strong>'+
     (m.id===r.host?'<small>HOST</small>':'')+
-    (m.id===state.user?.id?'<small>YOU</small>':'')+'</div>').join("");
+    (m.id===state.user?.id?'<small>YOU</small>':'')+
+    '<small class="party-presence '+(m.active?'is-online':'is-away')+'">'+
+      (m.active?'● ACTIVE':'◌ LAST SEEN >15S')+'</small>'+
+    (r.phase==="waiting"?'<span class="party-ready-tag '+(m.ready?'is-ready':'')+'">'+
+      (m.ready?'READY':'NOT READY')+'</span>':'')+
+    '</div>').join("");
   const roster='<div class="online-party-roster">'+people+'</div>';
   let body='';
   if(r.phase==="waiting"){
+    const me=(r.players||[]).find(p=>p.id===state.user?.id);
+    const readyCount=(r.players||[]).filter(p=>p.ready).length;
+    const allReady=(r.players||[]).length>=2&&readyCount===r.players.length;
     body='<div class="card online-party-waiting"><div class="eyebrow">LOBBY · '+(r.players||[]).length+'/4 PLAYERS</div>'+
-      '<h3>BRING THE CREW.</h3><p class="small muted">Share your invite. Everyone must sign in and join before the host starts. The room closes if left waiting too long.</p>'+
+      '<h3>BRING THE CREW.</h3><p class="small muted">Share your invite. Every player must explicitly mark READY. The host can start only after all 2–4 participants agree. Presence is based on a recent server ping, not a permanent connection.</p>'+
       '<div class="party-invite-code">'+escape(r.code||"")+'</div>'+
       act("party-copy","COPY PRIVATE INVITE ↗","btn-primary")+roster+
-      (r.host===state.user?.id?act("party-start","START SEVEN-ROUND MATCH ↗","btn-teal",
-        (r.players?.length||0)<2?"disabled":""):'<p class="small muted">Only the host can start the match.</p>')+'</div>';
+      '<p class="party-ready-counter" role="status">'+readyCount+' OF '+r.players.length+' READY</p>'+
+      act("party-ready",me?.ready?'I AM NOT READY':'I AM READY ✓',
+        me?.ready?'btn-outline':'btn-primary',
+        'data-ready="'+(!me?.ready)+'" aria-pressed="'+Boolean(me?.ready)+'"')+
+      (r.host===state.user?.id?
+        act("party-start","START SEVEN-ROUND MATCH ↗","btn-teal",allReady?'':'disabled') :
+        '<p class="small muted">The host starts when every player is ready.</p>')+
+      act("party-exit-lobby",r.host===state.user?.id?'CLOSE ROOM FOR EVERYONE':'LEAVE THIS LOBBY',"btn-ghost")+
+      '</div>';
   }else if(r.phase==="countdown"){
     body='<div class="card online-party-countdown"><span class="eyebrow">EVERYONE GET READY</span>'+
       '<h3>THE CLOCK STARTS IN</h3><div class="online-party-bigclock" id="online-party-timer">—</div>'+
@@ -454,12 +527,18 @@ function showPartyRoom() {
     }else{
       const scores=roomWinnerRows(r.scores);
       const champion=scores.filter(p=>p.winner).map(p=>p.name).join(" & ");
+      const rematch=r.rematch||{};
       body='<section class="card online-party-final-scores"><div class="party-winner-mark">🏆</div>'+
         '<div class="eyebrow">THE VERIFIED SHOWDOWN RESULT</div><h3>'+escape(champion)+' '+(scores.filter(p=>p.winner).length>1?"TIE!":"WINS!")+'</h3>'+
         scores.map(p=>'<div class="online-party-score '+(p.winner?'winner':'')+'"><strong>'+
           escape(p.name)+'</strong><span>'+number(p.score)+' / 7,000 PTS</span></div>').join("")+
-        '<p class="small muted">Private match points are server-calculated exhibition results. They do not count toward official rankings or purchases.</p>'+
-        act("party-leave","BACK TO ONLINE HUB","btn-primary")+'</section>';
+        '<p class="small muted">Server-verified exhibition points appear in your private friend history and season, never official daily rankings or paid progression.</p>'+
+        '<div class="party-rematch-vote"><h4>RUN IT BACK TOGETHER?</h4>'+
+          '<p>'+number(rematch.votes||0)+' / '+number(rematch.needed||r.players.length)+' voted. A fresh room opens only when everyone agrees, with a new ready-up step.</p>'+
+          (rematch.roomId?act("party-rematch-join","JOIN AGREED REMATCH ↗","btn-teal") :
+            rematch.voted?'<p class="small muted">Your vote is recorded. Waiting for the others.</p>':
+              act("party-rematch-vote","VOTE FOR A REMATCH ↗","btn-primary"))+'</div>'+
+        act("party-leave","BACK TO ONLINE HUB","btn-outline")+'</section>';
     }
   }else{
     body='<div class="card">'+notice("This private room expired. Create a new room.","warning")+
@@ -500,7 +579,7 @@ function showMenu() {
     '<h3>YOUR FRIEND SENT A CHALLENGE.</h3>'+
     '<p class="small muted">Accepting a room invite requires a verified account. Nothing joins automatically.</p>'+
     (signedIn&&state.capabilities?.partyReady===true?act("party-accept-invite","JOIN PRIVATE GAME ↗","btn-primary"):
-      '<p class="small muted">Sign in and connect the private ranked bank to join.</p>')+
+      '<p class="small muted">Sign in and connect the separate private-room question bank to join.</p>')+
     act("party-dismiss-invite","IGNORE INVITE","btn-outline")+'</div>':"";
   const inviteBanner=state.pendingInvite?
     '<div class="card invited-banner"><span class="eyebrow">YOU HAVE BEEN INVITED</span>'+
@@ -512,8 +591,8 @@ function showMenu() {
     '</div>':"";
   setView(heading + partyInvite + inviteBanner + (state.error ? notice(state.error,"warning") : "")+
     (state.message ? notice(state.message,"ok") : "")+
-    (!rankedReady?notice("Online beta setup is incomplete: verified ranked games are not open yet. The guest daily game is still free.","warning"):"")+
-    buttons + partyRoomPanel() + profilePanel() + onlineJourney() + myReviewsPanel() + leaguesPanel() + boardUI());
+    (!rankedReady?notice("Official ranked daily competition is not activated yet. Private rooms require their separate question bank; the guest game remains free.","warning"):"")+
+    buttons + partyRoomPanel() + partyCompetitionPanel() + profilePanel() + onlineJourney() + myReviewsPanel() + leaguesPanel() + boardUI());
 }
 function formatTime(deadline) {
   if (!deadline) return 45;
@@ -781,7 +860,7 @@ async function checkout() {
 }
 async function submitPartyAnswer(answer) {
   const q=state.partyRoom?.question;
-  if(!state.partyId||state.partyRoom?.phase!=="playing"||q?.submitted||busy)return;
+  if(!state.partyId||state.partyRoom?.phase!=="playing"||q?.submitted||busy||state.partyOffline)return;
   busy=true;
   try{
     await invoke("party-answer",{method:"POST",payload:{
@@ -846,6 +925,70 @@ async function handleClick(event) {
     finally{busy=false;}
     return;
   }
+  if(action==="party-ready"){
+    if(!state.partyId||state.partyRoom?.phase!=="waiting")return;
+    busy=true;
+    try{
+      await invoke("party-ready",{method:"POST",
+        payload:{room:state.partyId,ready:button.dataset.ready==="true"}});
+      await refreshPartyRoom(true);
+    }catch(e){state.partyError=e.message;state.message=e.message;showPartyRoom();}
+    finally{busy=false;}
+    return;
+  }
+  if(action==="party-exit-lobby"){
+    if(!state.partyId||state.partyRoom?.phase!=="waiting")return;
+    const host=state.partyRoom.host===state.user?.id;
+    if(!window.confirm(host?"Close this waiting room for everyone?":"Leave this waiting room?"))return;
+    busy=true;
+    try{
+      await invoke("party-leave",{method:"POST",payload:{room:state.partyId}});
+      clearRoomRecovery();stopPartyPolling();
+      state.partyId=null;state.partyRoom=null;
+      state.message=host?"The waiting room was closed.":"You left the waiting room.";
+      showMenu();
+    }catch(e){state.message=e.message;showPartyRoom();}
+    finally{busy=false;}
+    return;
+  }
+  if(action==="party-rematch-vote"){
+    if(!state.partyId||state.partyRoom?.phase!=="finished"||
+       state.partyRevealStep<7)return;
+    busy=true;
+    try{
+      const response=await invoke("party-rematch",{method:"POST",payload:{room:state.partyId}});
+      if(response.vote?.roomId)await enterPartyRoom(response.vote.roomId);
+      else await refreshPartyRoom(true);
+    }catch(e){state.message=e.message;showPartyRoom();}
+    finally{busy=false;}
+    return;
+  }
+  if(action==="party-rematch-join"){
+    const next=state.partyRoom?.rematch?.roomId;
+    if(next)await enterPartyRoom(next);
+    return;
+  }
+  if(action==="party-period"){
+    const p=button.dataset.period;
+    if(!["week","month","all"].includes(p))return;
+    state.partyPeriod=p;state.partyRivalry=null;
+    try{
+      const result=await invoke("party-season",{query:"period="+encodeURIComponent(p)});
+      state.partySeason=Array.isArray(result.standings)?result.standings:[];
+      showMenu();
+    }catch(e){state.message=e.message;showMenu();}
+    return;
+  }
+  if(action==="party-rival"){
+    const opponent=button.dataset.opponent;
+    if(!opponent||opponent===state.user?.id)return;
+    try{
+      const result=await invoke("party-rivalry",{query:"opponent="+encodeURIComponent(opponent)});
+      state.partyRivalry=result.rivalry;
+      showMenu();
+    }catch(e){state.message=e.message;showMenu();}
+    return;
+  }
   if(action==="party-start"){
     if(!state.partyId||state.partyRoom?.host!==state.user?.id)return;
     busy=true;
@@ -861,6 +1004,7 @@ async function handleClick(event) {
   }
   if(action==="party-leave"){
     stopPartyPolling();
+    await reloadPartyCompetition().catch(()=>{});
     state.partyRevealStep=-1;showMenu();return;
   }
   if(action==="party-copy"){
@@ -966,7 +1110,12 @@ async function handleClick(event) {
     }catch(e){showError(e,"Purchase status unavailable")}
     finally{busy=false;}
   }
-  if (action==="menu") {state.rejected=null;await Promise.all([reloadBoard(),reloadProfile(),reloadLeagues(),reloadCapabilities()]).catch(()=>{});showMenu();}
+  if (action==="menu") {
+    state.rejected=null;
+    await Promise.all([reloadBoard(),reloadProfile(),reloadLeagues(),reloadCapabilities()]).catch(()=>{});
+    await reloadPartyCompetition().catch(()=>{});
+    showMenu();
+  }
   if (action==="next") await advance();
   if (action==="pick") await submitAnswer(button.dataset.answer);
   if (action==="skip") await submitAnswer(null);
@@ -1085,6 +1234,7 @@ export async function mountOnline(element, back) {
     pendingRoomCode:readRoomInvite(window.location.search),partyId:null,partyRoom:null,
     partyReceivedAt:0,partySignature:null,partyRevealStep:-1,
     partyOffline:false,partyFailureCount:0,partyLastFailureAt:0,partyError:null,
+    partyHistory:[],partySeason:[],partyLifetime:[],partyPeriod:"month",partyRivalry:null,
     error:null,message:null,sent:false};
   showBusy();
   if (!ONLINE_ENABLED) {
@@ -1115,6 +1265,9 @@ export async function mountOnline(element, back) {
     state.user=data.session?.user ?? null;
     if (state.user) await Promise.all([reloadProfile(),reloadLeagues()]);
     await Promise.all([reloadBoard(),reloadCapabilities()]);
+    if(state.user)await reloadPartyCompetition().catch(error=>{
+      console.warn("Private competition records unavailable:",error?.message);
+    });
     const params=new URLSearchParams(window.location.search);
     if (params.get("checkout")==="success") {
       state.message="Checkout returned. Payment status is not proof of a purchase. Select CHECK / RESTORE LIFETIME ACCESS to verify the signed webhook.";

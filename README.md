@@ -2,6 +2,8 @@
 
 **A playable, mobile-friendly daily general-knowledge game.** Seven questions, two mindsets: find a rare correct answer in **Stand Out**, then predict the most popular answer in **Fit In**.
 
+> **v1.9 THE INNER CIRCLE / VERIFIED GAME NIGHTS:** Source release for private 2–4 player online rooms with unanimous ready-up, recent-presence indicators, secure room exits, shared server timers, **every-player-votes rematches**, verified match history, friend-only seasonal W/T/L tables and head-to-head comparisons. A separate 28-prompt (18 CC0 archive Stand Out + 10 original editorial Fit In) exhibition-bank exporter helps prepare private hosted content without using future ranked daily answers. A **public-only answer-quality monitor** at [quality.html](quality.html) audits content slots, alias collisions, scores and source scopes, while owner review decisions remain private. **Live multiplayer still requires a deployed owner-configured Supabase project and real-player beta testing; no hosted connection or human playtest is claimed by this release.** [Complete v1.9 instructions](docs/V19_COMPETITION_QA.md).
+
 > **v1.8 RELIABLE GAME NIGHTS & SMARTER ANSWERS:** Pass & Play now saves and resumes after refresh at every handoff, keeps its original running timer, remembers the last 12 local championships and supports same-rules rematches. Safer additional approved-name spellings, offline human-only review triage, smoother reduced-motion-friendly reveals and a private, anonymous playtest-report workflow are included. Server-backed private rooms now retain authenticated recovery pointers through transient network issues and have their own question-bank readiness independent of official daily rankings. **Hosted multiplayer remains inactive until Supabase and a separately verified private room catalog are configured.** [Release, privacy, QA, and beta checklist](docs/V18_RELIABLE_GAME_NIGHT.md).
 
 > **v1.7 GAME NIGHT & KNOWLEDGE MASTERY:** Better source-evidence answer reporting, 2–8 player Pass & Play with selectable 20–90s timers, optional secret final-question stakes, player portraits, series standings and dramatic reveals; new official-daily-only category mastery, trophies and personal bests. A separately secured 2–4 account private online room service is included as **deployable source only**; it requires a Supabase deployment and a separately reviewed private room bank. [Full v1.7 gameplay and activation notes](docs/V17_GAMEPLAY_MULTIPLAYER.md).
@@ -40,6 +42,22 @@ The browser must load the site over HTTP, not the file protocol, because the gam
 4. Once GitHub finishes deploying, the expected URL is **https://dokeefe414.github.io/Outlier-Trivia/**.
 
 GitHub Pages deployments are verified through the repository's Actions workflow. Check the latest deployment run if you are testing a newly merged release.
+
+## v1.9 — The Inner Circle: ready rooms, fair rematches and verified records
+
+**Multiplayer rooms (hosted implementation):** Two to four signed-in friends join a private, spoiler-free invitation. Every player now explicitly marks **READY**; a host cannot launch until everyone is ready. Presence is a recent verified server ping, not a guaranteed continuous connection. Waiting members can leave, and the host can close a lobby. The server still controls all seven 45-second rounds and accepts one sealed pick per round.
+
+**Run it back by consent:** Once the shared match timer closes, every participant may vote to rematch. Only **unanimous votes** create a fresh waiting room for those same authenticated members. No one is forced to play again, and everyone must ready up again. Previous scores and sealed answers remain unchanged.
+
+**Verified private competition:** A member-only match journal lists scores, winners and real win/tie/loss outcomes. Friends-only weekly, monthly and last-150-match standings and shared-match rivalry records come from completed, server-scored rooms—not local guest results. No global ranking, cash wagers or retroactive official-daily scoring is claimed.
+
+**Better, safer content:** An optional [exhibition-bank audit/export](docs/V19_COMPETITION_QA.md) prepares 18 separately scoped CC0 Stand Out prompts plus 10 clearly fictional editorial-weight Fit In prompts into gitignored `private/` SQL for owner review, never automatically published as future official daily questions. The independent private room bank still starts empty on every public migration. The [public answer-quality monitor](quality.html) reports the existing prototype's category coverage, accepted answer slots, alternate names and structural warnings; it cannot see private content or hosted accounts. The review workflow flags proposed names outside A–M / N–Z eligibility restrictions, but requires real source evidence before editorial approval.
+
+**Mobile and QA:** Ready-up controls, active-player indicators, match history, private season tables and unanimous rematch decisions use responsive layouts. Postgres CI covers room authorization, server deadlines, tied scores, roster consent, scope-limited match history and duplicates. The real 10–20-person cross-device beta remains an owner-run acceptance step.
+
+**Activation status:** GitHub Pages serves the guest experience. Remote rooms are **not live by this commit**: configure Supabase credentials (public URL and publishable key only), deploy the Edge Function and migrations 020–021, separately source-review/import an exhibition bank, and run real-device tests. Do not put service keys or private invitations in GitHub.
+
+See [v1.9 source, API, privacy and deployment guide](docs/V19_COMPETITION_QA.md).
 
 ## v1.8 — Your Game Night Saves Itself
 
