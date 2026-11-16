@@ -1523,3 +1523,68 @@ a{color:var(--lime)}
   .party-round-track{gap:4px}
   .party-round-step{min-height:30px;font-size:11px}
 }
+
+
+/* OUTLIER v1.10: server-confirmed game-night setup, compact final scorecards. */
+.party-rule-banner{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 18px}
+.party-rule-banner span{font:700 11px 'DM Mono',monospace;padding:7px 10px;
+  border:1px solid var(--line);background:var(--panel2);color:var(--lime)}
+.party-settings-form,.party-theme-panel{margin:21px 0;padding:18px;
+  border:1px solid var(--line);background:var(--panel2)}
+.party-settings-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px 14px}
+.party-settings-form h4,.party-settings-form p{grid-column:1/-1}
+.party-settings-form h4,.party-theme-panel h4,
+.party-highlights h4,.party-series-results h4{font:700 15px 'Archivo Black',sans-serif;margin:6px 0 10px}
+.party-settings-form label{font:700 11px 'DM Mono',monospace;
+  display:flex;align-items:center;min-width:0}
+.party-settings-form select{width:100%;min-width:0;cursor:pointer}
+.party-settings-form button{grid-column:1/-1;justify-self:start}
+.party-theme-panel>p{max-width:670px}
+.party-theme-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:14px}
+.party-theme-grid button{white-space:normal;min-width:0;overflow-wrap:anywhere;
+  font-size:11px;min-height:42px}
+.party-highlights,.party-series-results{margin:28px 0;padding:20px;
+  border:1px solid var(--line);background:var(--panel2);text-align:left}
+.party-highlights-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:15px 0}
+.party-highlights-grid>div{padding:14px;background:var(--panel3);
+  display:grid;align-content:start;gap:9px}
+.party-highlights-grid small,.party-career-stats small{font:700 10px 'DM Mono',monospace;color:var(--muted)}
+.party-highlights-grid strong{font:700 clamp(16px,2vw,22px) 'Archivo Black',sans-serif;
+  overflow-wrap:anywhere}
+.party-highlights-grid span{font:600 11px 'DM Mono',monospace;color:var(--lime)}
+.party-score-timeline{display:grid;gap:6px;margin-top:15px}
+.party-score-timeline>div{display:flex;gap:12px;flex-wrap:wrap;padding:10px;
+  background:var(--panel3);align-items:center}
+.party-score-timeline>div>span{font:700 11px 'DM Mono',monospace;color:var(--lime)}
+.party-score-timeline small{font-size:11px}
+.party-series-results>div{display:flex;justify-content:space-between;gap:14px;
+  padding:12px 0;border-bottom:1px solid var(--line)}
+.party-series-results strong{font-size:12px}
+.party-champion-label{display:block;padding:10px;margin-top:12px;
+  color:var(--lime);font:700 13px 'DM Mono',monospace}
+.party-mastery{padding:16px;border:1px solid var(--line);margin:20px 0}
+.party-career-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:15px 0}
+.party-career-stats>div{display:grid;gap:8px;padding:12px;background:var(--panel2)}
+.party-career-stats strong{font:700 clamp(16px,3vw,27px) 'DM Mono',monospace}
+.party-badges{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.party-badge{display:flex;flex-direction:column;gap:7px;padding:13px;border:1px solid var(--line)}
+.party-badge>span{font-size:22px;color:var(--lime)}
+.party-badge strong{font:700 12px 'DM Mono',monospace}
+.party-badge small{font-size:11px;line-height:1.4}
+.party-badge.is-locked{opacity:.55;filter:grayscale(.7)}
+.party-badge.is-unlocked{border-color:var(--lime)}
+@media(max-width:750px){
+ .party-theme-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .party-highlights-grid{grid-template-columns:1fr}
+ .party-badges{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:510px){
+ .party-settings-form{grid-template-columns:1fr}
+ .party-settings-form h4,.party-settings-form p,.party-settings-form button{grid-column:auto}
+ .party-career-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .party-series-results>div{flex-wrap:wrap}
+ .party-mastery,.party-highlights,.party-series-results{padding:12px}
+}
+@media(prefers-reduced-motion:reduce){
+ .party-badge,.party-score-timeline>div,.party-theme-grid button{transition:none!important}
+}
