@@ -103,7 +103,15 @@ async function runDaily() {
   assert.match(await page.locator(".badge-section").innerText(),/First Spark/);
   await page.reload();
   await page.locator(".hero").waitFor();
-  assert.equal(await page.locator('button[data-action="result"]').count(),1);
+  // The connected Supabase homepage promotes authenticated online play;
+  // the completed FREE guest daily is still available through its own button.
+  if(await page.locator('.hero-actions button[data-action="daily"]').count()){
+    assert.equal(await page.locator('.hero-actions button[data-action="online"]').count(),1);
+    await page.locator('.hero-actions button[data-action="daily"]').click();
+    await page.locator(".result-scorecard").waitFor();
+  }else{
+    assert.equal(await page.locator('button[data-action="result"]').count(),1);
+  }
   console.log("PASS desktop full daily, persistence, results, stats, badge UI");
 }
 async function runMobile() {
