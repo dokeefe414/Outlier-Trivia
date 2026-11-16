@@ -694,7 +694,7 @@ function renderHome() {
   const played = Boolean(record?.complete);
   const started = Boolean(record?.answers?.length || record?.deadline);
   const action = ONLINE_ENABLED ? "online" : played ? "result" : "daily";
-  const actionLabel = ONLINE_ENABLED ? "COMPETE ONLINE TODAY →" : played ? "VIEW TODAY'S RESULTS ↗" : started ? "CONTINUE TODAY'S GAME →" : "PLAY TODAY'S GAME →";
+  const actionLabel = ONLINE_ENABLED ? "EXPLORE ONLINE BETA →" : played ? "VIEW TODAY'S RESULTS ↗" : started ? "CONTINUE TODAY'S GAME →" : "PLAY TODAY'S GAME →";
   applyTheme();
   app.innerHTML = [
     '<section class="hero hero-editorial"><div class="hero-copy">',
@@ -702,9 +702,9 @@ function renderHome() {
     '<h1>THINK <span class="headline-odd">ODD<span class="headline-period">.</span></span><br><span class="headline-right">BE RIGHT<span class="headline-period">.</span></span></h1>',
     '<p class="hero-description">Know the kind of random stuff nobody ever asks you about? Good. This is your game. Seven questions. Four deep cuts. Three crowd calls. One shot a day.</p>',
     '<div class="hero-actions">',
-    homeButton(actionLabel, action), ONLINE_ENABLED ?
-      homeButton("PLAY FREE AS GUEST", "daily", "btn-ghost") :
-      homeButton("TRY PRACTICE MODE", "practice", "btn-ghost"),
+    homeButton(actionLabel, action),
+    ...(ONLINE_ENABLED ? [homeButton("PLAY FREE AS GUEST", "daily", "btn-ghost")] : []),
+    homeButton("TRY PRACTICE MODE", "practice", "btn-ghost"),
     '</div>' + (friendChallenge && friendChallenge.current ?
       '<div class="friend-challenge"><div class="friend-burst">⚔</div><div><strong>A FRIEND CHALLENGED YOU!</strong><p>Beat their ' + fmt(friendChallenge.score) +
       '-point score on today\'s seven questions.</p></div></div>' :
@@ -740,10 +740,10 @@ function renderHome() {
     '<section class="promo"><div><span class="pill pill-purple" style="margin-bottom:13px">' +
       (ONLINE_ENABLED ? 'ONLINE LEAGUE' : 'COMING AFTER THE PROTOTYPE') + '</span>',
     '<h3>WANT ANOTHER ROUND?</h3><p>' + (ONLINE_ENABLED ?
-      'Compete on global leaderboards. Unlimited ranked-independent practice is a lifetime unlock.' :
+      'Explore account-protected online features. Hosted ranked play and private matches become playable only when their separate question banks are ready.' :
       'Unlimited rounds, categories, and verified global competition are planned. Practice is temporarily free for prototype testing.') +
       '</p></div>',
-    '<div class="promo-price">$4.99<small>ONE TIME · ' + (ONLINE_ENABLED ? 'ONLINE CHECKOUT' : 'NOT ACTIVE YET') + '</small></div>' +
+    '<div class="promo-price">' + (ONLINE_ENABLED ? 'FREE<small>GUEST PLAY · ACCOUNT BETA</small>' : '$4.99<small>ONE TIME · NOT ACTIVE YET</small>') + '</div>' +
       (ONLINE_ENABLED ? '<div>' + homeButton('JOIN THE LEAGUE →','online','btn-teal') + '</div>' : '') +
       '</section>'
   ].join("");
@@ -1461,7 +1461,7 @@ document.addEventListener("click", event => {
   switch (action) {
     case "home": renderHome(); break;
     case "daily": newSession("daily"); break;
-    case "practice": ONLINE_ENABLED ? showOnline() : renderPracticeSelect(); break;
+    case "practice": renderPracticeSelect(); break;
     case "start-practice": newSession("practice", control.dataset.group||"surprise"); break;
     case "practice-format": practiceFormat = control.dataset.format||"classic"; renderPracticeSelect(); break;
     case "retry-practice": newSession(session?.practiceFormat==="open-atlas"?"open-atlas":session?.weeklyEvent?"spotlight":"practice",session?.practiceGroup||"surprise"); break;

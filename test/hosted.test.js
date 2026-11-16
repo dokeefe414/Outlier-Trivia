@@ -30,8 +30,9 @@ test("every curated question and its scoring keys have been seeded server-side",
   }
 });
 
-test("public browser configuration is safe by default",()=>{
-  assert.equal(ONLINE_ENABLED,false);
-  assert.equal(SUPABASE_URL,"");
-  assert.equal(SUPABASE_ANON_KEY,"");
+test("public browser configuration contains ONLY the intended Supabase publishable identity",()=>{
+  assert.equal(ONLINE_ENABLED,true);
+  assert.match(SUPABASE_URL,/^https:\/\/[a-z0-9-]+\.supabase\.co$/);
+  assert.match(SUPABASE_ANON_KEY,/^sb_publishable_[a-zA-Z0-9_-]+$/);
+  assert.equal(SUPABASE_ANON_KEY.includes("service_role"),false);
 });

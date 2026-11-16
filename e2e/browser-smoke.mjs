@@ -103,7 +103,15 @@ async function runDaily() {
   assert.match(await page.locator(".badge-section").innerText(),/First Spark/);
   await page.reload();
   await page.locator(".hero").waitFor();
-  assert.equal(await page.locator('button[data-action="result"]').count(),1);
+  // The connected Supabase homepage promotes authenticated online play;
+  // the completed FREE guest daily is still available through its own button.
+  if(await page.locator('.hero-actions button[data-action="daily"]').count()){
+    assert.equal(await page.locator('.hero-actions button[data-action="online"]').count(),1);
+    await page.locator('.hero-actions button[data-action="daily"]').click();
+    await page.locator(".result-scorecard").waitFor();
+  }else{
+    assert.equal(await page.locator('button[data-action="result"]').count(),1);
+  }
   console.log("PASS desktop full daily, persistence, results, stats, badge UI");
 }
 async function runMobile() {
@@ -555,11 +563,12 @@ async function runAdminSafety() {
   await page.goto(new URL("admin.html",url).toString());
   await page.locator("#connection").waitFor();
   assert.equal(await page.locator("#workspace").isHidden(),true,"admin queue must remain locked");
-  assert.match(await page.locator("#configuration").innerText(),/Supabase.*configured/i);
-  assert.equal(await page.locator("#connect-button").isDisabled(),true);
+  assert.match(await page.locator("#configuration").innerText(),/owner.s hosted OUTLIER review service/i);
+  assert.equal(await page.locator("#connect-button").isDisabled(),false,
+    "the public project URL enables login UI, but owner data stays locked until independently authorized");
   const input=await page.locator("#owner-token").inputValue();
   assert.equal(input,"","no owner secret should ever be embedded in the static page");
-  console.log("PASS owner review studio blocks unconfigured public deployment");
+  console.log("PASS owner review studio stays locked without the separate owner credential");
 }
 try {
   await runDaily();

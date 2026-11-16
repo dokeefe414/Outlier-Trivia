@@ -9,6 +9,7 @@ import {readRoomInvite,roomInviteUrl,roomSecondsRemaining,roomWinnerRows,
 const escape = value => String(value ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const number = value => Number(value ?? 0).toLocaleString("en-US");
 let container, onBack, supabase, state, timer, busy = false;
+let authSubscription=null;
 let partyPolling=null,partyTicker=null,partyRefreshing=false;
 function saveRoomRecovery() {
   if(!state?.user?.id||!state.partyId)return;
@@ -557,7 +558,7 @@ function showMenu() {
   const signedIn=Boolean(state.user);
   const heading='<div class="online-heading"><span class="eyebrow">THE COMPETITIVE LEAGUE</span>'+
    '<h1>PLAY WITH <span class="gradient-text">THE WORLD.</span></h1>'+
-   '<p class="muted">One official seven-question run per day. Verified global scores, lifetime rankings, and a $4.99 lifetime unlimited unlock.</p></div>';
+   '<p class="muted">Explore protected player profiles, private leagues and the seven-question format. Official ranked play and private rooms activate only when their separately reviewed banks are ready. No payment is required for guest play.</p></div>';
   const rankedReady=state.capabilities?.rankedReady===true;
   const paymentReady=state.capabilities?.paymentReady===true;
   const isTestCheckout=state.capabilities?.paymentMode==="test";
@@ -880,7 +881,7 @@ async function handleClick(event) {
   const button=event.target.closest("[data-online]");
   if (!button || !container.contains(button)) return;
   const action=button.dataset.online;
-  if (action==="back") {stopTimer();stopPartyPolling();container.onclick=null;container.onsubmit=null;window.removeEventListener("keydown",onKeydown);onBack();return;}
+  if (action==="back") {stopTimer();stopPartyPolling();authSubscription?.unsubscribe();authSubscription=null;container.onclick=null;container.onsubmit=null;window.removeEventListener("keydown",onKeydown);onBack();return;}
   if (busy) return;
   if (action==="crowd-consent") {
     busy=true;
@@ -1264,9 +1265,35 @@ export async function mountOnline(element, back) {
     supabase=sdk.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{
       auth:{autoRefreshToken:true,persistSession:true,detectSessionInUrl:true,flowType:"pkce"}
     });
-    const {data,error}=await supabase.auth.getSession();
-    if (error) throw error;
-    state.user=data.session?.user ?? null;
+    // getSession() may read locally cached tokens. getUser() verifies them
+    // with Supabase Auth before displaying any account-specific experience.
+    const {data,error}=await supabase.auth.getUser();
+    if(error&&error.name!=="AuthSessionMissingError"&&
+       !/auth session missing/i.test(error.message||""))throw error;
+    state.user=data?.user??null;
+    // This is UX defense in depth. Server-side Edge routes independently
+    // verify every user token; hiding controls is never our authorization.
+    authSubscription?.unsubscribe();
+    const {data:{subscription}}=supabase.auth.onAuthStateChange((event,session)=>{
+      if(event==="SIGNED_OUT"){
+        stopTimer();stopPartyPolling();clearRoomRecovery();
+        state.user=null;state.profile=null;state.game=null;state.partyId=null;
+        state.partyRoom=null;state.partyHistory=[];state.partySeason=[];
+        state.partyLifetime=[];state.partyRivalry=null;state.leagues=[];
+        state.activeLeague=null;state.error=null;
+        if(container.isConnected)showMenu();
+      } else if(event==="SIGNED_IN"&&session?.user&&!state.user){
+        // Defer network work outside the auth-state callback to avoid
+        // blocking the auth client's internal session processing.
+        state.user=session.user;
+        Promise.resolve().then(async()=>{
+          await Promise.all([reloadProfile(),reloadLeagues(),reloadCapabilities()]);
+          await reloadPartyCompetition().catch(()=>{});
+          if(container.isConnected)showMenu();
+        }).catch(error=>{state.error=error.message;showMenu();});
+      }
+    });
+    authSubscription=subscription;
     if (state.user) await Promise.all([reloadProfile(),reloadLeagues()]);
     await Promise.all([reloadBoard(),reloadCapabilities()]);
     if(state.user)await reloadPartyCompetition().catch(error=>{

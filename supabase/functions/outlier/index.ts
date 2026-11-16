@@ -8,7 +8,7 @@ type User = { id: string; email?: string };
 
 const projectUrl = Deno.env.get("SUPABASE_URL") ?? "";
 const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-const siteUrl = Deno.env.get("SITE_URL") ?? "";
+const siteUrl = Deno.env.get("SITE_URL") || "https://dokeefe414.github.io/Outlier-Trivia/";
 const stripeKey = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
 const stripeWebhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET") ?? "";
 const stripeMode = Deno.env.get("STRIPE_MODE") ?? "test";
