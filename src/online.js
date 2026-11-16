@@ -304,7 +304,9 @@ function showRivalry() {
 
 
 function partyCompetitionPanel() {
-  if(!state.user||state.capabilities?.partyReady!==true)return "";
+  // Completed member-only history must remain visible when an independent
+  // exhibition catalog is temporarily offline or awaiting new content.
+  if(!state.user)return "";
   const rows=Array.isArray(state.partyHistory)?state.partyHistory.slice(0,8):[];
   const season=privateSeasonLeaders(state.partySeason);
   const lifetime=Array.isArray(state.partyLifetime)?state.partyLifetime:[];
@@ -350,7 +352,7 @@ function partyCompetitionPanel() {
     '</section>';
 }
 async function reloadPartyCompetition() {
-  if(!state.user||state.capabilities?.partyReady!==true)return;
+  if(!state.user)return;
   const [history,season,allTime]=await Promise.all([
     invoke("party-history"),
     invoke("party-season",{query:"period="+encodeURIComponent(state.partyPeriod||"month")}),
@@ -591,7 +593,9 @@ function showMenu() {
     '</div>':"";
   setView(heading + partyInvite + inviteBanner + (state.error ? notice(state.error,"warning") : "")+
     (state.message ? notice(state.message,"ok") : "")+
-    (!rankedReady?notice("Official ranked daily competition is not activated yet. Private rooms require their separate question bank; the guest game remains free.","warning"):"")+
+    (!rankedReady?notice("Official ranked daily competition is not activated yet. The free guest daily remains playable.","warning"):"")+
+    (signedIn&&!state.capabilities?.partyReady?
+      notice("Private online rooms are unavailable until their separate reviewed exhibition bank and backend are ready. Previous verified room results remain accessible.","warning"):"")+
     buttons + partyRoomPanel() + partyCompetitionPanel() + profilePanel() + onlineJourney() + myReviewsPanel() + leaguesPanel() + boardUI());
 }
 function formatTime(deadline) {
