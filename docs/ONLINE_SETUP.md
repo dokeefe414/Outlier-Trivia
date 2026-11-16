@@ -1,5 +1,8 @@
 # OUTLIER — Hosted online league setup
 
+> **Actual v1.9.2 backend connection:** All 38 repository migrations are installed in project `ljmqtdwcwpatyecxtues`; the `outlier` function is deployed and the Pages client contains its public project URL and publishable key. **You must set Supabase Auth's Site URL and redirect allowlist in the Dashboard and test a real email link.** The private exhibition bank is still empty so private games cannot start yet. See [live Auth setup and protected routes](V192_SUPABASE_AUTH_SETUP.md) for the required exact callback URL and verification checklist.
+
+
 > **v1.9.1 deployment verification:** After applying the already implemented v1.9 room, ready-up, rematch and rivalry schema, run `npm run preflight:online` to inspect local configuration, then complete **real** Auth, Edge endpoint, 2–4-device and private exhibition-bank validation. The checker cannot establish real readiness without those external steps. For beta gates, the optional anonymous observations schema and SQL rematch fairness tests, see [v1.9.1 release gates](V19_1_RELEASE_GATES.md). No production credentials or personal beta records belong in Git.
 
 
