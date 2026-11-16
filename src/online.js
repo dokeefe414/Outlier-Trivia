@@ -913,6 +913,70 @@ async function handleClick(event) {
     finally{busy=false;}
     return;
   }
+  if(action==="party-ready"){
+    if(!state.partyId||state.partyRoom?.phase!=="waiting")return;
+    busy=true;
+    try{
+      await invoke("party-ready",{method:"POST",
+        payload:{room:state.partyId,ready:button.dataset.ready==="true"}});
+      await refreshPartyRoom(true);
+    }catch(e){state.partyError=e.message;state.message=e.message;showPartyRoom();}
+    finally{busy=false;}
+    return;
+  }
+  if(action==="party-exit-lobby"){
+    if(!state.partyId||state.partyRoom?.phase!=="waiting")return;
+    const host=state.partyRoom.host===state.user?.id;
+    if(!window.confirm(host?"Close this waiting room for everyone?":"Leave this waiting room?"))return;
+    busy=true;
+    try{
+      await invoke("party-leave",{method:"POST",payload:{room:state.partyId}});
+      clearRoomRecovery();stopPartyPolling();
+      state.partyId=null;state.partyRoom=null;
+      state.message=host?"The waiting room was closed.":"You left the waiting room.";
+      showMenu();
+    }catch(e){state.message=e.message;showPartyRoom();}
+    finally{busy=false;}
+    return;
+  }
+  if(action==="party-rematch-vote"){
+    if(!state.partyId||state.partyRoom?.phase!=="finished"||
+       state.partyRevealStep<7)return;
+    busy=true;
+    try{
+      const response=await invoke("party-rematch",{method:"POST",payload:{room:state.partyId}});
+      if(response.vote?.roomId)await enterPartyRoom(response.vote.roomId);
+      else await refreshPartyRoom(true);
+    }catch(e){state.message=e.message;showPartyRoom();}
+    finally{busy=false;}
+    return;
+  }
+  if(action==="party-rematch-join"){
+    const next=state.partyRoom?.rematch?.roomId;
+    if(next)await enterPartyRoom(next);
+    return;
+  }
+  if(action==="party-period"){
+    const p=button.dataset.period;
+    if(!["week","month","all"].includes(p))return;
+    state.partyPeriod=p;state.partyRivalry=null;
+    try{
+      const result=await invoke("party-season",{query:"period="+encodeURIComponent(p)});
+      state.partySeason=Array.isArray(result.standings)?result.standings:[];
+      showMenu();
+    }catch(e){state.message=e.message;showMenu();}
+    return;
+  }
+  if(action==="party-rival"){
+    const opponent=button.dataset.opponent;
+    if(!opponent||opponent===state.user?.id)return;
+    try{
+      const result=await invoke("party-rivalry",{query:"opponent="+encodeURIComponent(opponent)});
+      state.partyRivalry=result.rivalry;
+      showMenu();
+    }catch(e){state.message=e.message;showMenu();}
+    return;
+  }
   if(action==="party-start"){
     if(!state.partyId||state.partyRoom?.host!==state.user?.id)return;
     busy=true;
@@ -928,6 +992,7 @@ async function handleClick(event) {
   }
   if(action==="party-leave"){
     stopPartyPolling();
+    await reloadPartyCompetition().catch(()=>{});
     state.partyRevealStep=-1;showMenu();return;
   }
   if(action==="party-copy"){
@@ -1033,7 +1098,12 @@ async function handleClick(event) {
     }catch(e){showError(e,"Purchase status unavailable")}
     finally{busy=false;}
   }
-  if (action==="menu") {state.rejected=null;await Promise.all([reloadBoard(),reloadProfile(),reloadLeagues(),reloadCapabilities()]).catch(()=>{});showMenu();}
+  if (action==="menu") {
+    state.rejected=null;
+    await Promise.all([reloadBoard(),reloadProfile(),reloadLeagues(),reloadCapabilities()]).catch(()=>{});
+    await reloadPartyCompetition().catch(()=>{});
+    showMenu();
+  }
   if (action==="next") await advance();
   if (action==="pick") await submitAnswer(button.dataset.answer);
   if (action==="skip") await submitAnswer(null);
