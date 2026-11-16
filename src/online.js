@@ -557,7 +557,7 @@ function showMenu() {
   const signedIn=Boolean(state.user);
   const heading='<div class="online-heading"><span class="eyebrow">THE COMPETITIVE LEAGUE</span>'+
    '<h1>PLAY WITH <span class="gradient-text">THE WORLD.</span></h1>'+
-   '<p class="muted">One official seven-question run per day. Verified global scores, lifetime rankings, and a $4.99 lifetime unlimited unlock.</p></div>';
+   '<p class="muted">Explore protected player profiles, private leagues and the seven-question format. Official ranked play and private rooms activate only when their separately reviewed banks are ready. No payment is required for guest play.</p></div>';
   const rankedReady=state.capabilities?.rankedReady===true;
   const paymentReady=state.capabilities?.paymentReady===true;
   const isTestCheckout=state.capabilities?.paymentMode==="test";
