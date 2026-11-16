@@ -55,7 +55,7 @@ GitHub Pages deployments are verified through the repository's Actions workflow.
 
 **Mobile and QA:** Ready-up controls, active-player indicators, match history, private season tables and unanimous rematch decisions use responsive layouts. Postgres CI covers room authorization, server deadlines, tied scores, roster consent, scope-limited match history and duplicates. The real 10–20-person cross-device beta remains an owner-run acceptance step.
 
-**Activation status:** GitHub Pages serves the guest experience. Remote rooms are **not live by this commit**: configure Supabase credentials (public URL and publishable key only), deploy the Edge Function and migration 020, separately source-review/import an exhibition bank, and run real-device tests. Do not put service keys or private invitations in GitHub.
+**Activation status:** GitHub Pages serves the guest experience. Remote rooms are **not live by this commit**: configure Supabase credentials (public URL and publishable key only), deploy the Edge Function and migrations 020–021, separately source-review/import an exhibition bank, and run real-device tests. Do not put service keys or private invitations in GitHub.
 
 See [v1.9 source, API, privacy and deployment guide](docs/V19_COMPETITION_QA.md).
 
