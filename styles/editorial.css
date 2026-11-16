@@ -1505,3 +1505,21 @@ a{color:var(--lime)}
   .party-rivalry-day{grid-template-columns:minmax(0,1fr) auto;gap:6px}
   .party-rivalry-day strong{grid-column:2}
 }
+
+/* OUTLIER hosted game-night launch: invitation tools and seven-step pacing. */
+.party-invite-actions{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0 18px}
+.party-invite-actions .btn{white-space:normal;min-width:160px}
+.party-round-track{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:7px;
+  margin:18px 0 20px}
+.party-round-step{display:grid;place-items:center;min-width:0;min-height:35px;
+  border:1px solid var(--line);background:var(--panel2);color:var(--muted);
+  font:700 12px 'DM Mono',monospace}
+.party-round-step.is-complete{border-color:var(--lime);color:var(--lime)}
+.party-round-step.is-current{border:2px solid var(--lime);background:var(--lime);color:var(--ink)}
+.online-party-room-actions~.online-notice,.online-party-head~.online-notice{overflow-wrap:anywhere}
+@media(max-width:650px){
+  .party-invite-actions{display:grid;grid-template-columns:1fr}
+  .party-invite-actions .btn{width:100%}
+  .party-round-track{gap:4px}
+  .party-round-step{min-height:30px;font-size:11px}
+}
