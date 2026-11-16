@@ -2,6 +2,7 @@ import {rarityTier} from "./answer-intelligence.js";
 import {readLeagueInvite,leagueInviteLink,removeLeagueInvite,officialShareMessage,comparisonLabel} from "./community.js";
 import { ONLINE_ENABLED, SUPABASE_URL, SUPABASE_ANON_KEY } from "./online-config.js";
 import { dailyDebrief, weeklyCup } from "./v13-discovery.js";
+import {privateTitle,privateSeasonLeaders,cleanRivalryTimeline} from "./party-competition.js";
 import {readRoomInvite,roomInviteUrl,roomSecondsRemaining,roomWinnerRows,
   ROOM_RECOVERY_KEY,roomRecoveryRecord,readRoomRecovery,retryDelayMs,roomConnectivityError} from "./online-room.js";
 
@@ -305,13 +306,15 @@ function showRivalry() {
 function partyCompetitionPanel() {
   if(!state.user||state.capabilities?.partyReady!==true)return "";
   const rows=Array.isArray(state.partyHistory)?state.partyHistory.slice(0,8):[];
-  const season=Array.isArray(state.partySeason)?state.partySeason:[];
+  const season=privateSeasonLeaders(state.partySeason);
+  const lifetime=Array.isArray(state.partyLifetime)?state.partyLifetime:[];
   const period=state.partyPeriod||"month";
   const filters=[["week","THIS WEEK"],["month","THIS MONTH"],["all","ALL TIME"]];
   const tabs=filters.map(([key,label])=>
     act("party-period",label,"btn-outline"+(period===key?" active":""),
       'data-period="'+key+'" aria-pressed="'+(period===key)+'"')).join("");
   const rivalry=state.partyRivalry;
+  const recent=cleanRivalryTimeline(rivalry?.recent);
   return '<section class="card private-season" aria-label="Verified private match history">'+
     '<div class="eyebrow">FRIENDS-ONLY / VERIFIED ROOM RESULTS</div>'+
     '<h3>THE INNER CIRCLE RECORD BOOK.</h3>'+
@@ -323,12 +326,19 @@ function partyCompetitionPanel() {
         '<div class="private-season-row"><span>'+
           (p.id===state.user.id?'<strong>YOU</strong>':act("party-rival",escape(p.name),"btn-ghost",
             'data-opponent="'+escape(p.id)+'" aria-label="Your verified rivalry with '+escape(p.name)+'"'))+
+          (p.seasonLeader?'<small class="season-top-tag">★ PERIOD LEADER</small>':'')+
+          '<small class="season-title">'+escape(privateTitle(lifetime.find(x=>x.id===p.id)?.wins||0).name)+'</small>'+
           '</span><strong>'+number(p.wins)+'</strong><span>'+number(p.ties)+'</span>'+
           '<span>'+number(p.losses)+'</span><strong>'+number(p.points)+'</strong></div>').join(""):
       '<p class="small muted">No finished private games in this period yet.</p>')+'</div>'+
     (rivalry?'<div class="party-rivalry-verified" role="status"><strong>YOUR ROOM RIVALRY</strong>'+
       '<p>'+number(rivalry.wins)+' WINS · '+number(rivalry.ties)+' TIES · '+
-      number(rivalry.losses)+' LOSSES · '+number(rivalry.shared)+' SHARED MATCHES</p></div>':'')+
+      number(rivalry.losses)+' LOSSES · '+number(rivalry.shared)+' SHARED MATCHES</p>'+
+      (recent.length?'<h5>RECENT VERIFIED HEAD-TO-HEAD MATCHES</h5>'+
+        recent.map(item=>'<div class="party-rivalry-day"><span>'+
+          escape(new Date(item.startedAt).toLocaleDateString("en-US"))+'</span><b>'+
+          number(item.you)+' — '+number(item.them)+'</b><strong>'+
+          escape(item.outcome.toUpperCase())+'</strong></div>').join(""):'')+'</div>':'')+
     '<h4>MATCH JOURNAL</h4>'+
     (rows.length?rows.map(row=>
       '<div class="private-history-row"><span>'+escape(new Date(row.startedAt).toLocaleDateString("en-US"))+
@@ -341,12 +351,14 @@ function partyCompetitionPanel() {
 }
 async function reloadPartyCompetition() {
   if(!state.user||state.capabilities?.partyReady!==true)return;
-  const [history,season]=await Promise.all([
+  const [history,season,allTime]=await Promise.all([
     invoke("party-history"),
-    invoke("party-season",{query:"period="+encodeURIComponent(state.partyPeriod||"month")})
+    invoke("party-season",{query:"period="+encodeURIComponent(state.partyPeriod||"month")}),
+    invoke("party-season",{query:"period=all"})
   ]);
   state.partyHistory=Array.isArray(history.history)?history.history:[];
   state.partySeason=Array.isArray(season.standings)?season.standings:[];
+  state.partyLifetime=Array.isArray(allTime.standings)?allTime.standings:[];
 }
 function partyRoomPanel() {
   if(!state.user)return '<div class="card online-party-panel"><div class="eyebrow">PRIVATE ROOM COMPETITION</div>'+
@@ -1222,7 +1234,7 @@ export async function mountOnline(element, back) {
     pendingRoomCode:readRoomInvite(window.location.search),partyId:null,partyRoom:null,
     partyReceivedAt:0,partySignature:null,partyRevealStep:-1,
     partyOffline:false,partyFailureCount:0,partyLastFailureAt:0,partyError:null,
-    partyHistory:[],partySeason:[],partyPeriod:"month",partyRivalry:null,
+    partyHistory:[],partySeason:[],partyLifetime:[],partyPeriod:"month",partyRivalry:null,
     error:null,message:null,sent:false};
   showBusy();
   if (!ONLINE_ENABLED) {
