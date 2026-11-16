@@ -1,5 +1,7 @@
 # OUTLIER — Outthink the crowd
 
+> **v1.10 GAME NIGHT 2.0 (SOURCE RELEASE; LIVE QA PENDING):** Adds hosted room rules (20/30/45/60/90-second rounds, 1/3/5-game championships), authenticated player category votes, server-controlled rematch chains, private achievements, a cumulative seven-round highlight timeline and shareable name-free scorecards. The exhibition export now audits **130 questions: 88 Stand Out + 42 Fit In, with 46,797 approved rare-answer slots**. Server changes are in `supabase/migrations/20261116000100_v110_game_night.sql`; hosted activation requires that migration, the updated Edge Function and a reviewed import on the owner's existing Supabase project. **Do not claim real cross-device or human beta verification until those tests occur.** [Implementation and deployment runbook](docs/V110_GAME_NIGHT_2.md).
+
 > **v1.9.3 HOSTED EXHIBITION CONTENT ACTIVATED (NOVEMBER 16, 2026):** The owner-linked Supabase project now contains **18 separately scoped archived CC0 Stand Out prompts and 10 original editorial-weight Fit In prompts** (9,748 accepted Stand Out slots). One real account has been registered; a transaction-only room-create/state smoke test passed and left no room behind. Browser gameplay now includes improved invite sharing, visible copy feedback, and a seven-step round tracker. This **does not constitute a completed two-account/two-device match or a human beta**: real email redirects, invitations, readiness, timed submissions, reconnects and final scoring still need human verification. Official ranked daily content and Stripe remain inactive. [Launch and verification checklist](docs/V193_HOSTED_EXHIBITION_ACTIVATION.md).
 
 **A playable, mobile-friendly daily general-knowledge game.** Seven questions, two mindsets: find a rare correct answer in **Stand Out**, then predict the most popular answer in **Fit In**.
@@ -48,6 +50,20 @@ The browser must load the site over HTTP, not the file protocol, because the gam
 4. Once GitHub finishes deploying, the expected URL is **https://dokeefe414.github.io/Outlier-Trivia/**.
 
 GitHub Pages deployments are verified through the repository's Actions workflow. Check the latest deployment run if you are testing a newly merged release.
+
+## v1.10 — Game Night 2.0
+
+OUTLIER expands private, unranked multiplayer into a replayable social championship while keeping the free guest daily, Big List and local Pass & Play independent.
+
+- **Host-owned room rules:** the host chooses a 20/30/45/60/90-second server timer and a 1/3/5-game championship. Lobby rule changes clear all ready confirmations; nobody can change an active match.
+- **Category voting:** each authenticated room member can choose a theme. The server counts one vote per member, resolves ties consistently, and prioritizes that theme when drawing the four Stand Out prompts. Any changed vote requires everyone to re-ready.
+- **Real championship records:** the established unanimous rematch system now carries only rule settings and series identity into a fresh waiting room, never previous answers, votes or readiness. The server reports win-first and cumulative-point standings after each finished match.
+- **Stronger final reveal:** the existing seven-stage reveal gains round-by-round cumulative scores, the biggest accepted rare answer, lead changes, photo finishes and comebacks. Scores remain secret until the server's shared clock ends.
+- **Private account mastery:** six earned milestones and completed-room career statistics, separate from official daily rankings and guest activity. Shareable scorecards omit names, guesses, secrets, room codes and player IDs.
+- **Content breadth:** the reviewed exhibition generator now yields **130 source-bounded questions: 88 rare + 42 editorial Fit In**, with **46,797 rare answer slots**. All prompts stay unranked; Fit In weights are fictionally authored, not measured player survey results. Source archives and licenses are documented.
+- **QA and documentation:** CI tests additional room timers, category voting, readiness resets, three-game rematches, privacy grants, content imports, JavaScript behavior and desktop/mobile smoke. Actual two-account cross-device testing and a consenting human beta remain mandatory launch gates.
+
+[Detailed v1.10 architecture, Supabase operations and QA](docs/V110_GAME_NIGHT_2.md) · [Human acceptance checklist](https://github.com/dokeefe414/Outlier-Trivia/issues/17).
 
 ## v1.9.3 — Hosted Game-Night Content and Invite Polish
 
