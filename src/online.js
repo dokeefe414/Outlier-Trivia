@@ -421,7 +421,7 @@ async function refreshPartyRoom(force=false) {
     const signature=JSON.stringify([room.phase,room.players?.map(p=>[p.id,p.ready,p.active]),
       room.question?.index,room.question?.submitted,room.scores?.length,
       room.rematch?.votes,room.rematch?.roomId,room.startedAt,
-      room.roundSeconds,room.seriesLength,room.seriesGame,room.selectedTheme,
+      room.roundSeconds,room.targetPlayers,room.seriesLength,room.seriesGame,room.selectedTheme,
       room.myTheme,room.themeVotes,room.series?.played]);
     const offlineWas=state.partyOffline;
     state.partyRoom=room;state.partyReceivedAt=Date.now();
@@ -493,14 +493,15 @@ function showPartyRoom() {
     '</div>').join("");
   const roster='<div class="online-party-roster">'+people+'</div>';
   const rules='<div class="party-rule-banner" role="status">'+
-    '<span>'+number(r.roundSeconds||45)+' SEC / ROUND</span>'+
+    '<span>'+number(r.roundSeconds||45)+' SEC / ROUND</span>'+ 
+    '<span>'+number(r.targetPlayers||2)+' PLAYERS TO START</span>'+
     '<span>GAME '+number(r.seriesGame||1)+' OF '+number(r.seriesLength||1)+'</span>'+
     '<span>THEME '+escape(r.selectedTheme||"MIXED")+'</span></div>';
   let body='';
   if(r.phase==="waiting"){
     const me=(r.players||[]).find(p=>p.id===state.user?.id);
     const readyCount=(r.players||[]).filter(p=>p.ready).length;
-    const allReady=(r.players||[]).length>=2&&readyCount===r.players.length;
+    const allReady=(r.players||[]).length===Number(r.targetPlayers||2)&&readyCount===r.players.length;
     const votes=Array.isArray(r.themeVotes)?r.themeVotes:[];
     const themePanel='<section class="party-theme-panel" aria-label="Vote for a topic">'+
       '<h4>VOTE FOR THE SHOWDOWN THEME</h4>'+
@@ -526,12 +527,20 @@ function showPartyRoom() {
           (n===1?' GAME':' GAMES')+'</option>').join("")+'</select>'+
       '<button class="btn btn-outline" type="submit">SAVE GAME RULES</button>'+
       '<p class="tiny muted">Changing the rules clears all ready confirmations. Every player must agree again.</p></form>':'';
-    body='<div class="card online-party-waiting"><div class="eyebrow">LOBBY · '+(r.players||[]).length+'/4 PLAYERS</div>'+rules+
-      '<h3>BRING THE CREW.</h3><p class="small muted">Share your invite. Every player must explicitly mark READY. The host can start only after all 2–4 participants agree. Presence is based on a recent server ping, not a permanent connection.</p>'+
+    const capacityPanel=r.host===state.user?.id?
+      '<form data-form="party-target" class="party-settings-form">'+
+      '<h4>ROOM CAPACITY</h4><label for="party-player-setting">PLAYERS REQUIRED</label>'+
+      '<select class="answer-input" id="party-player-setting">'+
+      [2,3,4].map(n=>'<option value="'+n+'" '+
+        (Number(r.targetPlayers||2)===n?'selected':'')+'>'+n+' PLAYERS</option>').join('')+
+      '</select><button class="btn btn-outline" type="submit">SAVE PLAYER COUNT</button>'+
+      '<p class="tiny muted">You cannot reduce capacity below the number already in the room. Any change clears READY confirmations.</p></form>':'';
+    body='<div class="card online-party-waiting"><div class="eyebrow">LOBBY · '+(r.players||[]).length+'/'+number(r.targetPlayers||2)+' PLAYERS</div>'+rules+
+      '<h3>BRING THE CREW.</h3><p class="small muted">Share your invite. Every player must explicitly mark READY. The host starts only when the chosen 2–4-player room is full and everyone agrees. Presence is based on a recent server ping, not a permanent connection.</p>'+
       '<div class="party-invite-code">'+escape(r.code||"")+'</div>'+
       '<div class="party-invite-actions">'+
       act("party-copy","COPY INVITE LINK","btn-primary")+
-      act("party-share","SHARE INVITE ↗","btn-teal")+'</div>'+roster+configPanel+themePanel+
+      act("party-share","SHARE INVITE ↗","btn-teal")+'</div>'+roster+capacityPanel+configPanel+themePanel+
       '<p class="party-ready-counter" role="status">'+readyCount+' OF '+r.players.length+' READY</p>'+
       act("party-ready",me?.ready?'I AM NOT READY':'I AM READY ✓',
         me?.ready?'btn-outline':'btn-primary',
@@ -1277,6 +1286,20 @@ async function handleSubmit(event) {
   if (form.dataset.form==="answer") return submitAnswer(container.querySelector("#online-answer")?.value?.trim()||null);
   if (form.dataset.form==="party-answer")
     return submitPartyAnswer(container.querySelector("#online-party-answer")?.value?.trim()||null);
+  if(form.dataset.form==="party-target"){
+    if(!state.partyId||state.partyRoom?.phase!=="waiting"||
+      state.partyRoom?.host!==state.user?.id)return;
+    const target=Number(container.querySelector("#party-player-setting")?.value);
+    if(![2,3,4].includes(target))return;
+    busy=true;
+    try{
+      await invoke("party-target",{method:"POST",payload:{room:state.partyId,target}});
+      state.message="Player count saved. Everyone must mark READY again.";
+      await refreshPartyRoom(true);
+    }catch(e){state.message=e.message;showPartyRoom();}
+    finally{busy=false;}
+    return;
+  }
   if(form.dataset.form==="party-config"){
     if(!state.partyId||state.partyRoom?.phase!=="waiting"||
       state.partyRoom?.host!==state.user?.id)return;
