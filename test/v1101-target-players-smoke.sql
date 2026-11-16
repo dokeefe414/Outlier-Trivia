@@ -7,6 +7,7 @@ declare
  second uuid:='b3333333-3333-4333-8333-333333333333';
  fourth uuid:='b4444444-4444-4444-8444-444444444444';
  room jsonb; v_room uuid; state jsonb; proposed jsonb; followup uuid;
+ room_four jsonb; id_four uuid;
 begin
  insert into auth.users(id,email) values
   (host,'v1101-host@example.test'),(first,'v1101-guest1@example.test'),
@@ -70,6 +71,29 @@ begin
    raise exception 'Rematch changed target roster: %',state;end if;
  if exists(select 1 from public.outlier_party_members where room_id=followup and ready)
  then raise exception 'Rematch inherited ready states';end if;
+ -- A separate four-player room requires all four distinct authenticated
+ -- members, even when the host and the first two players have marked READY.
+ room_four:=public.outlier_party_create(host);
+ id_four:=(room_four->>'id')::uuid;
+ perform public.outlier_party_target(host,id_four,4);
+ perform public.outlier_party_join(first,room_four->>'code');
+ perform public.outlier_party_join(second,room_four->>'code');
+ perform public.outlier_party_ready(host,id_four,true);
+ perform public.outlier_party_ready(first,id_four,true);
+ perform public.outlier_party_ready(second,id_four,true);
+ begin
+  perform public.outlier_party_start(host,id_four);
+  raise exception 'Started 4-person room with only three players';
+ exception when others then
+  if sqlerrm='Started 4-person room with only three players'
+    or position('party_need_target_players' in sqlerrm)=0 then raise;end if;
+ end;
+ perform public.outlier_party_join(fourth,room_four->>'code');
+ perform public.outlier_party_ready(fourth,id_four,true);
+ select public.outlier_party_start(host,id_four) into state;
+ if state->>'targetPlayers'<>'4' or jsonb_array_length(state->'players')<>4
+    or state->>'phase'<>'countdown' then
+  raise exception 'Four-player exact-target start failed';end if;
  if has_function_privilege('anon','public.outlier_party_target(uuid,uuid,integer)','EXECUTE')
     or has_function_privilege('authenticated','public.outlier_party_target(uuid,uuid,integer)','EXECUTE')
     or not has_function_privilege('service_role','public.outlier_party_target(uuid,uuid,integer)','EXECUTE')
