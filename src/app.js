@@ -694,7 +694,7 @@ function renderHome() {
   const played = Boolean(record?.complete);
   const started = Boolean(record?.answers?.length || record?.deadline);
   const action = ONLINE_ENABLED ? "online" : played ? "result" : "daily";
-  const actionLabel = ONLINE_ENABLED ? "COMPETE ONLINE TODAY →" : played ? "VIEW TODAY'S RESULTS ↗" : started ? "CONTINUE TODAY'S GAME →" : "PLAY TODAY'S GAME →";
+  const actionLabel = ONLINE_ENABLED ? "EXPLORE ONLINE BETA →" : played ? "VIEW TODAY'S RESULTS ↗" : started ? "CONTINUE TODAY'S GAME →" : "PLAY TODAY'S GAME →";
   applyTheme();
   app.innerHTML = [
     '<section class="hero hero-editorial"><div class="hero-copy">',
@@ -740,10 +740,10 @@ function renderHome() {
     '<section class="promo"><div><span class="pill pill-purple" style="margin-bottom:13px">' +
       (ONLINE_ENABLED ? 'ONLINE LEAGUE' : 'COMING AFTER THE PROTOTYPE') + '</span>',
     '<h3>WANT ANOTHER ROUND?</h3><p>' + (ONLINE_ENABLED ?
-      'Compete on global leaderboards. Unlimited ranked-independent practice is a lifetime unlock.' :
+      'Explore account-protected online features. Hosted ranked play and private matches become playable only when their separate question banks are ready.' :
       'Unlimited rounds, categories, and verified global competition are planned. Practice is temporarily free for prototype testing.') +
       '</p></div>',
-    '<div class="promo-price">$4.99<small>ONE TIME · ' + (ONLINE_ENABLED ? 'ONLINE CHECKOUT' : 'NOT ACTIVE YET') + '</small></div>' +
+    '<div class="promo-price">' + (ONLINE_ENABLED ? 'FREE<small>GUEST PLAY · ACCOUNT BETA</small>' : '$4.99<small>ONE TIME · NOT ACTIVE YET</small>') + '</div>' +
       (ONLINE_ENABLED ? '<div>' + homeButton('JOIN THE LEAGUE →','online','btn-teal') + '</div>' : '') +
       '</section>'
   ].join("");
