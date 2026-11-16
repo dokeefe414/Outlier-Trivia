@@ -365,17 +365,17 @@ end $$;
 
 -- Protect entry points from ordinary browser SQL/PostgREST access.
 revoke all on function public.outlier_party_ready(uuid,uuid,boolean),
-  function public.outlier_party_leave(uuid,uuid),
-  function public.outlier_party_vote_rematch(uuid,uuid),
-  function public.outlier_party_history(uuid,int),
-  function public.outlier_party_season(uuid,text),
-  function public.outlier_party_rivalry(uuid,uuid) from public,anon,authenticated;
+  public.outlier_party_leave(uuid,uuid),
+  public.outlier_party_vote_rematch(uuid,uuid),
+  public.outlier_party_history(uuid,int),
+  public.outlier_party_season(uuid,text),
+  public.outlier_party_rivalry(uuid,uuid) from public,anon,authenticated;
 grant execute on function public.outlier_party_ready(uuid,uuid,boolean),
-  function public.outlier_party_leave(uuid,uuid),
-  function public.outlier_party_vote_rematch(uuid,uuid),
-  function public.outlier_party_history(uuid,int),
-  function public.outlier_party_season(uuid,text),
-  function public.outlier_party_rivalry(uuid,uuid) to service_role;
+  public.outlier_party_leave(uuid,uuid),
+  public.outlier_party_vote_rematch(uuid,uuid),
+  public.outlier_party_history(uuid,int),
+  public.outlier_party_season(uuid,text),
+  public.outlier_party_rivalry(uuid,uuid) to service_role;
 -- The existing start/state endpoints stay service_role-only under replacement.
 create or replace function public.outlier_request_budget(
   p_user uuid,p_action text,p_max integer,p_window_seconds integer
