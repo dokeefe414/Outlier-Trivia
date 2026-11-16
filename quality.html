@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta http-equiv="Referrer-Policy" content="no-referrer">
+<meta name="theme-color" content="#111729">
+<title>OUTLIER • Public Answer Quality Monitor</title>
+<link rel="icon" href="./favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="./admin.css">
+<style>
+.qa-intro{max-width:920px}.qa-intro h1{font-size:clamp(27px,5vw,47px);line-height:1.1}
+.qa-note{font-size:14px;line-height:1.65;color:#b9c5cf;max-width:850px}
+.qa-layout{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin:24px 0}
+.qa-layout .panel{min-width:0;margin:0}
+.qa-table{width:100%;border-collapse:collapse;font-size:12px}
+.qa-table td,.qa-table th{padding:11px 8px;text-align:left;border-bottom:1px solid #444c60;word-break:break-word}
+.qa-table th{font:700 11px monospace;letter-spacing:.04em;color:#b5c5d4}
+.qa-table td:not(:first-child),.qa-table th:not(:first-child){text-align:right}
+.qa-table tbody tr:hover{background:#242e3f}
+.qa-scroll{overflow-x:auto}
+.qa-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:15px 0}
+.qa-controls label{font-size:12px}
+.qa-controls select{max-width:200px;min-height:40px}
+.qa-links{display:flex;gap:12px;flex-wrap:wrap;margin-top:18px}
+.qa-links a{color:#bde75d;text-decoration:underline}
+.qa-alert{border-left:4px solid #ecac82;padding:12px;background:#332b34}
+.qa-ok{border-left:4px solid #bde75d;padding:12px;background:#233b30}
+.qa-card{background:#151c2d;padding:10px;margin:8px 0;line-height:1.5;font-size:13px}
+#qa-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:20px 0}
+#qa-summary>div{border:1px solid #454c61;padding:16px;min-width:0}
+#qa-summary span,#qa-summary strong{display:block}
+#qa-summary strong{font-size:clamp(19px,3vw,28px)}
+#qa-summary span{font-size:10px;text-transform:uppercase;letter-spacing:.06em}
+@media(max-width:850px){.qa-layout{grid-template-columns:1fr}#qa-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:400px){#qa-summary{grid-template-columns:1fr}}
+</style>
+</head><body>
+<header class="top"><div class="brand"><span class="mark">✦</span><span>OUTLIER <small>PUBLIC ANSWER QA</small></span></div><a href="./">← BACK TO GAME</a></header>
+<main>
+<section class="qa-intro">
+<span class="eyebrow">CONTENT VALIDATION / EDITORIAL REVIEW</span>
+<h1>HOW STRONG IS THE ANSWER LIBRARY?</h1>
+<p class="qa-note">This developer-facing dashboard examines <strong>only the published, public prototype catalog</strong>.
+It does not inspect private ranked questions, player accounts, live hosted rooms or secret credentials.
+Answer-slot counts are not unique world facts. Editorial scores are not empirical player probabilities.</p>
+<div class="qa-links">
+<a href="./admin.html">Owner-only hosted review studio</a>
+<a href="https://github.com/dokeefe414/Outlier-Trivia/issues?q=is%3Aissue%20is%3Aopen" target="_blank" rel="noopener noreferrer">Open answer disputes</a>
+<a href="./docs/V19_COMPETITION_QA.md">v1.9 verification and source guide</a>
+</div>
+</section>
+<p id="qa-status" class="status" role="status" aria-live="polite">Auditing published answer and alias records…</p>
+<div id="qa-summary" aria-label="Public content quality totals"></div>
+<section class="qa-layout">
+<div class="panel"><h2>Category coverage</h2>
+<p class="qa-note">A category can appear in more than one question. Archived reference lists may overlap.</p>
+<div class="qa-scroll"><table class="qa-table"><thead><tr><th>GROUP</th><th>STAND OUT</th><th>ANSWER SLOTS</th><th>ALIASES</th></tr></thead><tbody id="qa-categories"></tbody></table></div>
+</div>
+<div class="panel"><h2>Largest approved prompts</h2>
+<div class="qa-controls"><label for="qa-filter">Filter group</label><select id="qa-filter"><option value="all">All categories</option></select></div>
+<div class="qa-scroll"><table class="qa-table"><thead><tr><th>QUESTION ID</th><th>ANSWER SLOTS</th></tr></thead><tbody id="qa-prompts"></tbody></table></div>
+</div>
+</section>
+<section class="panel"><h2>Editorial integrity alerts</h2>
+<div id="qa-warnings"></div>
+<p class="qa-note">A clean scan means no *structural* errors were found, not that every proposed name is factually eligible.
+Verify the prompt's exact licensed historical source and date before accepting a reported answer.
+Review decisions do not retroactively modify completed games.</p>
+<button id="qa-copy" type="button">COPY AGGREGATED QA REPORT</button>
+</section>
+</main>
+<footer>OUTLIER • No user analytics, identifiers or secret answer banks are loaded on this page.</footer>
+<script type="module" src="./src/quality.js"></script>
+</body></html>
