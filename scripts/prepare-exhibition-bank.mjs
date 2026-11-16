@@ -8,9 +8,9 @@ const questions=buildExhibitionBank();
 const totals={rare:questions.filter(x=>x.kind==="rare").length,
   fit:questions.filter(x=>x.kind==="fit").length,
   canonical:questions.reduce((sum,q)=>sum+(q.answers?.length||0),0)};
-if(totals.rare<4||totals.fit<3)throw new Error("Not enough source-checked game-night prompts");
+if(totals.rare<58||totals.fit<42||questions.length<100)throw new Error("Not enough source-checked game-night prompts");
 console.log("OUTLIER exhibition audit:",JSON.stringify(totals));
-console.log("All rare prompts are from the separately scoped v1.6 CC0 arcadeOnly catalog.");
+console.log("Rare prompts use complete source-bounded archived, unranked atlas sets; see attribution in each question.");
 console.log("All Fit In weights are author-defined examples, NOT player survey results.");
 if(process.argv.includes("--audit"))process.exit(0);
 const path=resolve("private/generated-exhibition-import.sql");
@@ -23,7 +23,7 @@ const fields=questions.map(q=>[
  quote(JSON.stringify(q.choices||[]))+"::jsonb"
 ].join(",")).map(row=>"("+row+")");
 const sql="-- OWNER-REVIEWED EXHIBITION QUESTIONS. NOT RANKED DAILY ANSWER KEYS.\n"+
- "-- Source scopes: docs/V16_UNIVERSAL_ANSWER_ATLAS.md; Fit In values are editorial examples.\n"+
+ "-- Source scopes: docs/V16_UNIVERSAL_ANSWER_ATLAS.md and docs/OPEN_ANSWER_ATLAS.md; Fit In values are fictional editorial examples.\n"+
  "begin;\ninsert into private.outlier_party_question_bank"+
  "(id,kind,category,prompt,detail,answers,choices) values\n"+
  fields.join(",\n")+"\non conflict(id) do nothing;\ncommit;\n";

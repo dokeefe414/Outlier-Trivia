@@ -153,18 +153,22 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f test/v19-release-gates-smoke.sql
       - name: Preserve distinct programming-language aliases in hosted scoring
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261112002100_v19_exhibition_normalization.sql
-      - name: Generate and validate a disposable source-backed 28-prompt exhibition import
+      - name: Apply v1.10 server-owned game-night configuration and series
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261116000100_v110_game_night.sql
+      - name: Generate and validate source-backed 100-plus-prompt exhibition import
         run: |
           node scripts/prepare-exhibition-bank.mjs
           psql -v ON_ERROR_STOP=1 -f private/generated-exhibition-import.sql
           RARE=$(psql -v ON_ERROR_STOP=1 -Atc "select count(*) from private.outlier_party_question_bank where id like 'exhibition_%' and kind='rare'")
           FIT=$(psql -v ON_ERROR_STOP=1 -Atc "select count(*) from private.outlier_party_question_bank where id like 'v19-exhibition-fit-%' and kind='fit'")
           INVALID=$(psql -v ON_ERROR_STOP=1 -Atc "select count(*) from private.outlier_party_question_bank where (id like 'exhibition_%' or id like 'v19-exhibition-fit-%') and not private.outlier_ranked_row_valid(kind,answers,choices)")
-          echo "Exhibition database validation: rare=$RARE fit=$FIT invalid=$INVALID (expected 18/10/0)"
-          if [ "$RARE" -ne 18 ] || [ "$FIT" -ne 10 ] || [ "$INVALID" -ne 0 ]; then
+          echo "Exhibition database validation: rare=$RARE fit=$FIT invalid=$INVALID (>=58 rare, >=42 fit, >=100 total)"
+          if [ "$RARE" -lt 58 ] || [ "$FIT" -lt 42 ] || [ "$((RARE+FIT))" -lt 100 ] || [ "$INVALID" -ne 0 ]; then
             psql -v ON_ERROR_STOP=1 -Atc "select id,kind from private.outlier_party_question_bank where (id like 'exhibition_%' or id like 'v19-exhibition-fit-%') and not private.outlier_ranked_row_valid(kind,answers,choices)"
             exit 1
           fi
+      - name: Test v1.10 timers, theme votes, series and private mastery
+        run: psql -v ON_ERROR_STOP=1 -f test/v110-game-night-smoke.sql
 
   browser-e2e:
     name: Desktop and mobile browser smoke
