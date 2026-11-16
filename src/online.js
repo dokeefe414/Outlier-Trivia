@@ -9,6 +9,7 @@ import {readRoomInvite,roomInviteUrl,roomSecondsRemaining,roomWinnerRows,
 const escape = value => String(value ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const number = value => Number(value ?? 0).toLocaleString("en-US");
 let container, onBack, supabase, state, timer, busy = false;
+let authSubscription=null;
 let partyPolling=null,partyTicker=null,partyRefreshing=false;
 function saveRoomRecovery() {
   if(!state?.user?.id||!state.partyId)return;
@@ -880,7 +881,7 @@ async function handleClick(event) {
   const button=event.target.closest("[data-online]");
   if (!button || !container.contains(button)) return;
   const action=button.dataset.online;
-  if (action==="back") {stopTimer();stopPartyPolling();container.onclick=null;container.onsubmit=null;window.removeEventListener("keydown",onKeydown);onBack();return;}
+  if (action==="back") {stopTimer();stopPartyPolling();authSubscription?.unsubscribe();authSubscription=null;container.onclick=null;container.onsubmit=null;window.removeEventListener("keydown",onKeydown);onBack();return;}
   if (busy) return;
   if (action==="crowd-consent") {
     busy=true;
@@ -1272,7 +1273,8 @@ export async function mountOnline(element, back) {
     state.user=data?.user??null;
     // This is UX defense in depth. Server-side Edge routes independently
     // verify every user token; hiding controls is never our authorization.
-    supabase.auth.onAuthStateChange((event,session)=>{
+    authSubscription?.unsubscribe();
+    const {data:{subscription}}=supabase.auth.onAuthStateChange((event,session)=>{
       if(event==="SIGNED_OUT"){
         stopTimer();stopPartyPolling();clearRoomRecovery();
         state.user=null;state.profile=null;state.game=null;state.partyId=null;
@@ -1291,6 +1293,7 @@ export async function mountOnline(element, back) {
         }).catch(error=>{state.error=error.message;showMenu();});
       }
     });
+    authSubscription=subscription;
     if (state.user) await Promise.all([reloadProfile(),reloadLeagues()]);
     await Promise.all([reloadBoard(),reloadCapabilities()]);
     if(state.user)await reloadPartyCompetition().catch(error=>{
