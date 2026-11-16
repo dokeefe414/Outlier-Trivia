@@ -1,6 +1,6 @@
 {
   "name": "outlier-trivia",
-  "version": "1.9.2",
+  "version": "1.9.3",
   "private": true,
   "type": "module",
   "description": "OUTLIER daily rarity and crowd prediction trivia with optional hosted league",
