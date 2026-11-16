@@ -1,5 +1,7 @@
 # OUTLIER — Outthink the crowd
 
+> **v1.10.1 PLAYER COUNT UPGRADE:** Hosts can now set **2, 3 or 4 required players** for private rooms. The PostgreSQL server enforces the exact roster, refuses extra joins and cannot start a room early; changing the required count resets READY for everyone. A unanimous championship rematch preserves the chosen player limit without copying old readiness or ballots. This is an additive patch over v1.10; [the migration and test contract](docs/V110_GAME_NIGHT_2.md#v1101-host-controlled-roster-size) are documented. Human multi-device QA remains mandatory.
+
 > **v1.10 GAME NIGHT 2.0 (DEPLOYED; HUMAN BETA PENDING):** Adds hosted room rules (20/30/45/60/90-second rounds, 1/3/5-game championships), authenticated player category votes, server-controlled rematch chains, private achievements, a cumulative seven-round highlight timeline and shareable name-free scorecards. The exhibition export now audits **130 questions: 88 Stand Out + 42 Fit In, with 46,797 approved rare-answer slots**. Server changes are in `supabase/migrations/20261116000100_v110_game_night.sql`; hosted activation requires that migration, the updated Edge Function and a reviewed import on the owner's existing Supabase project. **The backend migration and Edge Function v2 are active, the 130-question bank is imported and validated in Supabase, and the merged frontend deployed successfully to GitHub Pages. This does not yet confirm a completed two-account cross-device match or human beta.** [Implementation, verification and deployment runbook](docs/V110_GAME_NIGHT_2.md).
 
 > **v1.9.3 HOSTED EXHIBITION CONTENT ACTIVATED (NOVEMBER 16, 2026):** The owner-linked Supabase project now contains **18 separately scoped archived CC0 Stand Out prompts and 10 original editorial-weight Fit In prompts** (9,748 accepted Stand Out slots). One real account has been registered; a transaction-only room-create/state smoke test passed and left no room behind. Browser gameplay now includes improved invite sharing, visible copy feedback, and a seven-step round tracker. This **does not constitute a completed two-account/two-device match or a human beta**: real email redirects, invitations, readiness, timed submissions, reconnects and final scoring still need human verification. Official ranked daily content and Stripe remain inactive. [Launch and verification checklist](docs/V193_HOSTED_EXHIBITION_ACTIVATION.md).
@@ -50,6 +52,10 @@ The browser must load the site over HTTP, not the file protocol, because the gam
 4. Once GitHub finishes deploying, the expected URL is **https://dokeefe414.github.io/Outlier-Trivia/**.
 
 GitHub Pages deployments are verified through the repository's Actions workflow. Check the latest deployment run if you are testing a newly merged release.
+
+## v1.10.1 — Host-selectable room capacity
+
+Hosts choose an exact **2-, 3-, or 4-player** target in a waiting room. The backend prevents over-capacity invitations and starting before the required roster arrives. Existing 45-second/two-player defaults remain intact; complete multi-game series carry the exact roster setting forward. This extends the earlier Game Night 2.0 release without changing official daily, guest Party or ranked scores. [Security and SQL test notes](docs/V110_GAME_NIGHT_2.md#v1101-host-controlled-roster-size).
 
 ## v1.10 — Game Night 2.0
 
