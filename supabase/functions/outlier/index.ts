@@ -89,6 +89,10 @@ function parseError(message: string): ApiError {
   if (message.includes("invalid_party_code") || message.includes("party_round_expired")) return new ApiError(400,message.slice(0,65));
   if (message.includes("party_room_limit") || message.includes("party_daily_room_limit") ||
       message.includes("party_membership_limit")) return new ApiError(429,"party_room_limit");
+  if (message.includes("invalid_party_period") || message.includes("invalid_party_opponent"))
+    return new ApiError(400,"invalid_party_filter");
+  if (message.includes("party_rematch_not_finished"))return new ApiError(409,"party_rematch_not_finished");
+  if (message.includes("party_members_not_ready"))return new ApiError(409,"party_members_not_ready");
   if (message.includes("party_room_full") || message.includes("party_need_two_to_four") ||
       message.includes("party_not_playing") || message.includes("party_already_answered"))
     return new ApiError(409,message.slice(0,65));
@@ -154,7 +158,8 @@ async function enforceBudget(userId: string, action: string) {
     "league-create":[5,86400],"league-join":[12,3600],
     "review":[5,86400],"checkout":[5,3600],"name":[8,3600],"crowd-consent":[8,86400],
     "party-create":[5,86400],"party-join":[20,3600],"party-start":[12,3600],
-    "party-answer":[30,3600]
+    "party-answer":[30,3600],"party-ready":[60,3600],
+    "party-leave":[12,3600],"party-rematch":[12,3600]
   };
   const [max,windowSeconds] = limits[action] ?? [20,3600];
   const permitted=await rpc("outlier_request_budget",{
@@ -352,7 +357,9 @@ async function handle(req: Request): Promise<Response> {
       "league-create":"league-create","league-join":"league-join",
       "review":"review","checkout":"checkout","crowd-consent":"crowd-consent",
       "party-create":"party-create","party-join":"party-join",
-      "party-start":"party-start","party-answer":"party-answer"
+      "party-start":"party-start","party-answer":"party-answer",
+      "party-ready":"party-ready","party-leave":"party-leave",
+      "party-rematch":"party-rematch"
     };
     if ((req.method==="POST" || req.method==="PATCH") && mutationBudget[action]) {
       await enforceBudget(user.id,mutationBudget[action]);
@@ -445,6 +452,46 @@ async function handle(req: Request): Promise<Response> {
         p_user:user.id,p_room:ensureUuid(url.searchParams.get("room"))
       });
       return json({room},200,origin);
+    }
+    if (action === "party-ready" && req.method === "POST") {
+      const input=await bodyJson(req);
+      if(typeof input.ready!=="boolean")throw new ApiError(400,"invalid_ready_state");
+      const result=await rpc("outlier_party_ready",{
+        p_user:user.id,p_room:ensureUuid(input.room),p_ready:input.ready
+      });
+      return json({result},200,origin);
+    }
+    if (action === "party-leave" && req.method === "POST") {
+      const input=await bodyJson(req);
+      const result=await rpc("outlier_party_leave",{
+        p_user:user.id,p_room:ensureUuid(input.room)
+      });
+      return json({result},200,origin);
+    }
+    if (action === "party-rematch" && req.method === "POST") {
+      const input=await bodyJson(req);
+      const vote=await rpc("outlier_party_vote_rematch",{
+        p_user:user.id,p_room:ensureUuid(input.room)
+      });
+      return json({vote},200,origin);
+    }
+    if (action === "party-history" && req.method === "GET") {
+      const history=await rpc("outlier_party_history",{p_user:user.id,p_limit:20});
+      return json({history},200,origin);
+    }
+    if (action === "party-season" && req.method === "GET") {
+      const period=url.searchParams.get("period")??"month";
+      if(!["month","week","all"].includes(period))throw new ApiError(400,"invalid_party_period");
+      const standings=await rpc("outlier_party_season",{p_user:user.id,p_period:period});
+      return json({standings,period},200,origin);
+    }
+    if (action === "party-rivalry" && req.method === "GET") {
+      const opponent=ensureUuid(url.searchParams.get("opponent"));
+      if(opponent===user.id)throw new ApiError(400,"invalid_party_opponent");
+      const rivalry=await rpc("outlier_party_rivalry",{
+        p_user:user.id,p_opponent:opponent
+      });
+      return json({rivalry},200,origin);
     }
     if (action === "party-answer" && req.method === "POST") {
       const input=await bodyJson(req);
