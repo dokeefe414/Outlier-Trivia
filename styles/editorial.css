@@ -1491,3 +1491,17 @@ a{color:var(--lime)}
 @media(prefers-reduced-motion:reduce){
   .party-ready-tag,.private-season-row,.party-rematch-vote{animation:none!important;transition:none!important}
 }
+
+/* Server-verified cosmetic exhibition titles and shared-match rivalry history. */
+.private-season-row>span:first-child{min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:3px}
+.season-title{font:700 9px 'DM Mono',monospace;color:var(--muted);letter-spacing:.03em}
+.season-top-tag{font:700 9px 'DM Mono',monospace;color:var(--lime)}
+.party-rivalry-day{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;
+  gap:12px;padding:10px 0;border-top:1px solid var(--line);font:500 11px 'DM Mono',monospace}
+.party-rivalry-day:first-of-type{margin-top:10px}
+.party-rivalry-day strong{color:var(--lime)}
+.party-rivalry-verified h5{font:700 10px 'DM Mono',monospace;letter-spacing:.04em;margin:15px 0 8px}
+@media(max-width:420px){
+  .party-rivalry-day{grid-template-columns:minmax(0,1fr) auto;gap:6px}
+  .party-rivalry-day strong{grid-column:2}
+}
