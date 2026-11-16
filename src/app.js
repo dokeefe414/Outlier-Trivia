@@ -702,9 +702,9 @@ function renderHome() {
     '<h1>THINK <span class="headline-odd">ODD<span class="headline-period">.</span></span><br><span class="headline-right">BE RIGHT<span class="headline-period">.</span></span></h1>',
     '<p class="hero-description">Know the kind of random stuff nobody ever asks you about? Good. This is your game. Seven questions. Four deep cuts. Three crowd calls. One shot a day.</p>',
     '<div class="hero-actions">',
-    homeButton(actionLabel, action), ONLINE_ENABLED ?
-      homeButton("PLAY FREE AS GUEST", "daily", "btn-ghost") :
-      homeButton("TRY PRACTICE MODE", "practice", "btn-ghost"),
+    homeButton(actionLabel, action),
+    ...(ONLINE_ENABLED ? [homeButton("PLAY FREE AS GUEST", "daily", "btn-ghost")] : []),
+    homeButton("TRY PRACTICE MODE", "practice", "btn-ghost"),
     '</div>' + (friendChallenge && friendChallenge.current ?
       '<div class="friend-challenge"><div class="friend-burst">⚔</div><div><strong>A FRIEND CHALLENGED YOU!</strong><p>Beat their ' + fmt(friendChallenge.score) +
       '-point score on today\'s seven questions.</p></div></div>' :
