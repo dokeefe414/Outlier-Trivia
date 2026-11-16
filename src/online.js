@@ -1,4 +1,6 @@
 import {rarityTier} from "./answer-intelligence.js";
+import {ROOM_THEMES,ROOM_TIMERS,ROOM_SERIES,privateGameHighlights,
+  privateScoreShareText,earnedPrivateBadges} from "./game-night-insights.js";
 import {readLeagueInvite,leagueInviteLink,removeLeagueInvite,officialShareMessage,comparisonLabel} from "./community.js";
 import { ONLINE_ENABLED, SUPABASE_URL, SUPABASE_ANON_KEY } from "./online-config.js";
 import { dailyDebrief, weeklyCup } from "./v13-discovery.js";
@@ -318,9 +320,24 @@ function partyCompetitionPanel() {
       'data-period="'+key+'" aria-pressed="'+(period===key)+'"')).join("");
   const rivalry=state.partyRivalry;
   const recent=cleanRivalryTimeline(rivalry?.recent);
+  const mastery=state.partyMastery;
+  const earned=mastery?earnedPrivateBadges(mastery):[];
+  const masteryPanel=mastery?'<section class="party-mastery" aria-label="Private game-night achievements">'+
+    '<div class="eyebrow">YOUR VERIFIED GAME-NIGHT CAREER</div>'+
+    '<div class="party-career-stats">'+
+      [['MATCHES',mastery.games],['WINS',mastery.wins],
+       ['PERSONAL BEST',mastery.bestScore],['DEEP CUTS',mastery.rareHits]]
+      .map(([name,value])=>'<div><small>'+escape(name)+'</small><strong>'+
+        number(value)+'</strong></div>').join("")+'</div>'+
+    '<div class="party-badges">'+earned.map(b=>
+      '<div class="party-badge '+(b.unlocked?'is-unlocked':'is-locked')+
+      '" title="'+escape(b.description)+'"><span>'+(b.unlocked?'★':'◇')+'</span>'+
+      '<strong>'+escape(b.name)+'</strong><small>'+escape(b.description)+
+      '</small></div>').join("")+'</div>'+
+    '<p class="small muted">These milestones use only your completed, server-verified private matches. Guest games and official daily scores are separate.</p></section>':'';
   return '<section class="card private-season" aria-label="Verified private match history">'+
     '<div class="eyebrow">FRIENDS-ONLY / VERIFIED ROOM RESULTS</div>'+
-    '<h3>THE INNER CIRCLE RECORD BOOK.</h3>'+
+    '<h3>THE INNER CIRCLE RECORD BOOK.</h3>'+masteryPanel+
     '<p class="small muted">Only rooms you actually joined count. Opponents, scores and wins are verified by the server. No answer keys, guest games, public global ranks or money involved. Long-range results use at most 150 recent matches.</p>'+
     '<div class="party-season-periods" role="group" aria-label="Match period">'+tabs+'</div>'+
     '<div class="private-season-standings"><div class="private-season-row heading">'+
@@ -354,14 +371,16 @@ function partyCompetitionPanel() {
 }
 async function reloadPartyCompetition() {
   if(!state.user)return;
-  const [history,season,allTime]=await Promise.all([
+  const [history,season,allTime,mastery]=await Promise.all([
     invoke("party-history"),
     invoke("party-season",{query:"period="+encodeURIComponent(state.partyPeriod||"month")}),
-    invoke("party-season",{query:"period=all"})
+    invoke("party-season",{query:"period=all"}),
+    invoke("party-mastery").catch(()=>({mastery:null}))
   ]);
   state.partyHistory=Array.isArray(history.history)?history.history:[];
   state.partySeason=Array.isArray(season.standings)?season.standings:[];
   state.partyLifetime=Array.isArray(allTime.standings)?allTime.standings:[];
+  state.partyMastery=mastery.mastery&&typeof mastery.mastery==="object"?mastery.mastery:null;
 }
 function partyRoomPanel() {
   if(!state.user)return '<div class="card online-party-panel"><div class="eyebrow">PRIVATE ROOM COMPETITION</div>'+
@@ -401,7 +420,9 @@ async function refreshPartyRoom(force=false) {
     const room=response.room;
     const signature=JSON.stringify([room.phase,room.players?.map(p=>[p.id,p.ready,p.active]),
       room.question?.index,room.question?.submitted,room.scores?.length,
-      room.rematch?.votes,room.rematch?.roomId,room.startedAt]);
+      room.rematch?.votes,room.rematch?.roomId,room.startedAt,
+      room.roundSeconds,room.seriesLength,room.seriesGame,room.selectedTheme,
+      room.myTheme,room.themeVotes,room.series?.played]);
     const offlineWas=state.partyOffline;
     state.partyRoom=room;state.partyReceivedAt=Date.now();
     state.partyOffline=false;state.partyFailureCount=0;state.partyError=null;
@@ -471,17 +492,46 @@ function showPartyRoom() {
       (m.ready?'READY':'NOT READY')+'</span>':'')+
     '</div>').join("");
   const roster='<div class="online-party-roster">'+people+'</div>';
+  const rules='<div class="party-rule-banner" role="status">'+
+    '<span>'+number(r.roundSeconds||45)+' SEC / ROUND</span>'+
+    '<span>GAME '+number(r.seriesGame||1)+' OF '+number(r.seriesLength||1)+'</span>'+
+    '<span>THEME '+escape(r.selectedTheme||"MIXED")+'</span></div>';
   let body='';
   if(r.phase==="waiting"){
     const me=(r.players||[]).find(p=>p.id===state.user?.id);
     const readyCount=(r.players||[]).filter(p=>p.ready).length;
     const allReady=(r.players||[]).length>=2&&readyCount===r.players.length;
-    body='<div class="card online-party-waiting"><div class="eyebrow">LOBBY · '+(r.players||[]).length+'/4 PLAYERS</div>'+
+    const votes=Array.isArray(r.themeVotes)?r.themeVotes:[];
+    const themePanel='<section class="party-theme-panel" aria-label="Vote for a topic">'+
+      '<h4>VOTE FOR THE SHOWDOWN THEME</h4>'+
+      '<p class="small muted">Your vote influences the Stand Out question draw. Ties are resolved consistently by the server. Voting resets readiness for a fair new start.</p>'+
+      '<div class="party-theme-grid">'+ROOM_THEMES.map(theme=>{
+        const count=votes.find(v=>v.theme===theme)?.votes||0;
+        const mine=r.myTheme===theme;
+        return act("party-theme",escape(theme)+" · "+number(count),
+          mine?"btn-teal":"btn-outline",
+          'data-theme="'+theme+'" aria-pressed="'+mine+'"');
+      }).join("")+'</div></section>';
+    const configPanel=r.host===state.user?.id?
+      '<form data-form="party-config" class="party-settings-form">'+
+      '<h4>HOST GAME SETTINGS</h4>'+
+      '<label for="party-timer-setting">SECONDS PER QUESTION</label>'+
+      '<select class="answer-input" id="party-timer-setting">'+
+        ROOM_TIMERS.map(n=>'<option value="'+n+'" '+
+          (Number(r.roundSeconds||45)===n?'selected':'')+'>'+n+' SECONDS</option>').join("")+
+      '</select><label for="party-series-setting">GAMES IN CHAMPIONSHIP</label>'+
+      '<select class="answer-input" id="party-series-setting">'+
+        ROOM_SERIES.map(n=>'<option value="'+n+'" '+
+          (Number(r.seriesLength||1)===n?'selected':'')+'>'+n+
+          (n===1?' GAME':' GAMES')+'</option>').join("")+'</select>'+
+      '<button class="btn btn-outline" type="submit">SAVE GAME RULES</button>'+
+      '<p class="tiny muted">Changing the rules clears all ready confirmations. Every player must agree again.</p></form>':'';
+    body='<div class="card online-party-waiting"><div class="eyebrow">LOBBY · '+(r.players||[]).length+'/4 PLAYERS</div>'+rules+
       '<h3>BRING THE CREW.</h3><p class="small muted">Share your invite. Every player must explicitly mark READY. The host can start only after all 2–4 participants agree. Presence is based on a recent server ping, not a permanent connection.</p>'+
       '<div class="party-invite-code">'+escape(r.code||"")+'</div>'+
       '<div class="party-invite-actions">'+
       act("party-copy","COPY INVITE LINK","btn-primary")+
-      act("party-share","SHARE INVITE ↗","btn-teal")+'</div>'+roster+
+      act("party-share","SHARE INVITE ↗","btn-teal")+'</div>'+roster+configPanel+themePanel+
       '<p class="party-ready-counter" role="status">'+readyCount+' OF '+r.players.length+' READY</p>'+
       act("party-ready",me?.ready?'I AM NOT READY':'I AM READY ✓',
         me?.ready?'btn-outline':'btn-primary',
@@ -492,7 +542,7 @@ function showPartyRoom() {
       act("party-exit-lobby",r.host===state.user?.id?'CLOSE ROOM FOR EVERYONE':'LEAVE THIS LOBBY',"btn-ghost")+
       '</div>';
   }else if(r.phase==="countdown"){
-    body='<div class="card online-party-countdown"><span class="eyebrow">EVERYONE GET READY</span>'+
+    body='<div class="card online-party-countdown">'+rules+'<span class="eyebrow">EVERYONE GET READY</span>'+
       '<h3>THE CLOCK STARTS IN</h3><div class="online-party-bigclock" id="online-party-timer">—</div>'+
       roster+'<p class="small muted">The timer is synchronized to the server, not your device clock.</p></div>';
   }else if(r.phase==="playing"){
@@ -503,7 +553,7 @@ function showPartyRoom() {
         (step.status==="current"?'aria-current="step" ':'')+
         'aria-label="Round '+step.number+', '+step.status+'">'+step.number+'</span>').join("")+
       '</div>';
-    body='<div class="card online-party-question"><div class="eyebrow">SHARED ROUND '+(Number(q.index)+1)+' / 7'+
+    body='<div class="card online-party-question">'+rules+'<div class="eyebrow">SHARED ROUND '+(Number(q.index)+1)+' / 7'+
       ' · '+escape(q.category)+'</div><div class="online-party-clock" id="online-party-timer">—</div>'+
       progress+'<h3>'+escape(q.prompt||"Waiting for the shared question…")+'</h3>'+
       '<p class="small muted">'+escape(q.detail||"")+'</p>'+
@@ -539,16 +589,44 @@ function showPartyRoom() {
       const scores=roomWinnerRows(r.scores);
       const champion=scores.filter(p=>p.winner).map(p=>p.name).join(" & ");
       const rematch=r.rematch||{};
+      const insights=privateGameHighlights(r);
+      const rare=insights?.highest;
+      const highlightPanel=insights?'<div class="party-highlights">'+
+        '<div class="eyebrow">GAME NIGHT HIGHLIGHTS</div>'+
+        '<div class="party-highlights-grid">'+
+        '<div><small>BIGGEST VALID PICK</small><strong>'+
+          (rare?escape(rare.answer):'NONE')+'</strong><span>'+number(rare?.points||0)+' PTS</span></div>'+
+        '<div><small>LEAD CHANGES</small><strong>'+number(insights.leadChanges)+
+          '</strong><span>AFTER FULL ROUNDS</span></div>'+
+        '<div><small>FINISH</small><strong>'+
+          (insights.comeback?'COMEBACK':insights.closeFinish?'PHOTO FINISH':'DECISIVE')+
+          '</strong><span>'+number(insights.margin??0)+'-POINT MARGIN</span></div></div>'+
+        '<h4>ROUND-BY-ROUND SCORE BUILD</h4><div class="party-score-timeline">'+
+          insights.rounds.map(round=>'<div><span>R'+round.number+'</span>'+
+            round.scores.map(p=>'<small>'+escape(p.name)+': <b>'+number(p.total)+
+              '</b></small>').join("")+'</div>').join("")+'</div></div>':'';
+      const series=r.series&&typeof r.series==='object'?r.series:null;
+      const seriesPanel=series?'<section class="party-series-results">'+
+        '<h4>THE CHAMPIONSHIP · '+number(series.played)+' / '+
+          number(series.length)+' FINISHED</h4>'+
+        '<p class="small muted">Win count leads; total verified points break ties. Players must unanimously agree to each new game.</p>'+
+        (Array.isArray(series.standings)?series.standings.map((p,i)=>
+          '<div><span>'+number(i+1)+'. '+escape(p.name)+'</span>'+
+          '<strong>'+number(p.wins)+' W · '+number(p.points)+' PTS</strong></div>').join(""):'')+
+        (series.complete?'<strong class="party-champion-label">CHAMPIONSHIP COMPLETE</strong>':'')+
+        '</section>':'';
       body='<section class="card online-party-final-scores"><div class="party-winner-mark">🏆</div>'+
         '<div class="eyebrow">THE VERIFIED SHOWDOWN RESULT</div><h3>'+escape(champion)+' '+(scores.filter(p=>p.winner).length>1?"TIE!":"WINS!")+'</h3>'+
         scores.map(p=>'<div class="online-party-score '+(p.winner?'winner':'')+'"><strong>'+
           escape(p.name)+'</strong><span>'+number(p.score)+' / 7,000 PTS</span></div>').join("")+
         '<p class="small muted">Server-verified exhibition points appear in your private friend history and season, never official daily rankings or paid progression.</p>'+
-        '<div class="party-rematch-vote"><h4>RUN IT BACK TOGETHER?</h4>'+
+        highlightPanel+seriesPanel+
+        act("party-share-score","COPY NAME-FREE SCORECARD ↗","btn-outline")+
+        (rematch.seriesComplete?'':'<div class="party-rematch-vote"><h4>RUN IT BACK TOGETHER?</h4>'+
           '<p>'+number(rematch.votes||0)+' / '+number(rematch.needed||r.players.length)+' voted. A fresh room opens only when everyone agrees, with a new ready-up step.</p>'+
           (rematch.roomId?act("party-rematch-join","JOIN AGREED REMATCH ↗","btn-teal") :
             rematch.voted?'<p class="small muted">Your vote is recorded. Waiting for the others.</p>':
-              act("party-rematch-vote","VOTE FOR A REMATCH ↗","btn-primary"))+'</div>'+
+              act("party-rematch-vote","VOTE FOR NEXT GAME ↗","btn-primary"))+'</div>')+
         act("party-leave","BACK TO ONLINE HUB","btn-outline")+'</section>';
     }
   }else{
@@ -1004,6 +1082,26 @@ async function handleClick(event) {
     }catch(e){state.message=e.message;showMenu();}
     return;
   }
+  if(action==="party-theme"){
+    if(!state.partyId||state.partyRoom?.phase!=="waiting")return;
+    busy=true;
+    try{
+      await invoke("party-theme",{method:"POST",
+        payload:{room:state.partyId,theme:button.dataset.theme}});
+      state.message="Theme vote recorded. Everyone must confirm READY again.";
+      await refreshPartyRoom(true);
+    }catch(e){state.message=e.message;showPartyRoom();}
+    finally{busy=false;}
+    return;
+  }
+  if(action==="party-share-score"){
+    const shared=privateScoreShareText(state.partyRoom);
+    if(!shared)return;
+    try{await navigator.clipboard.writeText(shared);
+      state.message="Name-free scorecard copied. No invite codes or answers included.";
+    }catch{state.message="Copy isn't available in this browser.";}
+    showPartyRoom();return;
+  }
   if(action==="party-start"){
     if(!state.partyId||state.partyRoom?.host!==state.user?.id)return;
     busy=true;
@@ -1179,6 +1277,22 @@ async function handleSubmit(event) {
   if (form.dataset.form==="answer") return submitAnswer(container.querySelector("#online-answer")?.value?.trim()||null);
   if (form.dataset.form==="party-answer")
     return submitPartyAnswer(container.querySelector("#online-party-answer")?.value?.trim()||null);
+  if(form.dataset.form==="party-config"){
+    if(!state.partyId||state.partyRoom?.phase!=="waiting"||
+      state.partyRoom?.host!==state.user?.id)return;
+    const seconds=Number(container.querySelector("#party-timer-setting")?.value);
+    const seriesLength=Number(container.querySelector("#party-series-setting")?.value);
+    if(!ROOM_TIMERS.includes(seconds)||!ROOM_SERIES.includes(seriesLength))return;
+    busy=true;
+    try{
+      await invoke("party-config",{method:"POST",
+        payload:{room:state.partyId,seconds,seriesLength}});
+      state.message="Rules saved. Everyone must mark READY again.";
+      await refreshPartyRoom(true);
+    }catch(e){state.message=e.message;showPartyRoom();}
+    finally{busy=false;}
+    return;
+  }
   if (form.dataset.form==="party-join") {
     busy=true;
     try{
