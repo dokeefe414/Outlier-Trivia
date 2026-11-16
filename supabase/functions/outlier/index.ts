@@ -94,6 +94,9 @@ function parseError(message: string): ApiError {
   if (message.includes("party_rematch_not_finished"))return new ApiError(409,"party_rematch_not_finished");
   if (message.includes("party_members_not_ready"))return new ApiError(409,"party_members_not_ready");
   if (message.includes("party_series_complete"))return new ApiError(409,"party_series_complete");
+  if (message.includes("party_need_target_players") ||
+      message.includes("party_target_below_roster")) return new ApiError(409,"party_target_conflict");
+  if (message.includes("invalid_party_target"))return new ApiError(400,"invalid_party_target");
   if (message.includes("invalid_party_config") || message.includes("invalid_party_theme"))
     return new ApiError(400,"invalid_party_settings");
   if (message.includes("party_room_full") || message.includes("party_need_two_to_four") ||
@@ -163,7 +166,7 @@ async function enforceBudget(userId: string, action: string) {
     "party-create":[5,86400],"party-join":[20,3600],"party-start":[12,3600],
     "party-answer":[30,3600],"party-ready":[60,3600],
     "party-leave":[12,3600],"party-rematch":[12,3600],
-    "party-config":[15,3600],"party-theme":[20,3600]
+    "party-config":[15,3600],"party-theme":[20,3600],"party-target":[15,3600]
   };
   const [max,windowSeconds] = limits[action] ?? [20,3600];
   const permitted=await rpc("outlier_request_budget",{
@@ -364,6 +367,7 @@ async function handle(req: Request): Promise<Response> {
       "party-start":"party-start","party-answer":"party-answer",
       "party-ready":"party-ready","party-leave":"party-leave",
       "party-config":"party-config","party-theme":"party-theme",
+      "party-target":"party-target",
       "party-rematch":"party-rematch"
     };
     if ((req.method==="POST" || req.method==="PATCH") && mutationBudget[action]) {
@@ -446,6 +450,16 @@ async function handle(req: Request): Promise<Response> {
       const result=await rpc("outlier_party_configure",{
         p_user:user.id,p_room:ensureUuid(input.room),
         p_seconds:seconds,p_series_length:seriesLength
+      });
+      return json({result},200,origin);
+    }
+    if (action === "party-target" && req.method === "POST") {
+      const input=await bodyJson(req);
+      const target=Number(input.target);
+      if(!Number.isInteger(target)||![2,3,4].includes(target))
+        throw new ApiError(400,"invalid_party_target");
+      const result=await rpc("outlier_party_target",{
+        p_user:user.id,p_room:ensureUuid(input.room),p_target:target
       });
       return json({result},200,origin);
     }
