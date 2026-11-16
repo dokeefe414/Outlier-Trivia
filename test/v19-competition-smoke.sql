@@ -107,6 +107,11 @@ begin
   if rival->>'shared'<>'1' or rival->>'wins'<>'1' or rival->>'losses'<>'0' then
     raise exception 'Head-to-head verified record invalid: %',rival;
   end if;
+  if jsonb_array_length(rival->'recent')<>1 or
+    rival->'recent'->0->>'outcome'<>'win' or
+    (rival->'recent'->0->>'you')::int<=(rival->'recent'->0->>'them')::int then
+    raise exception 'Exact recent head-to-head event unavailable: %',rival;
+  end if;
   if public.outlier_party_rivalry(host,outsider)->>'shared'<>'0' then
     raise exception 'Unrelated person is a fake rival';
   end if;
