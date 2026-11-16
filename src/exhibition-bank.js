@@ -5,12 +5,12 @@
 import {rareQuestions} from "./data.js";
 import {normalizeAnswer,auditQuestionAliases} from "./answer-intelligence.js";
 export const EXHIBITION_RARE_IDS=Object.freeze([
-  "v16-cc0-actors-all","v16-cc0-rock-all","v16-cc0-rpg-all",
-  "v16-cc0-apples-all","v16-cc0-sandwiches-all","v16-cc0-plants-all",
-  "v16-cc0-rivers-all","v16-cc0-horses-all","v16-cc0-teas-all",
-  "v16-cc0-herbs-all","v16-cc0-programming-all","v16-cc0-colors-all",
-  "v16-cc0-cats-all","v16-cc0-egyptian-all","v16-cc0-occupations-all",
-  "v16-cc0-sports-all","v16-cc0-books-all","v16-cc0-weather-all"
+  "open-v16-cc0-actors-all","open-v16-cc0-rock-all","open-v16-cc0-rpg-all",
+  "open-v16-cc0-apples-all","open-v16-cc0-sandwiches-all","open-v16-cc0-plants-all",
+  "open-v16-cc0-rivers-all","open-v16-cc0-horses-all","open-v16-cc0-teas-all",
+  "open-v16-cc0-herbs-all","open-v16-cc0-programming-all","open-v16-cc0-colors-all",
+  "open-v16-cc0-cats-all","open-v16-cc0-egyptian-all","open-v16-cc0-occupations-all",
+  "open-v16-cc0-sports-all","open-v16-cc0-books-all","open-v16-cc0-weather-all"
 ]);
 // Weighted editorial preference mini-games; NOT observed popularity. Deliberate
 // distinct identities/wording from the ranked daily Fit In library.
