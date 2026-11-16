@@ -45,7 +45,7 @@ The first command audits the separate source-scoped archive and editorial choice
 - **18 separate Stand Out prompts** from existing archived CC0 Corpora collections, all already marked `arcadeOnly`. These prompts have at least 28 canonical responses each and pass alias/point auditing. Their exact historical reference scope appears in the question, so players are not promised that every real-world example qualifies.
 - **10 original Fit In prompts** with six choices apiece and openly **editorial example weights**, never mislabeled measured public opinion. All six weights sum to 100, are bounded, and normalized choices are unique.
 - **28 exhibition prompts total**, enough for separate server-curated seven-question rooms. The answers are drawn from material already public in the guest library; therefore they are appropriate for an **unranked exhibition**, not an anti-cheat tournament.
-- Source attribution: [Darius Kazemi's CC0 Corpora](https://github.com/dariusk/corpora), plus [v1.6 provenance](V16_UNIVERSAL_ANSWER_ATLAS.md). This release does not add unlabeled automatic AI adjudication.
+- Source attribution: [Darius Kazemi's CC0 Corpora](https://github.com/dariusk/corpora), plus [v1.6 provenance](V16_UNIVERSAL_ANSWER_ATLAS.md). The current audited sample contains 9,748 approved rare answer slots across 18 prompts, not 9,748 unique independently verified world facts. This release does not add unlabeled automatic AI adjudication.
 - The separate daily ranked private bank is unaffected. **Never promote exhibition prompts into future official daily slates**, and do not copy undisclosed official daily answers into this pack.
 
 ### 5. Answer-quality audit and source-based review
@@ -72,7 +72,7 @@ The ready-up screen, presence roster, voting progress, verified season tables, f
 ## Deployment checklist (owner action required)
 
 1. Configure an authorized Supabase project with email Auth and allowed redirect origins for your actual site. The `src/online-config.js` file must contain **only a public URL and anon/publishable key**; never commit a service-role key, admin token, or payment secrets.
-2. Apply all existing migrations in order through **019**, then **`20261112002000_v19_room_competition.sql`**. Deploy the updated `supabase/functions/outlier/index.ts` with private service-role secrets. Keep Stripe live checkout off unless you separately verify billing.
+2. Apply all existing migrations in order through **019**, then **`20261112002000_v19_room_competition.sql`** and **`20261112002100_v19_exhibition_normalization.sql`** (preserves distinct C/C#/C++ and other symbol-bearing identifiers in source-checked games). Deploy the updated `supabase/functions/outlier/index.ts` with private service-role secrets. Keep Stripe live checkout off unless you separately verify billing.
 3. Run `npm run audit:exhibition` locally and generate the opt-in exhibition export. Review historical CC0 scopes, alias collisions, and editorial Fit In weights. Import `private/generated-exhibition-import.sql` to the separate `private.outlier_party_question_bank` and verify `capabilities.partyReady` becomes true. It remains false when the catalog is empty.
 4. Validate two authentic accounts on separate devices: join with a spoiler-free invite, both mark READY, host starts, seven shared 45-second rounds, one sealed answer per player/round, final end-only reveal, loss/tie/win, unanimous rematch to a fresh ready screen.
 5. Repeat with three and four real accounts. Test last-seen indicators, leaving a waiting lobby, inactive tabs, slow or dropped Wi-Fi, stale invites, auth expiry, reconnect and duplicate answer/vote attempts. Confirm an outsider sees **no membership, match history, points or question keys**.
@@ -86,7 +86,7 @@ Suggested **release targets, not observed metrics**: zero cross-room data exposu
 
 ## Developer files
 
-- Database: `supabase/migrations/20261112002000_v19_room_competition.sql`
+- Database: `supabase/migrations/20261112002000_v19_room_competition.sql` and `supabase/migrations/20261112002100_v19_exhibition_normalization.sql`
 - Server API: `supabase/functions/outlier/index.ts`
 - Player UI: `src/online.js`, `styles/editorial.css`
 - Source pack: `src/exhibition-bank.js`, `scripts/prepare-exhibition-bank.mjs`, `test/exhibition-bank.test.js`
