@@ -4,7 +4,7 @@ import { ONLINE_ENABLED, SUPABASE_URL, SUPABASE_ANON_KEY } from "./online-config
 import { dailyDebrief, weeklyCup } from "./v13-discovery.js";
 import {privateTitle,privateSeasonLeaders,cleanRivalryTimeline} from "./party-competition.js";
 import {readRoomInvite,roomInviteUrl,roomSecondsRemaining,roomWinnerRows,
-  ROOM_RECOVERY_KEY,roomRecoveryRecord,readRoomRecovery,retryDelayMs,roomConnectivityError} from "./online-room.js";
+  ROOM_RECOVERY_KEY,roomRecoveryRecord,readRoomRecovery,retryDelayMs,roomConnectivityError,roomRoundStages} from "./online-room.js";
 
 const escape = value => String(value ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const number = value => Number(value ?? 0).toLocaleString("en-US");
@@ -479,7 +479,9 @@ function showPartyRoom() {
     body='<div class="card online-party-waiting"><div class="eyebrow">LOBBY · '+(r.players||[]).length+'/4 PLAYERS</div>'+
       '<h3>BRING THE CREW.</h3><p class="small muted">Share your invite. Every player must explicitly mark READY. The host can start only after all 2–4 participants agree. Presence is based on a recent server ping, not a permanent connection.</p>'+
       '<div class="party-invite-code">'+escape(r.code||"")+'</div>'+
-      act("party-copy","COPY PRIVATE INVITE ↗","btn-primary")+roster+
+      '<div class="party-invite-actions">'+
+      act("party-copy","COPY INVITE LINK","btn-primary")+
+      act("party-share","SHARE INVITE ↗","btn-teal")+'</div>'+roster+
       '<p class="party-ready-counter" role="status">'+readyCount+' OF '+r.players.length+' READY</p>'+
       act("party-ready",me?.ready?'I AM NOT READY':'I AM READY ✓',
         me?.ready?'btn-outline':'btn-primary',
@@ -495,9 +497,15 @@ function showPartyRoom() {
       roster+'<p class="small muted">The timer is synchronized to the server, not your device clock.</p></div>';
   }else if(r.phase==="playing"){
     const q=r.question||{};
+    const stages=roomRoundStages(Number(q.index));
+    const progress='<div class="party-round-track" role="group" aria-label="Seven-round match progress">'+
+      stages.map(step=>'<span class="party-round-step is-'+step.status+'" '+
+        (step.status==="current"?'aria-current="step" ':'')+
+        'aria-label="Round '+step.number+', '+step.status+'">'+step.number+'</span>').join("")+
+      '</div>';
     body='<div class="card online-party-question"><div class="eyebrow">SHARED ROUND '+(Number(q.index)+1)+' / 7'+
       ' · '+escape(q.category)+'</div><div class="online-party-clock" id="online-party-timer">—</div>'+
-      '<h3>'+escape(q.prompt||"Waiting for the shared question…")+'</h3>'+
+      progress+'<h3>'+escape(q.prompt||"Waiting for the shared question…")+'</h3>'+
       '<p class="small muted">'+escape(q.detail||"")+'</p>'+
       (q.submitted?'<div class="online-party-sealed">🔒 ANSWER LOCKED. Keep your pick secret until all seven shared rounds finish.</div>':
         q.type==="fit"?'<div class="online-party-picks">'+(q.choices||[]).map(choice=>
@@ -547,7 +555,9 @@ function showPartyRoom() {
     body='<div class="card">'+notice("This private room expired. Create a new room.","warning")+
       act("party-leave","BACK TO ONLINE HUB","btn-primary")+'</div>';
   }
-  setView(header+offlineBanner+body+'<div class="online-party-room-actions">'+
+  const roomFeedback=state.message?notice(state.message,"ok"):"";
+  state.message=null;
+  setView(header+offlineBanner+roomFeedback+body+'<div class="online-party-room-actions">'+
     act("party-refresh","REFRESH ROOM","btn-outline")+
     act("party-leave","LEAVE ROOM VIEW","btn-outline")+'</div>');
   tickPartyClock();
@@ -1012,11 +1022,34 @@ async function handleClick(event) {
     await reloadPartyCompetition().catch(()=>{});
     state.partyRevealStep=-1;showMenu();return;
   }
-  if(action==="party-copy"){
+  if(action==="party-copy"||action==="party-share"){
     if(!state.partyRoom?.code)return;
     const link=roomInviteUrl(window.location.href,state.partyRoom.code);
-    try{await navigator.clipboard.writeText(link);state.message="Private room invite copied.";}
-    catch{state.message="Copy failed. Share this link: "+link;}
+    if(action==="party-share"&&typeof navigator.share==="function"){
+      try{
+        await navigator.share({
+          title:"OUTLIER — private game night",
+          text:"Join my seven-round OUTLIER trivia showdown!",
+          url:link
+        });
+        state.message="Invite shared. Your friend can choose whether to join.";
+      }catch(error){
+        if(error?.name==="AbortError")return;
+        try{
+          await navigator.clipboard.writeText(link);
+          state.message="Native sharing failed; the invite link was copied instead.";
+        }catch{
+          state.message="Share unavailable. Copy this invite URL manually: "+link;
+        }
+      }
+    }else{
+      try{
+        await navigator.clipboard.writeText(link);
+        state.message="Private room invite link copied.";
+      }catch{
+        state.message="Copy unavailable. Share this invite URL manually: "+link;
+      }
+    }
     showPartyRoom();return;
   }
   if(action==="party-pick"||action==="party-skip"){

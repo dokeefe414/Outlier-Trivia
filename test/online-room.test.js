@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {normalizeRoomCode,readRoomInvite,roomInviteUrl,roomSecondsRemaining,roomWinnerRows,ROOM_RECOVERY_MAX_AGE,roomRecoveryRecord,readRoomRecovery,retryDelayMs,roomConnectivityError} from "../src/online-room.js";
+import {normalizeRoomCode,readRoomInvite,roomInviteUrl,roomSecondsRemaining,roomWinnerRows,ROOM_RECOVERY_MAX_AGE,roomRecoveryRecord,readRoomRecovery,retryDelayMs,roomConnectivityError,roomRoundStages} from "../src/online-room.js";
 test("room invitations are single-purpose and never silently join",()=>{
   assert.equal(normalizeRoomCode(" ABCDEF123456 "),"abcdef123456");
   assert.equal(readRoomInvite("?room=abcdef123456&other=stuff"),"abcdef123456");
@@ -44,4 +44,21 @@ test("transient failures get bounded retry, while membership denials clear recov
   assert.equal(roomConnectivityError(new Error("offline")),true);
   assert.equal(roomConnectivityError({status:403}),false);
   assert.equal(roomConnectivityError({status:404}),false);
+});
+
+test("hosted seven-round progress stays presentation-only and bounded",()=>{
+  const first=roomRoundStages(0);
+  assert.equal(first.length,7);
+  assert.deepEqual(first.map(s=>s.status),["current",...Array(6).fill("upcoming")]);
+  const fourth=roomRoundStages(3);
+  assert.deepEqual(fourth.map(s=>s.status),[
+    "complete","complete","complete","current","upcoming","upcoming","upcoming"
+  ]);
+  assert.deepEqual(roomRoundStages(6).map(s=>s.status),[
+    ...Array(6).fill("complete"),"current"
+  ]);
+  assert.deepEqual(roomRoundStages(-1),[]);
+  assert.deepEqual(roomRoundStages(7),[]);
+  assert.deepEqual(roomRoundStages(NaN),[]);
+  assert.deepEqual(roomRoundStages(2.5),[]);
 });

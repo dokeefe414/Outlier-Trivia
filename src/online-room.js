@@ -57,3 +57,15 @@ export function roomConnectivityError(error) {
   const code=Number(error?.status);
   return !(code===403||code===404||code===410);
 }
+
+/**
+ * Presentation-only round progress; it never changes server-owned game state.
+ * An invalid or absent round index renders no stages instead of inventing one.
+ */
+export function roomRoundStages(index) {
+  if (!Number.isInteger(index) || index<0 || index>=7) return [];
+  return Array.from({length:7},(_,i)=>({
+    number:i+1,
+    status:i<index?"complete":i===index?"current":"upcoming"
+  }));
+}
