@@ -337,30 +337,39 @@ create or replace function public.outlier_party_rivalry(
 ) returns jsonb language plpgsql stable security definer
 set search_path=public,private,pg_temp as $$
 declare v_wins int;v_losses int;v_ties int;v_shared int;
+  v_recent jsonb:='[]'::jsonb;
 begin
   if p_user=p_opponent then raise exception 'invalid_party_opponent';end if;
   with rooms as (
-    select r.id from public.outlier_party_rooms r
+    select r.id,r.starts_at from public.outlier_party_rooms r
     join public.outlier_party_members u on u.room_id=r.id and u.user_id=p_user
     join public.outlier_party_members o on o.room_id=r.id and o.user_id=p_opponent
     where r.status='playing' and r.starts_at+interval '315 seconds'<=clock_timestamp()
     order by r.starts_at desc limit 150
   ), scores as (
-    select rooms.id, m.user_id,coalesce(sum(a.points),0)::integer as score
+    select rooms.id,rooms.starts_at,m.user_id,
+      coalesce(sum(a.points),0)::integer as score
     from rooms join public.outlier_party_members m on m.room_id=rooms.id
     left join private.outlier_party_answers a
       on a.room_id=m.room_id and a.user_id=m.user_id
-    group by rooms.id,m.user_id
+    group by rooms.id,rooms.starts_at,m.user_id
   ), pairs as (
-    select id,max(score) filter(where user_id=p_user) as you,
+    select id,starts_at,
+      max(score) filter(where user_id=p_user) as you,
       max(score) filter(where user_id=p_opponent) as them
-    from scores group by id
+    from scores group by id,starts_at
   )
   select count(*) filter(where you>them),count(*) filter(where you<them),
-    count(*) filter(where you=them),count(*)
-  into v_wins,v_losses,v_ties,v_shared from pairs;
+    count(*) filter(where you=them),count(*),
+    (select coalesce(jsonb_agg(
+        jsonb_build_object('startedAt',t.starts_at,'you',t.you,'them',t.them,
+          'outcome',case when t.you>t.them then 'win'
+             when t.you<t.them then 'loss' else 'tie' end)
+        order by t.starts_at desc),'[]'::jsonb)
+      from (select * from pairs order by starts_at desc limit 10) t)
+  into v_wins,v_losses,v_ties,v_shared,v_recent from pairs;
   return jsonb_build_object('opponent',p_opponent,'wins',v_wins,
-    'losses',v_losses,'ties',v_ties,'shared',v_shared);
+    'losses',v_losses,'ties',v_ties,'shared',v_shared,'recent',v_recent);
 end $$;
 
 -- Protect entry points from ordinary browser SQL/PostgREST access.
