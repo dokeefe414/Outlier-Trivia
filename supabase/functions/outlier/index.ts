@@ -93,6 +93,9 @@ function parseError(message: string): ApiError {
     return new ApiError(400,"invalid_party_filter");
   if (message.includes("party_rematch_not_finished"))return new ApiError(409,"party_rematch_not_finished");
   if (message.includes("party_members_not_ready"))return new ApiError(409,"party_members_not_ready");
+  if (message.includes("party_series_complete"))return new ApiError(409,"party_series_complete");
+  if (message.includes("invalid_party_config") || message.includes("invalid_party_theme"))
+    return new ApiError(400,"invalid_party_settings");
   if (message.includes("party_room_full") || message.includes("party_need_two_to_four") ||
       message.includes("party_not_playing") || message.includes("party_already_answered"))
     return new ApiError(409,message.slice(0,65));
@@ -159,7 +162,8 @@ async function enforceBudget(userId: string, action: string) {
     "review":[5,86400],"checkout":[5,3600],"name":[8,3600],"crowd-consent":[8,86400],
     "party-create":[5,86400],"party-join":[20,3600],"party-start":[12,3600],
     "party-answer":[30,3600],"party-ready":[60,3600],
-    "party-leave":[12,3600],"party-rematch":[12,3600]
+    "party-leave":[12,3600],"party-rematch":[12,3600],
+    "party-config":[15,3600],"party-theme":[20,3600]
   };
   const [max,windowSeconds] = limits[action] ?? [20,3600];
   const permitted=await rpc("outlier_request_budget",{
@@ -359,6 +363,7 @@ async function handle(req: Request): Promise<Response> {
       "party-create":"party-create","party-join":"party-join",
       "party-start":"party-start","party-answer":"party-answer",
       "party-ready":"party-ready","party-leave":"party-leave",
+      "party-config":"party-config","party-theme":"party-theme",
       "party-rematch":"party-rematch"
     };
     if ((req.method==="POST" || req.method==="PATCH") && mutationBudget[action]) {
@@ -432,6 +437,31 @@ async function handle(req: Request): Promise<Response> {
     if (action === "party-create" && req.method === "POST") {
       const room=await rpc("outlier_party_create",{p_user:user.id});
       return json({room},200,origin);
+    }
+    if (action === "party-config" && req.method === "POST") {
+      const input=await bodyJson(req);
+      const seconds=Number(input.seconds), seriesLength=Number(input.seriesLength);
+      if(![20,30,45,60,90].includes(seconds)||![1,3,5].includes(seriesLength))
+        throw new ApiError(400,"invalid_party_settings");
+      const result=await rpc("outlier_party_configure",{
+        p_user:user.id,p_room:ensureUuid(input.room),
+        p_seconds:seconds,p_series_length:seriesLength
+      });
+      return json({result},200,origin);
+    }
+    if (action === "party-theme" && req.method === "POST") {
+      const input=await bodyJson(req);
+      const theme=safeStr(input.theme,24);
+      if(!["MOVIES","MUSIC","SCIENCE","FOOD","SPORTS","ANIMALS","GEOGRAPHY","GAMES"].includes(theme))
+        throw new ApiError(400,"invalid_party_settings");
+      const result=await rpc("outlier_party_theme_vote",{
+        p_user:user.id,p_room:ensureUuid(input.room),p_theme:theme
+      });
+      return json({result},200,origin);
+    }
+    if (action === "party-mastery" && req.method === "GET") {
+      const mastery=await rpc("outlier_party_mastery",{p_user:user.id});
+      return json({mastery},200,origin);
     }
     if (action === "party-join" && req.method === "POST") {
       const input=await bodyJson(req);
