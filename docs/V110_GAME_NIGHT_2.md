@@ -91,6 +91,14 @@ The disposable SQL test `test/v1101-target-players-smoke.sql` checks the default
 
 **Upgrade order:** Apply the additive v1.10.1 migration to the existing Supabase project after the v1.10 migration, deploy the updated `outlier` Edge Function, then publish the frontend. Existing 130 validated unranked exhibition prompts remain unchanged. Roll back the Edge+static code if necessary; avoid removing the column while user rooms might reference it.
 
+## v1.10.1 production verification record — November 16, 2026
+
+The additional migration `outlier_20261116000200_v1101_target_players` was successfully applied to the **same** owner-linked Supabase project. The existing `outlier` Edge Function was redeployed as **active version 3** with its prior server-side Auth guard and `verify_jwt=false` multiplexing retained. Pull request [#19](https://github.com/dokeefe414/Outlier-Trivia/pull/19) merged at `36ee54da168481798a4f41698d0335bc76837eb4` after the four CI jobs passed, and [GitHub Pages deployed that merge](https://github.com/dokeefe414/Outlier-Trivia/actions/runs/43976573803).
+
+On the live database, a transaction created a single-account waiting room, changed its required capacity to four, checked the authoritative returned state and confirmed the host could **not** start with fewer than four players. A rollback left zero test rooms. Direct `outlier_party_target` EXECUTE remains denied to guest and authenticated browser roles and available only to the Edge service role. All **130 exhibition questions** remain present (88 rare, 42 Fit In, 46,797 approved rare answer slots, all row-valid). Supabase health advisor reported zero findings. The INFO notices about enabled RLS without policies reflect the deliberate deny-by-default browser access model; they are **not** a reason to add broad public grants.
+
+**Not yet verified:** genuine two-, three-, or four-account browser sign-in/play, the HTTP public `capabilities` route from an external client, mobile connectivity/reconnect behavior, and a consenting human beta. The only registered account observed remains one. See [Issue #17](https://github.com/dokeefe414/Outlier-Trivia/issues/17); leave human-test checkboxes open until those checks happen.
+
 ## Verified deployment record — November 16, 2026
 
 The owner-linked Supabase project `ljmqtdwcwpatyecxtues` successfully applied migration `outlier_20261116000100_v110_game_night` and deployed the `outlier` Edge Function as **active version 2**. The room catalog was expanded in owner-controlled SQL transactions, without committing the generated SQL or private answers to GitHub. Verified production content totals: **88 Stand Out questions, 42 Fit In, 46,797 rare-answer slots; all rows satisfy the server's validator**. `outlier_party_readiness()` reports `ready=true`.
