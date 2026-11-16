@@ -15,6 +15,8 @@ jobs:
         run: npm run check
       - name: Audit every accepted answer, alias and score range
         run: npm run audit:content
+      - name: Validate independently sourced exhibition prompt sample
+        run: npm run audit:exhibition
 
   edge-function:
     name: Hosted API type checks
@@ -145,6 +147,12 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261112002000_v19_room_competition.sql
       - name: Verify verified match history, friend-only seasons and no unauthorized rematches
         run: psql -v ON_ERROR_STOP=1 -f test/v19-competition-smoke.sql
+      - name: Generate and validate a disposable source-backed 28-prompt exhibition import
+        run: |
+          node scripts/prepare-exhibition-bank.mjs
+          psql -v ON_ERROR_STOP=1 -f private/generated-exhibition-import.sql
+          psql -v ON_ERROR_STOP=1 -Atc "select count(*) from private.outlier_party_question_bank where id like 'exhibition_%'" | grep -qx 28
+          psql -v ON_ERROR_STOP=1 -Atc "select count(*) from private.outlier_party_question_bank where id like 'exhibition_%' and not private.outlier_ranked_row_valid(kind,answers,choices)" | grep -qx 0
 
   browser-e2e:
     name: Desktop and mobile browser smoke
