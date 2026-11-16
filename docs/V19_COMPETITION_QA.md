@@ -26,7 +26,7 @@ A player's signed-in online hub can show an authenticated record of finished **p
 | API action | Database RPC | Output |
 |---|---|---|
 | `party-history` | `outlier_party_history` | Last up to 20 completed rooms: date, own score, real win/tie/loss, winner display names |
-| `party-season?period=week\|month\|all` | `outlier_party_season` | Friend-only wins, ties, losses, games and points across rooms the requesting player joined |
+| `party-season?period=week\|month\|all` | `outlier_party_season` | Friend-only wins, ties, losses, games and points across up to the 150 most recent finished rooms the requester joined (for the long-range view) |
 | `party-rivalry?opponent=<uuid>` | `outlier_party_rivalry` | Wins/losses/ties over only the rooms **both** users entered |
 
 A tied highest score is a **tie**, not a win for all participants. Match records exist only after the shared server clock is over and are based on stored server-scored answers. A 2–4 player match can produce multiple losses per win, which is why this is a *match record*, not an Elo rating or a global ranked ladder. Season views are **friends-only and membership-scoped**, not public leaderboards. These exhibition results never count toward official daily play, category mastery, streaks or billing.
