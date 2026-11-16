@@ -1461,7 +1461,7 @@ document.addEventListener("click", event => {
   switch (action) {
     case "home": renderHome(); break;
     case "daily": newSession("daily"); break;
-    case "practice": ONLINE_ENABLED ? showOnline() : renderPracticeSelect(); break;
+    case "practice": renderPracticeSelect(); break;
     case "start-practice": newSession("practice", control.dataset.group||"surprise"); break;
     case "practice-format": practiceFormat = control.dataset.format||"classic"; renderPracticeSelect(); break;
     case "retry-practice": newSession(session?.practiceFormat==="open-atlas"?"open-atlas":session?.weeklyEvent?"spotlight":"practice",session?.practiceGroup||"surprise"); break;
