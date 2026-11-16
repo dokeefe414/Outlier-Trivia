@@ -324,7 +324,7 @@ function partyCompetitionPanel() {
           (p.id===state.user.id?'<strong>YOU</strong>':act("party-rival",escape(p.name),"btn-ghost",
             'data-opponent="'+escape(p.id)+'" aria-label="Your verified rivalry with '+escape(p.name)+'"'))+
           '</span><strong>'+number(p.wins)+'</strong><span>'+number(p.ties)+'</span>'+
-          '<span>'+number(p.losses)+'</span><strong>'+number(p.points)+'</strong></div>').join("")+
+          '<span>'+number(p.losses)+'</span><strong>'+number(p.points)+'</strong></div>').join(""):
       '<p class="small muted">No finished private games in this period yet.</p>')+'</div>'+
     (rivalry?'<div class="party-rivalry-verified" role="status"><strong>YOUR ROOM RIVALRY</strong>'+
       '<p>'+number(rivalry.wins)+' WINS · '+number(rivalry.ties)+' TIES · '+
