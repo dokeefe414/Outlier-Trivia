@@ -145,7 +145,7 @@ async function currentUser(req: Request): Promise<User> {
   if (!response.ok) throw new ApiError(401,"invalid_or_expired_session");
   const user = await response.json();
   if (!user?.id || typeof user.id !== "string") throw new ApiError(401,"login_required");
-  return {id:user.id,email:user.email,isGuest:user.is_anonymous===true};
+  return {id:user.id,email:user.email,isGuest:user.is_anonymous===true || user.app_metadata?.provider==="anonymous"};
 }
 async function bodyJson(req: Request): Promise<Json> {
   const length = Number(req.headers.get("content-length") || 0);
