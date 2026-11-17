@@ -64,33 +64,30 @@ async function run({invite=false,disabled=false,mobile=false}={}){
    return route.fulfill({status:200,contentType:"application/json",
      headers:{"Access-Control-Allow-Origin":"*"},body:JSON.stringify(data)});
  });
- await page.goto(new URL(invite?"?room="+inviteCode:"",base).href);
- await page.evaluate(async()=>{
-   const root=document.createElement("main");root.id="guest-test-root";document.body.appendChild(root);
-   const {mountOnline}=await import("/src/online.js");
-   await mountOnline(root,()=>{});
- });
- await page.locator("#guest-test-root form[data-form='guest-party']").waitFor();
+ // Real shared links include ?online=1, which correctly bypasses the
+ // first-time local tutorial and automatically mounts hosted multiplayer.
+ await page.goto(new URL(invite?"?online=1&room="+inviteCode:"?online=1",base).href);
+ await page.locator("form[data-form='guest-party']").waitFor();
  assert.equal(await page.evaluate(()=>globalThis.__mockGuest.calls),0,
    "An opened invite must not create a hidden guest user");
  assert.equal(calls.created+calls.joined,0,"Nobody joins merely by opening an invite");
  if(disabled)await page.evaluate(()=>globalThis.__mockGuest.disabled=true);
- await page.locator("#guest-test-root #guest-room-nickname").fill("Brian");
+ await page.locator("#guest-room-nickname").fill("Brian");
  if(invite){
-   assert.equal(await page.locator("#guest-test-root #guest-room-code").inputValue(),inviteCode);
-   await page.locator("#guest-test-root button[value='join']").click();
- }else await page.locator("#guest-test-root button[value='create']").click();
+   assert.equal(await page.locator("#guest-room-code").inputValue(),inviteCode);
+   await page.locator("button[value='join']").click();
+ }else await page.locator("button[value='create']").click();
  if(disabled){
-   await page.locator("#guest-test-root .online-notice.warning").waitFor();
-   assert.match(await page.locator("#guest-test-root .online-notice.warning").innerText(),/Anonymous Sign-Ins enabled/i);
+   await page.locator(".online-notice.warning").waitFor();
+   assert.match(await page.locator(".online-notice.warning").innerText(),/Anonymous Sign-Ins enabled/i);
    assert.equal(calls.created+calls.joined,0);
  }else{
-   await page.locator("#guest-test-root .online-party-waiting").waitFor();
+   await page.locator(".online-party-waiting").waitFor();
    assert.deepEqual(calls.names,["Brian"]);
    assert.equal(calls.created,invite?0:1);assert.equal(calls.joined,invite?1:0);
    assert.ok(calls.states>0);assert.equal(calls.missingToken,0);
-   assert.match(await page.locator("#guest-test-root .online-party-waiting").innerText(),/Brian/);
-   assert.equal(await page.locator("#guest-test-root #online-email").count(),0,
+   assert.match(await page.locator(".online-party-waiting").innerText(),/Brian/);
+   assert.equal(await page.locator("#online-email").count(),0,
      "Guest room cannot require an email form");
    if(mobile){
      const bounds=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth}));
