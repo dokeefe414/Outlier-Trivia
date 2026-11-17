@@ -548,7 +548,7 @@ function renderSound() {
 async function showOnline() {
   screen = "online";
   clearInterval(intervalId);
-  app.innerHTML = '<div class="loading"><div class="spinner"></div><p>Connecting to online league...</p></div>';
+  app.innerHTML = '<div class="loading"><div class="spinner"></div><p>Opening your game night...</p></div>';
   try {
     const {mountOnline} = await import("./online.js");
     await mountOnline(app,renderHome);
@@ -694,7 +694,7 @@ function renderHome() {
   const played = Boolean(record?.complete);
   const started = Boolean(record?.answers?.length || record?.deadline);
   const action = ONLINE_ENABLED ? "online" : played ? "result" : "daily";
-  const actionLabel = ONLINE_ENABLED ? "EXPLORE ONLINE BETA →" : played ? "VIEW TODAY'S RESULTS ↗" : started ? "CONTINUE TODAY'S GAME →" : "PLAY TODAY'S GAME →";
+  const actionLabel = ONLINE_ENABLED ? "PLAY FRIENDS — NO EMAIL ↗" : played ? "VIEW TODAY'S RESULTS ↗" : started ? "CONTINUE TODAY'S GAME →" : "PLAY TODAY'S GAME →";
   applyTheme();
   app.innerHTML = [
     '<section class="hero hero-editorial"><div class="hero-copy">',
@@ -740,11 +740,11 @@ function renderHome() {
     '<section class="promo"><div><span class="pill pill-purple" style="margin-bottom:13px">' +
       (ONLINE_ENABLED ? 'ONLINE LEAGUE' : 'COMING AFTER THE PROTOTYPE') + '</span>',
     '<h3>WANT ANOTHER ROUND?</h3><p>' + (ONLINE_ENABLED ?
-      'Explore account-protected online features. Hosted ranked play and private matches become playable only when their separate question banks are ready.' :
+      'Create a private trivia room using only a nickname, share an invite link, and play seven synchronized rounds. Email is optional for saving your profile.' :
       'Unlimited rounds, categories, and verified global competition are planned. Practice is temporarily free for prototype testing.') +
       '</p></div>',
-    '<div class="promo-price">' + (ONLINE_ENABLED ? 'FREE<small>GUEST PLAY · ACCOUNT BETA</small>' : '$4.99<small>ONE TIME · NOT ACTIVE YET</small>') + '</div>' +
-      (ONLINE_ENABLED ? '<div>' + homeButton('JOIN THE LEAGUE →','online','btn-teal') + '</div>' : '') +
+    '<div class="promo-price">' + (ONLINE_ENABLED ? 'FREE<small>FRIEND ROOMS · NO SIGN-UP</small>' : '$4.99<small>ONE TIME · NOT ACTIVE YET</small>') + '</div>' +
+      (ONLINE_ENABLED ? '<div>' + homeButton('PLAY WITH FRIENDS →','online','btn-teal') + '</div>' : '') +
       '</section>'
   ].join("");
   window.scrollTo(0,0);
