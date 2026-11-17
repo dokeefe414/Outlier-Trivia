@@ -665,50 +665,65 @@ function showPartyRoom() {
 }
 function showMenu() {
   stopTimer();stopPartyPolling();
-  state.view = "menu";
-  const signedIn=Boolean(state.user);
-  const heading='<div class="online-heading"><span class="eyebrow">THE COMPETITIVE LEAGUE</span>'+
-   '<h1>PLAY WITH <span class="gradient-text">THE WORLD.</span></h1>'+
-   '<p class="muted">Explore protected player profiles, private leagues and the seven-question format. Official ranked play and private rooms activate only when their separately reviewed banks are ready. No payment is required for guest play.</p></div>';
+  state.view="menu";
+  const guest=isTemporaryGuest(state.user);
+  const registered=Boolean(state.user)&&!guest;
+  const hasIdentity=Boolean(state.user);
+  const heading='<div class="online-heading"><span class="eyebrow">OUTLIER · GAME NIGHT</span>'+
+    '<h1>PLAY WITH <span class="gradient-text">YOUR FRIENDS.</span></h1>'+
+    '<p class="muted">Private rooms are free. Enter a nickname and play immediately, or use a verified account to keep your long-term competitive record. The free guest daily game never requires an account.</p></div>';
   const rankedReady=state.capabilities?.rankedReady===true;
   const paymentReady=state.capabilities?.paymentReady===true;
   const isTestCheckout=state.capabilities?.paymentMode==="test";
-  const buttons=signedIn ?
+  const buttons=registered?
     '<div class="online-menu-actions">'+
-      (rankedReady ? act("daily","PLAY MY OFFICIAL DAILY →") :
+      (rankedReady?act("daily","PLAY MY OFFICIAL DAILY →"):
         '<p class="small muted">Verified daily competition is awaiting its private question bank. The free guest game still works.</p>')+
-      (state.profile?.unlimited && rankedReady ? act("practice","UNLIMITED PRACTICE ↻","btn-teal") :
-        !state.profile?.unlimited && paymentReady && rankedReady ?
-          act("checkout",isTestCheckout?"TRY TEST CHECKOUT · NO CHARGE":"UNLOCK PRACTICE · $4.99 ONCE","btn-ghost") : '')+
+      (state.profile?.unlimited&&rankedReady?act("practice","UNLIMITED PRACTICE ↻","btn-teal"):
+        !state.profile?.unlimited&&paymentReady&&rankedReady?
+          act("checkout",isTestCheckout?"TRY TEST CHECKOUT · NO CHARGE":"UNLOCK PRACTICE · $4.99 ONCE","btn-ghost"):'')+
       act("restore","CHECK / RESTORE LIFETIME ACCESS","btn-outline")+
-      act("logout","SIGN OUT","btn-outline")+'</div>' :
-    '<div class="card online-signup"><span class="pill pill-purple">FREE DAILY GAME</span>'+
-    '<h3>Get on the leaderboard.</h3><p class="small muted">Enter your email and we’ll send a secure sign-in link. No password needed.</p>'+
+      act("logout","SIGN OUT","btn-outline")+'</div>':
+    guest?'<section class="card guest-identity-card"><span class="eyebrow">PLAYING AS A GUEST</span>'+
+      '<h3>'+escape(state.profile?.name||"Guest player")+'</h3>'+
+      '<p class="small muted">No email required. Your guest session works on this browser until you sign out or clear browser storage. It cannot be recovered automatically from another device.</p>'+
+      '<form data-form="name" class="online-name-form"><label for="online-display">CHANGE NICKNAME</label>'+
+      '<div class="answer-row"><input class="answer-input" id="online-display" name="name" minlength="2" maxlength="24" required value="'+escape(state.profile?.name||"Guest")+'">'+
+      '<button class="btn btn-outline" type="submit">UPDATE NAME</button></div></form>'+
+      '<div class="guest-upgrade"><h4>WANT TO KEEP YOUR HISTORY?</h4>'+
+      '<p class="small muted">Optional: link a verified email to this temporary profile. Do not sign out while confirming it. Existing accounts need a separate migration to merge records.</p>'+
+      '<form data-form="guest-upgrade"><label for="guest-upgrade-email">EMAIL (OPTIONAL)</label>'+
+      '<div class="answer-row"><input class="answer-input" id="guest-upgrade-email" type="email" required autocomplete="email" placeholder="you@example.com">'+
+      '<button class="btn btn-teal" type="submit">SAVE MY PROFILE</button></div></form></div>'+
+      act("guest-exit","END GUEST SESSION","btn-ghost")+'</section>':
+    '<section class="card online-signup"><span class="pill pill-purple">OPTIONAL VERIFIED ACCOUNT</span>'+
+    '<h3>Want persistent stats?</h3><p class="small muted">Email sign-in is only needed for permanent accounts, ranked competitions, and friend leagues. Private game nights work without it.</p>'+
     '<form data-form="login"><label class="answer-label" for="online-email">EMAIL ADDRESS</label>'+
     '<div class="answer-row"><input class="answer-input" id="online-email" type="email" required autocomplete="email" placeholder="you@example.com">'+
-    '<button class="btn btn-primary" type="submit">SEND LINK</button></div></form>'+
-    (state.sent ? notice("Check your email for your sign-in link.","ok") : "")+'</div>';
+    '<button class="btn btn-outline" type="submit">SEND SIGN-IN LINK</button></div></form>'+
+    (state.sent?notice("Check your email for your sign-in link.","ok"):"")+'</section>';
   const partyInvite=state.pendingRoomCode?'<div class="card online-party-invite">'+
     '<span class="eyebrow">PRIVATE ROOM INVITATION</span>'+
     '<h3>YOUR FRIEND SENT A CHALLENGE.</h3>'+
-    '<p class="small muted">Accepting a room invite requires a verified account. Nothing joins automatically.</p>'+
-    (signedIn&&state.capabilities?.partyReady===true?act("party-accept-invite","JOIN PRIVATE GAME ↗","btn-primary"):
-      '<p class="small muted">Sign in and connect the separate private-room question bank to join.</p>')+
+    '<p class="small muted">Open the room with a nickname. You join only after choosing to accept; an invite link alone never enrolls anyone.</p>'+
+    (hasIdentity&&state.capabilities?.partyReady===true?
+      act("party-accept-invite","ACCEPT INVITE ↗","btn-primary"):
+      '<p class="small muted">Enter a nickname in the game-night panel below to join without an account.</p>')+
     act("party-dismiss-invite","IGNORE INVITE","btn-outline")+'</div>':"";
   const inviteBanner=state.pendingInvite?
-    '<div class="card invited-banner"><span class="eyebrow">YOU HAVE BEEN INVITED</span>'+
-    '<h3>Your friends are waiting in OUTLIER.</h3>'+
-    '<p class="small muted">Join a private league to compare verified daily scores. A link never joins you automatically.</p>'+
-    (signedIn?act("join-invite","JOIN FRIENDS LEAGUE →","btn-teal")+
+    '<div class="card invited-banner"><span class="eyebrow">FRIEND LEAGUE INVITATION</span>'+
+    '<h3>Compete on verified daily results.</h3>'+
+    '<p class="small muted">A permanent account is required for friend leagues. An invite never joins you automatically.</p>'+
+    (registered?act("join-invite","JOIN FRIENDS LEAGUE →","btn-teal")+
       act("dismiss-invite","NOT NOW","btn-ghost"):
-      '<p class="small muted">Sign in below to accept your league invitation.</p>')+
-    '</div>':"";
-  setView(heading + partyInvite + inviteBanner + (state.error ? notice(state.error,"warning") : "")+
-    (state.message ? notice(state.message,"ok") : "")+
-    (!rankedReady?notice("Official ranked daily competition is not activated yet. The free guest daily remains playable.","warning"):"")+
-    (signedIn&&!state.capabilities?.partyReady?
-      notice("Private online rooms are unavailable until their separate reviewed exhibition bank and backend are ready. Previous verified room results remain accessible.","warning"):"")+
-    buttons + partyRoomPanel() + partyCompetitionPanel() + profilePanel() + onlineJourney() + myReviewsPanel() + leaguesPanel() + boardUI());
+      '<p class="small muted">Use optional email sign-in to join this league.</p>')+'</div>':"";
+  setView(heading+partyInvite+inviteBanner+
+    (state.error?notice(state.error,"warning"):"")+
+    (state.message?notice(state.message,"ok"):"")+
+    (!rankedReady&&registered?notice("Official ranked daily competition is not activated yet. Free guest daily play is still available.","warning"):"")+
+    partyRoomPanel()+buttons+
+    (registered?partyCompetitionPanel()+profilePanel()+onlineJourney()+myReviewsPanel()+leaguesPanel():"")+
+    boardUI());
 }
 function formatTime(deadline) {
   if (!deadline) return 45;
