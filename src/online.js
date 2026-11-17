@@ -1003,12 +1003,52 @@ async function submitPartyAnswer(answer) {
     await refreshPartyRoom(true);
   }finally{busy=false;}
 }
+// A guest is a valid temporary Auth identity with a server-verified JWT,
+ // not an unsecured nickname header. No anonymous account is minted until
+ // somebody explicitly requests CREATE or JOIN with valid input.
+async function ensureGuestRoomIdentity(nickname) {
+  const clean=normalizedGuestNickname(nickname);
+  if(state.user){
+    if(isTemporaryGuest(state.user) && state.profile?.name!==clean){
+      const result=await invoke("profile",{method:"PATCH",payload:{name:clean}});
+      state.profile={...(state.profile||{}),name:result.name};
+    }
+    return state.user;
+  }
+  guestEntering=true;
+  try{
+    const {data,error}=await supabase.auth.signInAnonymously();
+    if(error)throw new Error(guestAuthMessage(error));
+    if(!data?.user||!isTemporaryGuest(data.user))
+      throw new Error("The temporary guest identity was not verified. Try again.");
+    state.user=data.user;
+    const result=await invoke("profile",{method:"PATCH",payload:{name:clean}});
+    state.profile={name:result.name,stats:{}};
+    state.error=null;
+    return data.user;
+  }finally{guestEntering=false;}
+}
 async function handleClick(event) {
   const button=event.target.closest("[data-online]");
   if (!button || !container.contains(button)) return;
   const action=button.dataset.online;
   if (action==="back") {stopTimer();stopPartyPolling();authSubscription?.unsubscribe();authSubscription=null;container.onclick=null;container.onsubmit=null;window.removeEventListener("keydown",onKeydown);onBack();return;}
   if (busy) return;
+  if(action==="guest-exit"){
+    if(!isTemporaryGuest(state.user))return;
+    if(!window.confirm("End this guest session? You will lose access to its private history unless you linked and verified an account. You can keep playing without signing out."))return;
+    busy=true;
+    try{
+      stopPartyPolling();clearRoomRecovery();
+      const {error}=await supabase.auth.signOut();
+      if(error)throw error;
+      state.message="Guest session ended. You can start again with a nickname.";
+      state.user=null;state.profile=null;state.partyId=null;state.partyRoom=null;
+      showMenu();
+    }catch(error){state.message=error.message;showMenu();}
+    finally{busy=false;}
+    return;
+  }
   if (action==="crowd-consent") {
     busy=true;
     try {
@@ -1312,6 +1352,55 @@ async function handleSubmit(event) {
   if (!form) return;
   event.preventDefault();
   if (busy) return;
+  if(form.dataset.form==="guest-party"){
+    if(state.user)return;
+    // Validate nickname AND the intended room code before creating the
+    // temporary Supabase user. A bare invite link never creates a session.
+    let nickname,code;
+    const intent=event.submitter?.value==="create"?"create":"join";
+    try{
+      nickname=normalizedGuestNickname(form.querySelector("#guest-room-nickname")?.value);
+      code=String(form.querySelector("#guest-room-code")?.value||"").trim().toLowerCase();
+      if(intent==="join"&&!/^[a-f0-9]{12}$/.test(code))
+        throw new Error("Paste the 12-character invite code to join, or choose CREATE PRIVATE ROOM.");
+    }catch(error){
+      state.error=error.message;showMenu();return;
+    }
+    busy=true;
+    showBusy(intent==="join"?"Joining your friend's room…":"Preparing your game night…");
+    try{
+      await ensureGuestRoomIdentity(nickname);
+      const response=intent==="join"?
+        await invoke("party-join",{method:"POST",payload:{code}}):
+        await invoke("party-create",{method:"POST",payload:{}});
+      state.pendingRoomCode=null;
+      if(intent==="join"){
+        const link=new URL(window.location.href);
+        link.searchParams.delete("room");
+        window.history.replaceState(null,"",link.pathname+link.search+link.hash);
+      }
+      await enterPartyRoom(response.room.id);
+    }catch(error){
+      state.error=guestAuthMessage(error);showMenu();
+    }finally{busy=false;}
+    return;
+  }
+  if(form.dataset.form==="guest-upgrade"){
+    if(!isTemporaryGuest(state.user))return;
+    const email=String(form.querySelector("#guest-upgrade-email")?.value||"").trim();
+    if(!email)return;
+    busy=true;
+    try{
+      const {error}=await supabase.auth.updateUser({email});
+      if(error)throw error;
+      state.message="Check your email and follow the verification link to keep this profile. Do not sign out before the link is confirmed.";
+      state.error=null;
+    }catch(error){
+      state.error="Could not link the email: "+error.message+
+        ". The owner may need to enable identity linking in Supabase Auth. Your current guest session is still intact.";
+    }finally{busy=false;showMenu();}
+    return;
+  }
   if (form.dataset.form==="answer") return submitAnswer(container.querySelector("#online-answer")?.value?.trim()||null);
   if (form.dataset.form==="party-answer")
     return submitPartyAnswer(container.querySelector("#online-party-answer")?.value?.trim()||null);
@@ -1482,6 +1571,7 @@ export async function mountOnline(element, back) {
         state.activeLeague=null;state.error=null;
         if(container.isConnected)showMenu();
       } else if(event==="SIGNED_IN"&&session?.user&&!state.user){
+        if(guestEntering){state.user=session.user;return;}
         // Defer network work outside the auth-state callback to avoid
         // blocking the auth client's internal session processing.
         state.user=session.user;
@@ -1490,6 +1580,12 @@ export async function mountOnline(element, back) {
           await reloadPartyCompetition().catch(()=>{});
           if(container.isConnected)showMenu();
         }).catch(error=>{state.error=error.message;showMenu();});
+      }
+      if(event==="USER_UPDATED"&&session?.user){
+        state.user=session.user;
+        if(state.view==="menu"){
+          Promise.resolve().then(()=>reloadProfile()).then(()=>showMenu()).catch(()=>showMenu());
+        }
       }
     });
     authSubscription=subscription;
