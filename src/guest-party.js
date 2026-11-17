@@ -12,8 +12,11 @@ export function normalizedGuestNickname(input) {
   return nickname;
 }
 export function isTemporaryGuest(user) {
-  return Boolean(user && (user.is_anonymous===true ||
-    user.app_metadata?.provider==="anonymous"));
+  // Supabase sets is_anonymous=false after a verified identity is linked.
+  // Prefer that explicit flag; older Auth payloads may need a provider fallback.
+  if(!user)return false;
+  if(typeof user.is_anonymous==="boolean")return user.is_anonymous;
+  return user.app_metadata?.provider==="anonymous";
 }
 export function guestAuthMessage(error) {
   const value=String(error?.message||"");
