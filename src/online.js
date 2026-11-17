@@ -1,4 +1,5 @@
 import {rarityTier} from "./answer-intelligence.js";
+import {normalizedGuestNickname,isTemporaryGuest,guestAuthMessage} from "./guest-party.js";
 import {ROOM_THEMES,ROOM_TIMERS,ROOM_SERIES,privateGameHighlights,
   privateScoreShareText,earnedPrivateBadges} from "./game-night-insights.js";
 import {readLeagueInvite,leagueInviteLink,removeLeagueInvite,officialShareMessage,comparisonLabel} from "./community.js";
@@ -12,6 +13,7 @@ const escape = value => String(value ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;",
 const number = value => Number(value ?? 0).toLocaleString("en-US");
 let container, onBack, supabase, state, timer, busy = false;
 let authSubscription=null;
+let guestEntering=false;
 let partyPolling=null,partyTicker=null,partyRefreshing=false;
 function saveRoomRecovery() {
   if(!state?.user?.id||!state.partyId)return;
@@ -94,7 +96,7 @@ async function reloadProfile() {
   state.profile = result;
 }
 async function reloadLeagues() {
-  if(!state.user){state.leagues=[];return;}
+  if(!state.user||isTemporaryGuest(state.user)){state.leagues=[];return;}
   const response=await invoke("leagues");
   state.leagues=Array.isArray(response.leagues)?response.leagues:[];
 }
@@ -141,7 +143,7 @@ function boardUI() {
       'Unlimited practice never affects these rankings.</p></div>';
 }
 function profilePanel() {
-  if (!state.profile) return "";
+  if (!state.profile||isTemporaryGuest(state.user)) return "";
   const s=state.profile.stats || {};
   return '<div class="card online-profile"><div class="online-profile-head"><div><span class="eyebrow">YOUR ACCOUNT</span>'+
      '<h3>'+escape(state.profile.name||"Player")+'</h3></div>'+
@@ -307,6 +309,7 @@ function showRivalry() {
 
 
 function partyCompetitionPanel() {
+  if(isTemporaryGuest(state.user))return "";
   // Completed member-only history must remain visible when an independent
   // exhibition catalog is temporarily offline or awaiting new content.
   if(!state.user)return "";
@@ -370,7 +373,7 @@ function partyCompetitionPanel() {
     '</section>';
 }
 async function reloadPartyCompetition() {
-  if(!state.user)return;
+  if(!state.user||isTemporaryGuest(state.user))return;
   const [history,season,allTime,mastery]=await Promise.all([
     invoke("party-history"),
     invoke("party-season",{query:"period="+encodeURIComponent(state.partyPeriod||"month")}),
@@ -383,16 +386,27 @@ async function reloadPartyCompetition() {
   state.partyMastery=mastery.mastery&&typeof mastery.mastery==="object"?mastery.mastery:null;
 }
 function partyRoomPanel() {
-  if(!state.user)return '<div class="card online-party-panel"><div class="eyebrow">PRIVATE ROOM COMPETITION</div>'+
-    '<h3>PLAY FROM SEPARATE DEVICES.</h3>'+
-    '<p class="small muted">Sign in to join a private 2–4 player seven-question match with synchronized server timers.</p></div>';
   if(state.capabilities?.partyReady!==true)return '<div class="card online-party-panel">'+
     '<div class="eyebrow">PRIVATE ROOM COMPETITION · NOT ACTIVATED</div>'+
-    '<h3>SERVER-VERIFIED MULTIPLAYER IS READY FOR SETUP.</h3>'+
-    '<p class="small muted">A configured Supabase project, the separate sourced exhibition question bank, and migrations through 020 are required. Public guest matches remain playable.</p></div>';
+    '<h3>FRIEND MATCHES ARE TEMPORARILY UNAVAILABLE.</h3>'+
+    '<p class="small muted">The separately reviewed exhibition question bank and protected multiplayer API must be ready. The free daily and local Pass & Play still work.</p></div>';
+  if(!state.user)return '<section class="card online-party-panel guest-room-entry">'+
+    '<div class="eyebrow">FRIENDS · NO ACCOUNT NEEDED</div>'+
+    '<h3>'+(state.pendingRoomCode?'YOUR FRIEND IS WAITING.':'YOUR GAME NIGHT STARTS HERE.')+'</h3>'+
+    '<p class="small muted">Pick a nickname. No email, password or sign-up. The server keeps every answer and timer synchronized. Invites never join you automatically.</p>'+
+    '<form data-form="guest-party" class="guest-room-form">'+
+      '<label for="guest-room-nickname">YOUR NICKNAME</label>'+
+      '<input class="answer-input" id="guest-room-nickname" name="nickname" maxlength="24" minlength="2" autocomplete="nickname" required placeholder="e.g. Brian">'+
+      '<label for="guest-room-code">FRIEND INVITE CODE (OPTIONAL)</label>'+
+      '<input class="answer-input" id="guest-room-code" name="code" maxlength="12" minlength="12" pattern="[A-Fa-f0-9]{12}" placeholder="12-character invite code" value="'+escape(state.pendingRoomCode||"")+'">'+
+      '<div class="guest-room-actions">'+
+        '<button class="btn btn-primary" type="submit" value="join" name="guest-intent">JOIN FRIEND ↗</button>'+
+        '<button class="btn btn-teal" type="submit" value="create" name="guest-intent">CREATE PRIVATE ROOM ↗</button>'+
+      '</div></form>'+
+    '<p class="tiny muted">Your temporary identity stays on this browser while its session exists. You can add a verified account afterward to preserve your history.</p></section>';
   return '<section class="card online-party-panel"><div class="eyebrow">NEW / PRIVATE SHOWDOWN</div>'+
     '<h3>FRIENDS. SEPARATE SCREENS. SAME CLOCK.</h3>'+
-    '<p class="small muted">2–4 signed-in players answer seven shared questions. Every round lasts 45 seconds from a single server timer. No scores until the match is over. Unranked, free.</p>'+
+    '<p class="small muted">2–4 players with server-verified room sessions answer seven shared questions. Choose the timer and championship length in the lobby. No email required for guests. Scores stay sealed until the final reveal.</p>'+
     (state.partyId?act("party-reopen","REJOIN MY PRIVATE ROOM ↗","btn-teal"):'')+
     act("party-create","CREATE A PRIVATE ROOM ↗","btn-primary")+
     '<form data-form="party-join"><label class="answer-label" for="online-party-code">INVITE CODE</label>'+
