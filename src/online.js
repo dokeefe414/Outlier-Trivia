@@ -497,7 +497,7 @@ function showPartyRoom() {
     notice(state.partyError||"Reconnecting… Your room is still saved.","warning"):"";
   const header='<div class="online-party-head"><span class="eyebrow">OUTLIER · SERVER-VERIFIED PRIVATE SHOWDOWN</span>'+
     '<h2>THE INNER CIRCLE.</h2>'+
-    '<p>Same seven questions for everyone. Your account is verified; individual scores stay sealed until the clock closes.</p></div>';
+    '<p>Same seven questions for everyone. Your temporary room identity is verified by the server; individual scores stay sealed until the clock closes.</p></div>';
   const people=(r.players||[]).map((m,i)=>'<div class="online-party-member"><span class="party-portrait portrait-'+(i%8)+'">'+
     escape(String(m.name||"P").slice(0,1).toUpperCase())+'</span>'+
     '<strong>'+escape(m.name||"Player")+'</strong>'+
