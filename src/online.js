@@ -400,8 +400,11 @@ function partyRoomPanel() {
       '<label for="guest-room-code">FRIEND INVITE CODE (OPTIONAL)</label>'+
       '<input class="answer-input" id="guest-room-code" name="code" maxlength="12" minlength="12" pattern="[A-Fa-f0-9]{12}" placeholder="12-character invite code" value="'+escape(state.pendingRoomCode||"")+'">'+
       '<div class="guest-room-actions">'+
-        '<button class="btn btn-primary" type="submit" value="join" name="guest-intent">JOIN FRIEND ↗</button>'+
-        '<button class="btn btn-teal" type="submit" value="create" name="guest-intent">CREATE PRIVATE ROOM ↗</button>'+
+        (state.pendingRoomCode?
+          '<button class="btn btn-primary" type="submit" value="join" name="guest-intent">JOIN FRIEND ↗</button>'+
+          '<button class="btn btn-teal" type="submit" value="create" name="guest-intent">CREATE PRIVATE ROOM ↗</button>':
+          '<button class="btn btn-primary" type="submit" value="create" name="guest-intent">CREATE PRIVATE ROOM ↗</button>'+
+          '<button class="btn btn-teal" type="submit" value="join" name="guest-intent">JOIN FRIEND ↗</button>')+
       '</div></form>'+
     '<p class="tiny muted">Your temporary identity stays on this browser while its session exists. You can add a verified account afterward to preserve your history.</p></section>';
   return '<section class="card online-party-panel"><div class="eyebrow">NEW / PRIVATE SHOWDOWN</div>'+
