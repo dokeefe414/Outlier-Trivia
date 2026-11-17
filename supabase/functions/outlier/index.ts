@@ -4,7 +4,7 @@
 // route verifies the Supabase Auth access token against /auth/v1/user.
 // Service role and Stripe secrets NEVER leave this Edge Function.
 type Json = Record<string, unknown>;
-type User = { id: string; email?: string };
+type User = { id: string; email?: string; isGuest: boolean };
 
 const projectUrl = Deno.env.get("SUPABASE_URL") ?? "";
 const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -145,7 +145,7 @@ async function currentUser(req: Request): Promise<User> {
   if (!response.ok) throw new ApiError(401,"invalid_or_expired_session");
   const user = await response.json();
   if (!user?.id || typeof user.id !== "string") throw new ApiError(401,"login_required");
-  return {id:user.id,email:user.email};
+  return {id:user.id,email:user.email,isGuest:user.is_anonymous===true};
 }
 async function bodyJson(req: Request): Promise<Json> {
   const length = Number(req.headers.get("content-length") || 0);
@@ -359,6 +359,18 @@ async function handle(req: Request): Promise<Response> {
       return json({board,players:list},200,origin);
     }
     const user = await currentUser(req);
+    // Anonymous Auth sessions are valid room identities, NOT verified accounts.
+    // They must never be able to claim ranked daily results, payments, public
+    // account progression, reviews, friend leagues or crowd research opt-ins.
+    // This decision uses the server-verified GoTrue is_anonymous flag, never
+    // user-controlled metadata, nicknames, headers, or client-side claims.
+    const guestActions=new Set([
+      "profile","party-create","party-join","party-config","party-target",
+      "party-theme","party-start","party-state","party-ready","party-leave",
+      "party-rematch","party-answer"
+    ]);
+    if(user.isGuest && !guestActions.has(action))
+      throw new ApiError(403,"account_required_for_this_feature");
     const mutationBudget: Record<string,string> = {
       "profile":"name","start":"start","answer":"answer","advance":"advance",
       "league-create":"league-create","league-join":"league-join",
