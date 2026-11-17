@@ -396,7 +396,7 @@ function partyRoomPanel() {
     '<p class="small muted">Pick a nickname. No email, password or sign-up. The server keeps every answer and timer synchronized. Invites never join you automatically.</p>'+
     '<form data-form="guest-party" class="guest-room-form">'+
       '<label for="guest-room-nickname">YOUR NICKNAME</label>'+
-      '<input class="answer-input" id="guest-room-nickname" name="nickname" maxlength="24" minlength="2" autocomplete="nickname" required placeholder="e.g. Brian">'+
+      '<input class="answer-input" id="guest-room-nickname" name="nickname" maxlength="24" minlength="2" autocomplete="nickname" required placeholder="e.g. Brian" value="'+escape(state.guestNicknameDraft||"")+'">'+
       '<label for="guest-room-code">FRIEND INVITE CODE (OPTIONAL)</label>'+
       '<input class="answer-input" id="guest-room-code" name="code" maxlength="12" minlength="12" pattern="[A-Fa-f0-9]{12}" placeholder="12-character invite code" value="'+escape(state.pendingRoomCode||"")+'">'+
       '<div class="guest-room-actions">'+
@@ -1360,9 +1360,11 @@ async function handleSubmit(event) {
     // Validate nickname AND the intended room code before creating the
     // temporary Supabase user. A bare invite link never creates a session.
     let nickname,code;
+    state.guestNicknameDraft=String(form.querySelector("#guest-room-nickname")?.value||"").slice(0,24);
     const intent=event.submitter?.value==="create"?"create":"join";
     try{
       nickname=normalizedGuestNickname(form.querySelector("#guest-room-nickname")?.value);
+      state.guestNicknameDraft=nickname;
       code=String(form.querySelector("#guest-room-code")?.value||"").trim().toLowerCase();
       if(intent==="join"&&!/^[a-f0-9]{12}$/.test(code))
         throw new Error("Paste the 12-character invite code to join, or choose CREATE PRIVATE ROOM.");
@@ -1383,6 +1385,7 @@ async function handleSubmit(event) {
         window.history.replaceState(null,"",link.pathname+link.search+link.hash);
       }
       await enterPartyRoom(response.room.id);
+      state.guestNicknameDraft="";
     }catch(error){
       state.error=guestAuthMessage(error);showMenu();
     }finally{busy=false;}
@@ -1531,7 +1534,7 @@ export async function mountOnline(element, back) {
     partyReceivedAt:0,partySignature:null,partyRevealStep:-1,
     partyOffline:false,partyFailureCount:0,partyLastFailureAt:0,partyError:null,
     partyHistory:[],partySeason:[],partyLifetime:[],partyPeriod:"month",partyRivalry:null,
-    error:null,message:null,sent:false};
+    error:null,message:null,sent:false,guestNicknameDraft:""};
   showBusy();
   if (!ONLINE_ENABLED) {
     setView('<div class="card online-ready"><h2>Online mode is not connected yet.</h2>'+
